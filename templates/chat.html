@@ -1,301 +1,260 @@
+<!-- templates/chat.html -->
 {% extends "base.html" %}
 
 {% block content %}
-<div class="telegram-layout">
-    <!-- Sidebar -->
-    <div class="sidebar" style="display: none;">
-        <div class="sidebar-header">
-            <div class="user-info">
-                <strong>{{ current_user }}</strong>
+<div class="mobile-app">
+    <!-- Header -->
+    <div class="header safe-area-top">
+        <button class="header-button ripple" onclick="goBack()">←</button>
+        <div class="chat-user-info" style="flex: 1; display: flex; align-items: center; gap: 12px;">
+            <div class="chat-avatar" style="width: 40px; height: 40px; font-size: 16px;">
+                {{ receiver.username[0]|upper }}
             </div>
-            <div class="header-actions">
-                <a href="/search" class="icon-btn">🔍</a>
+            <div>
+                <div class="chat-name" style="font-size: 16px; font-weight: 500;">{{ receiver.username }}</div>
+                <div class="chat-status" style="font-size: 13px; color: var(--online-status);">online</div>
             </div>
         </div>
-        
-        <div class="search-box">
-            <input type="text" placeholder="Search" class="search-input" onclick="location.href='/search'">
-        </div>
-        
-        <div class="chats-list">
-            <!-- Chat list would be here -->
-        </div>
-        
-        <div class="bottom-nav">
-            <a href="/chat_list" class="nav-item">💬 Chats</a>
-            <a href="/users" class="nav-item">👥 Contacts</a>
-        </div>
+        <button class="header-button ripple">⋮</button>
     </div>
-    
-    <!-- Chat Area -->
-    <div class="chat-area">
-        <div class="chat-header">
-            <a href="/chat_list" class="back-btn">←</a>
-            <div class="chat-user-info">
-                <div class="chat-avatar small">
-                    {{ receiver.username[0]|upper }}
-                </div>
-                <div>
-                    <div class="chat-name">{{ receiver.username }}</div>
-                    <div class="chat-status">online</div>
-                </div>
-            </div>
-        </div>
-        
+
+    <!-- Messages -->
+    <div class="chat-view">
         <div class="messages-container" id="messagesContainer">
-            {% for message in messages %}
-            <div class="message {% if message.sender.username == current_user %}outgoing{% else %}incoming{% endif %}">
-                <div class="message-bubble">
-                    <div class="message-text">{{ message.content }}</div>
-                    <div class="message-time">
-                        {{ message.timestamp.strftime('%H:%M') }}
-                        {% if message.sender.username == current_user %}
-                            <span class="message-status">
-                                {% if message.is_read %}✓✓{% else %}✓{% endif %}
-                            </span>
-                        {% endif %}
-                    </div>
-                </div>
+            <div class="loading">
+                <div class="spinner"></div>
             </div>
-            {% else %}
-            <div class="no-messages">
-                <p>No messages yet</p>
-                <p>Send a message to start the conversation!</p>
-            </div>
-            {% endfor %}
         </div>
-        
-        <div class="message-input-container">
-            <form method="POST" class="message-form">
-                <div class="input-wrapper">
-                    <input type="text" name="message" placeholder="Message" class="message-input" required autocomplete="off">
-                    <button type="submit" class="send-btn">➤</button>
-                </div>
+
+        <!-- Input Area -->
+        <div class="input-area">
+            <form class="input-form" id="messageForm">
+                <textarea class="message-input" placeholder="Message" id="messageInput"
+                         rows="1" required></textarea>
+                <button type="submit" class="send-button ripple" id="sendButton">➤</button>
             </form>
         </div>
     </div>
 </div>
+{% endblock %}
 
-<style>
-.telegram-layout {
-    display: flex;
-    height: 100vh;
-    background: white;
-}
-.sidebar {
-    width: 350px;
-    border-right: 1px solid #e1e5e9;
-    display: flex;
-    flex-direction: column;
-}
-.sidebar-header {
-    padding: 15px;
-    border-bottom: 1px solid #e1e5e9;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: #0088cc;
-    color: white;
-}
-.user-info {
-    flex: 1;
-    font-weight: 500;
-}
-.header-actions {
-    display: flex;
-    gap: 10px;
-}
-.icon-btn {
-    padding: 8px;
-    border-radius: 6px;
-    text-decoration: none;
-    color: white;
-}
-.icon-btn:hover {
-    background: rgba(255,255,255,0.1);
-}
-.search-box {
-    padding: 15px;
-    border-bottom: 1px solid #e1e5e9;
-    background: white;
-}
-.search-input {
-    width: 100%;
-    padding: 10px 15px;
-    border: none;
-    border-radius: 20px;
-    background: #f0f2f5;
-    font-size: 14px;
-}
-.chats-list {
-    flex: 1;
-    overflow-y: auto;
-    background: white;
-}
-.chat-item {
-    display: flex;
-    padding: 12px 15px;
-    border-bottom: 1px solid #f0f2f5;
-    cursor: pointer;
-    align-items: center;
-}
-.chat-item:hover {
-    background: #f8f9fa;
-}
-.chat-avatar {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    background: #0088cc;
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    font-size: 18px;
-    margin-right: 15px;
-}
-.bottom-nav {
-    display: flex;
-    border-top: 1px solid #e1e5e9;
-    padding: 10px;
-    background: white;
-}
-.nav-item {
-    flex: 1;
-    text-align: center;
-    padding: 12px;
-    text-decoration: none;
-    color: #666;
-    border-radius: 8px;
-}
-.chat-area {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    background: #e5ddd5;
-    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" opacity="0.05"><path fill="%230088cc" d="M0 0h100v100H0z"/></svg>');
-}
-.chat-header {
-    background: white;
-    padding: 15px;
-    border-bottom: 1px solid #e1e5e9;
-    display: flex;
-    align-items: center;
-    gap: 15px;
-}
-.back-btn {
-    text-decoration: none;
-    color: #0088cc;
-    font-size: 18px;
-    padding: 5px;
-}
-.chat-user-info {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-.chat-avatar.small {
-    width: 40px;
-    height: 40px;
-    font-size: 16px;
-}
-.chat-status {
-    font-size: 13px;
-    color: #00a884;
-}
-.messages-container {
-    flex: 1;
-    padding: 20px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-.message {
-    display: flex;
-}
-.message.incoming {
-    justify-content: flex-start;
-}
-.message.outgoing {
-    justify-content: flex-end;
-}
-.message-bubble {
-    max-width: 70%;
-    padding: 12px 16px;
-    border-radius: 12px;
-    position: relative;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-}
-.message.incoming .message-bubble {
-    background: white;
-    border-bottom-left-radius: 4px;
-}
-.message.outgoing .message-bubble {
-    background: #e3f2fd;
-    border-bottom-right-radius: 4px;
-}
-.message-text {
-    margin-bottom: 4px;
-    line-height: 1.4;
-}
-.message-time {
-    font-size: 12px;
-    color: #999;
-    text-align: right;
-}
-.message-status {
-    margin-left: 4px;
-}
-.no-messages {
-    text-align: center;
-    color: #999;
-    margin-top: 50px;
-}
-.message-input-container {
-    background: white;
-    padding: 15px;
-    border-top: 1px solid #e1e5e9;
-}
-.message-form {
-    display: flex;
-}
-.input-wrapper {
-    display: flex;
-    flex: 1;
-    background: #f0f2f5;
-    border-radius: 25px;
-    padding: 5px;
-}
-.message-input {
-    flex: 1;
-    border: none;
-    background: transparent;
-    padding: 10px 15px;
-    font-size: 16px;
-    outline: none;
-}
-.send-btn {
-    background: #0088cc;
-    color: white;
-    border: none;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    cursor: pointer;
-    font-size: 16px;
-}
-</style>
-
+{% block scripts %}
+<!-- In the scripts section of templates/chat.html -->
 <script>
-// Auto-scroll to bottom
-const messagesContainer = document.getElementById('messagesContainer');
-messagesContainer.scrollTop = messagesContainer.scrollHeight;
+const receiverId = {{ receiver.id }};
+let isSending = false;
+let lastMessageId = 0;
 
-// Auto-refresh every 3 seconds
-setTimeout(() => {
-    window.location.reload();
-}, 3000);
+function goBack() {
+    window.history.back();
+}
+
+// Load messages when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadMessages();
+    setupMessageInput();
+});
+
+async function loadMessages() {
+    try {
+        const response = await fetch(`/api/messages/${receiverId}`);
+        const data = await response.json();
+
+        const container = document.getElementById('messagesContainer');
+
+        if (data.messages && data.messages.length > 0) {
+            // Get current last message ID to check if we have new messages
+            const currentLastId = data.messages[data.messages.length - 1].id;
+
+            if (currentLastId > lastMessageId) {
+                // Only update if we have new messages
+                container.innerHTML = '';
+                data.messages.forEach(message => {
+                    const messageDiv = createMessageElement(message, false); // No animation for existing messages
+                    container.appendChild(messageDiv);
+                });
+                scrollToBottom();
+                lastMessageId = currentLastId;
+            }
+        } else {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">💬</div>
+                    <div class="empty-state-text">No messages yet</div>
+                    <div class="empty-state-subtext">Send a message to start the conversation!</div>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Error loading messages:', error);
+    }
+}
+
+function createMessageElement(message, animate = false) {
+    const div = document.createElement('div');
+    div.className = `message ${message.is_own ? 'outgoing' : 'incoming'}`;
+    div.dataset.messageId = message.id;
+
+    if (animate) {
+        div.classList.add('bounce-in');
+    }
+
+    div.innerHTML = `
+        <div class="message-bubble">
+            <div class="message-text">${escapeHtml(message.content)}</div>
+            <div class="message-time">
+                ${message.timestamp}
+                ${message.is_own ? `<span class="message-status">${message.is_read ? '✓✓' : '✓'}</span>` : ''}
+            </div>
+        </div>
+    `;
+
+    return div;
+}
+
+function setupMessageInput() {
+    const input = document.getElementById('messageInput');
+    const form = document.getElementById('messageForm');
+    const container = document.getElementById('messagesContainer');
+
+    // Auto-resize textarea
+    input.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+    });
+
+    // Form submission
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        if (isSending) return;
+
+        const content = input.value.trim();
+        if (!content) return;
+
+        isSending = true;
+
+        // Create optimistic UI update
+        const tempId = 'temp-' + Date.now();
+        const tempMessage = {
+            id: tempId,
+            content: content,
+            sender_name: '{{ current_user }}',
+            timestamp: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+            is_own: true,
+            is_read: false
+        };
+
+        // Add message immediately to UI
+        addMessageToUI(tempMessage, true);
+        input.value = '';
+        input.style.height = 'auto';
+
+        // Then send to server
+        await sendMessage(content, tempId);
+        isSending = false;
+    });
+}
+
+async function sendMessage(content, tempId) {
+    try {
+        const response = await fetch('/api/send_message', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                receiver_id: receiverId,
+                content: content
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Remove temporary message and add the real one
+            removeTempMessage(tempId);
+            addMessageToUI(data.message, true);
+            lastMessageId = data.message.id;
+        } else {
+            // Show error and keep temporary message
+            showMessageError(tempId);
+        }
+    } catch (error) {
+        console.error('Error sending message:', error);
+        showMessageError(tempId);
+    }
+}
+
+function addMessageToUI(message, animate = false) {
+    const container = document.getElementById('messagesContainer');
+
+    // Remove empty state if it exists
+    const emptyState = container.querySelector('.empty-state');
+    if (emptyState) {
+        emptyState.remove();
+    }
+
+    const messageDiv = createMessageElement(message, animate);
+    container.appendChild(messageDiv);
+    scrollToBottom();
+}
+
+function removeTempMessage(tempId) {
+    const tempMessage = document.querySelector(`[data-message-id="${tempId}"]`);
+    if (tempMessage) {
+        tempMessage.remove();
+    }
+}
+
+function showMessageError(tempId) {
+    const tempMessage = document.querySelector(`[data-message-id="${tempId}"]`);
+    if (tempMessage) {
+        tempMessage.classList.add('shake');
+        const bubble = tempMessage.querySelector('.message-bubble');
+        bubble.style.background = '#ffebee';
+        bubble.style.color = '#c62828';
+
+        // Restore after 2 seconds
+        setTimeout(() => {
+            tempMessage.classList.remove('shake');
+            bubble.style.background = '';
+            bubble.style.color = '';
+        }, 2000);
+    }
+}
+
+function scrollToBottom() {
+    const container = document.getElementById('messagesContainer');
+    setTimeout(() => {
+        container.scrollTop = container.scrollHeight;
+    }, 100);
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Poll for new messages (only load unseen ones)
+setInterval(async () => {
+    try {
+        const response = await fetch(`/api/messages/${receiverId}?after=${lastMessageId}`);
+        const data = await response.json();
+
+        if (data.messages && data.messages.length > 0) {
+            data.messages.forEach(message => {
+                // Only add messages we haven't seen yet
+                if (message.id > lastMessageId) {
+                    addMessageToUI(message, true); // Animate new incoming messages
+                    lastMessageId = message.id;
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error polling messages:', error);
+    }
+}, 2000);
 </script>
 {% endblock %}

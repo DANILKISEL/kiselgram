@@ -1,227 +1,109 @@
+<!-- templates/chat_list.html -->
 {% extends "base.html" %}
 
 {% block content %}
-<div class="telegram-layout">
-    <!-- Sidebar -->
-    <div class="sidebar">
-        <div class="sidebar-header">
-            <div class="user-info">
-                <strong>{{ current_user }}</strong>
-            </div>
-            <div class="header-actions">
-                <a href="/search" class="icon-btn">🔍</a>
-            </div>
-        </div>
-        
-        <div class="search-box">
-            <input type="text" placeholder="Search" class="search-input" onclick="location.href='/search'">
-        </div>
-        
-        <div class="chats-list">
-            {% if chats %}
-                {% for chat in chats %}
-                <div class="chat-item {% if chat.unread_count > 0 %}unread{% endif %}" 
-                     onclick="location.href='/chat/{{ chat.user.id }}'">
-                    <div class="chat-avatar">
-                        {{ chat.user.username[0]|upper }}
-                    </div>
-                    <div class="chat-info">
-                        <div class="chat-header">
-                            <span class="chat-name">{{ chat.user.username }}</span>
-                            <span class="chat-time">{{ chat.timestamp }}</span>
-                        </div>
-                        <div class="chat-preview">
-                            {% if chat.last_message %}
-                                {{ chat.last_message.content[:50] }}{% if chat.last_message.content|length > 50 %}...{% endif %}
-                            {% else %}
-                                No messages yet
-                            {% endif %}
-                        </div>
-                    </div>
-                    {% if chat.unread_count > 0 %}
-                    <div class="unread-badge">{{ chat.unread_count }}</div>
-                    {% endif %}
-                </div>
-                {% endfor %}
-            {% else %}
-            <div class="no-chats">
-                <p>No chats yet</p>
-                <p style="font-size: 14px; color: #999; margin-top: 10px;">Start a conversation with someone!</p>
-            </div>
-            {% endif %}
-        </div>
-        
-        <div class="bottom-nav">
-            <a href="/chat_list" class="nav-item active">💬 Chats</a>
-            <a href="/users" class="nav-item">👥 Contacts</a>
-        </div>
+<div class="mobile-app">
+    <!-- Header -->
+    <div class="header safe-area-top">
+        <button class="header-button ripple" onclick="toggleSettings()">☰</button>
+        <div class="header-title">Chats</div>
+        <button class="header-button ripple" onclick="startNewChat()">✏️</button>
     </div>
-    
-    <!-- Main Content -->
-    <div class="main-content">
-        <div class="welcome-screen">
-            <div class="welcome-icon">💬</div>
-            <h2>Welcome to Kiselgram</h2>
-            <p>Select a chat to start messaging</p>
+
+    <!-- Search -->
+    <div class="search-bar">
+        <input type="text" placeholder="Search" class="search-input" onfocus="openSearch()">
+    </div>
+
+    <!-- Chat List -->
+    <div class="chat-list" id="chatList">
+        {% if chats %}
+            {% for chat in chats %}
+            <div class="chat-item ripple {% if chat.unread_count > 0 %}unread{% endif %}" 
+                 onclick="openChat({{ chat.user.id }})">
+                <div class="chat-avatar {% if chat.unread_count > 0 %}pulse{% endif %}">
+                    {{ chat.user.username[0]|upper }}
+                </div>
+                <div class="chat-info">
+                    <div class="chat-header">
+                        <span class="chat-name">{{ chat.user.username }}</span>
+                        <span class="chat-time">{{ chat.timestamp }}</span>
+                    </div>
+                    <div class="chat-preview">
+                        {% if chat.last_message %}
+                            {{ chat.last_message.content[:50] }}{% if chat.last_message.content|length > 50 %}...{% endif %}
+                        {% else %}
+                            No messages yet
+                        {% endif %}
+                    </div>
+                </div>
+                {% if chat.unread_count > 0 %}
+                <div class="unread-badge">{{ chat.unread_count }}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">💬</div>
+            <div class="empty-state-text">No chats yet</div>
+            <div class="empty-state-subtext">Start a conversation with someone!</div>
         </div>
+        {% endif %}
+    </div>
+
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav safe-area-bottom">
+        <a href="/chat_list" class="nav-item active">
+            <div class="nav-icon">💬</div>
+            <div class="nav-label">Chats</div>
+        </a>
+        <a href="/users" class="nav-item">
+            <div class="nav-icon">👥</div>
+            <div class="nav-label">Contacts</div>
+        </a>
+        <a href="/settings" class="nav-item">
+            <div class="nav-icon">⚙️</div>
+            <div class="nav-label">Settings</div>
+        </a>
     </div>
 </div>
+{% endblock %}
 
-<style>
-.telegram-layout {
-    display: flex;
-    height: 100vh;
-    background: white;
+{% block scripts %}
+<script>
+function openChat(userId) {
+    window.location.href = `/chat/${userId}`;
 }
-.sidebar {
-    width: 350px;
-    border-right: 1px solid #e1e5e9;
-    display: flex;
-    flex-direction: column;
+
+function toggleSettings() {
+    // Implement settings menu
+    console.log('Settings toggle');
 }
-.sidebar-header {
-    padding: 15px;
-    border-bottom: 1px solid #e1e5e9;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: #0088cc;
-    color: white;
+
+function startNewChat() {
+    window.location.href = '/users';
 }
-.user-info {
-    flex: 1;
-    font-weight: 500;
+
+function openSearch() {
+    window.location.href = '/search';
 }
-.header-actions {
-    display: flex;
-    gap: 10px;
+
+// Update chat list every 5 seconds
+setInterval(updateChatList, 5000);
+
+async function updateChatList() {
+    try {
+        const response = await fetch('/api/chat_list');
+        const data = await response.json();
+        
+        if (data.chats && data.chats.length > 0) {
+            // Update chat list dynamically
+            const chatList = document.getElementById('chatList');
+            // Implementation for dynamic updates
+        }
+    } catch (error) {
+        console.error('Error updating chat list:', error);
+    }
 }
-.icon-btn {
-    padding: 8px;
-    border-radius: 6px;
-    text-decoration: none;
-    color: white;
-}
-.icon-btn:hover {
-    background: rgba(255,255,255,0.1);
-}
-.search-box {
-    padding: 15px;
-    border-bottom: 1px solid #e1e5e9;
-    background: white;
-}
-.search-input {
-    width: 100%;
-    padding: 10px 15px;
-    border: none;
-    border-radius: 20px;
-    background: #f0f2f5;
-    font-size: 14px;
-}
-.chats-list {
-    flex: 1;
-    overflow-y: auto;
-    background: white;
-}
-.chat-item {
-    display: flex;
-    padding: 12px 15px;
-    border-bottom: 1px solid #f0f2f5;
-    cursor: pointer;
-    align-items: center;
-    position: relative;
-}
-.chat-item:hover {
-    background: #f8f9fa;
-}
-.chat-item.unread {
-    background: #e3f2fd;
-}
-.chat-avatar {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    background: #0088cc;
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    font-size: 18px;
-    margin-right: 15px;
-}
-.chat-info {
-    flex: 1;
-    min-width: 0;
-}
-.chat-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 4px;
-}
-.chat-name {
-    font-weight: 500;
-    color: #000;
-}
-.chat-time {
-    font-size: 12px;
-    color: #999;
-}
-.chat-preview {
-    font-size: 14px;
-    color: #666;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.unread-badge {
-    background: #0088cc;
-    color: white;
-    border-radius: 12px;
-    padding: 2px 8px;
-    font-size: 12px;
-    font-weight: 500;
-    min-width: 20px;
-    text-align: center;
-}
-.no-chats {
-    text-align: center;
-    padding: 40px 20px;
-    color: #999;
-}
-.bottom-nav {
-    display: flex;
-    border-top: 1px solid #e1e5e9;
-    padding: 10px;
-    background: white;
-}
-.nav-item {
-    flex: 1;
-    text-align: center;
-    padding: 12px;
-    text-decoration: none;
-    color: #666;
-    border-radius: 8px;
-}
-.nav-item.active {
-    background: #f0f2f5;
-    color: #0088cc;
-}
-.main-content {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #f8f9fa;
-}
-.welcome-screen {
-    text-align: center;
-    color: #666;
-}
-.welcome-icon {
-    font-size: 64px;
-    margin-bottom: 20px;
-}
-</style>
+</script>
 {% endblock %}

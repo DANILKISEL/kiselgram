@@ -1,177 +1,292 @@
+<!-- templates/users_list.html -->
 {% extends "base.html" %}
 
 {% block content %}
-<div class="telegram-layout">
-    <div class="sidebar">
-        <div class="sidebar-header">
-            <div class="user-info">
-                <strong>Contacts</strong>
-            </div>
-            <div class="header-actions">
-                <a href="/search" class="icon-btn">🔍</a>
-            </div>
-        </div>
-        
-        <div class="search-box">
-            <input type="text" placeholder="Search" class="search-input" onclick="location.href='/search'">
-        </div>
-        
-        <div class="chats-list">
-            {% for user in users %}
-                {% if user.username != current_user %}
-                <div class="chat-item" onclick="location.href='/chat/{{ user.id }}'">
-                    <div class="chat-avatar">
-                        {{ user.username[0]|upper }}
-                    </div>
-                    <div class="chat-info">
-                        <div class="chat-name">{{ user.username }}</div>
-                        <div class="chat-preview">Start conversation</div>
-                    </div>
-                </div>
-                {% endif %}
-            {% endfor %}
-        </div>
-        
-        <div class="bottom-nav">
-            <a href="/chat_list" class="nav-item">💬 Chats</a>
-            <a href="/users" class="nav-item active">👥 Contacts</a>
-        </div>
+<div class="mobile-app">
+    <!-- Header -->
+    <div class="header safe-area-top">
+        <button class="header-button ripple" onclick="goBack()">←</button>
+        <div class="header-title">Contacts</div>
+        <button class="header-button ripple" onclick="openSearch()">🔍</button>
     </div>
-    
-    <div class="main-content">
-        <div class="welcome-screen">
-            <div class="welcome-icon">👥</div>
-            <h2>Contacts</h2>
-            <p>Select a contact to start chatting</p>
+
+    <!-- Search Bar -->
+    <div class="search-bar">
+        <input type="text" placeholder="Search contacts..." class="search-input" id="searchInput">
+    </div>
+
+    <!-- Contacts List -->
+    <div class="chat-list" id="contactsList">
+        {% for user in users %}
+            {% if user.username != current_user %}
+            <div class="chat-item ripple" onclick="startChat({{ user.id }})">
+                <div class="chat-avatar">
+                    {{ user.username[0]|upper }}
+                </div>
+                <div class="chat-info">
+                    <div class="chat-header">
+                        <span class="chat-name">{{ user.username }}</span>
+                    </div>
+                    <div class="chat-preview">Tap to start conversation</div>
+                </div>
+                <div class="chat-status-indicator"></div>
+            </div>
+            {% endif %}
+        {% endfor %}
+
+        {% if users|length <= 1 %}
+        <div class="empty-state">
+            <div class="empty-state-icon">👥</div>
+            <div class="empty-state-text">No contacts found</div>
+            <div class="empty-state-subtext">Other users will appear here when they register</div>
         </div>
+        {% endif %}
+    </div>
+
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav safe-area-bottom">
+        <a href="/chat_list" class="nav-item">
+            <div class="nav-icon">💬</div>
+            <div class="nav-label">Chats</div>
+        </a>
+        <a href="/users" class="nav-item active">
+            <div class="nav-icon">👥</div>
+            <div class="nav-label">Contacts</div>
+        </a>
+        <a href="/settings" class="nav-item">
+            <div class="nav-icon">⚙️</div>
+            <div class="nav-label">Settings</div>
+        </a>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function goBack() {
+    window.history.back();
+}
+
+function startChat(userId) {
+    window.location.href = `/chat/${userId}`;
+}
+
+function openSearch() {
+    const searchInput = document.getElementById('searchInput');
+    searchInput.focus();
+}
+
+// Real-time search filtering
+document.getElementById('searchInput').addEventListener('input', function(e) {
+    const searchTerm = e.target.value.toLowerCase();
+    const contacts = document.querySelectorAll('.chat-item');
+    let visibleCount = 0;
+
+    contacts.forEach(contact => {
+        const name = contact.querySelector('.chat-name').textContent.toLowerCase();
+        if (name.includes(searchTerm)) {
+            contact.style.display = 'flex';
+            visibleCount++;
+        } else {
+            contact.style.display = 'none';
+        }
+    });
+
+    // Show/hide empty state
+    const emptyState = document.querySelector('.empty-state');
+    if (emptyState) {
+        emptyState.style.display = visibleCount === 0 ? 'block' : 'none';
+    }
+});
+
+// Add pull-to-refresh functionality
+let touchStartY = 0;
+let touchEndY = 0;
+const chatList = document.getElementById('contactsList');
+
+chatList.addEventListener('touchstart', e => {
+    touchStartY = e.touches[0].clientY;
+});
+
+chatList.addEventListener('touchmove', e => {
+    if (chatList.scrollTop === 0) {
+        e.preventDefault();
+    }
+});
+
+chatList.addEventListener('touchend', e => {
+    touchEndY = e.changedTouches[0].clientY;
+
+    // Pull to refresh
+    if (touchStartY - touchEndY > 100 && chatList.scrollTop === 0) {
+        location.reload();
+    }
+});
+
+// Load online status (simulated)
+setTimeout(() => {
+    const statusIndicators = document.querySelectorAll('.chat-status-indicator');
+    statusIndicators.forEach((indicator, index) => {
+        // Simulate random online status
+        if (Math.random() > 0.3) {
+            indicator.style.background = 'var(--online-status)';
+            indicator.title = 'Online';
+        } else {
+            indicator.style.background = 'var(--text-muted)';
+            indicator.title = 'Offline';
+        }
+    });
+}, 1000);
+</script>
 
 <style>
-.telegram-layout {
-    display: flex;
-    height: 100vh;
-    background: white;
+/* Additional styles for contacts page */
+.chat-status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    border: 2px solid var(--background);
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    transition: background 0.3s ease;
 }
-.sidebar {
-    width: 350px;
-    border-right: 1px solid #e1e5e9;
-    display: flex;
-    flex-direction: column;
-}
-.sidebar-header {
-    padding: 15px;
-    border-bottom: 1px solid #e1e5e9;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: #0088cc;
-    color: white;
-}
-.user-info {
-    flex: 1;
-    font-weight: 500;
-}
-.header-actions {
-    display: flex;
-    gap: 10px;
-}
-.icon-btn {
-    padding: 8px;
-    border-radius: 6px;
-    text-decoration: none;
-    color: white;
-}
-.icon-btn:hover {
-    background: rgba(255,255,255,0.1);
-}
-.search-box {
-    padding: 15px;
-    border-bottom: 1px solid #e1e5e9;
-    background: white;
-}
-.search-input {
-    width: 100%;
-    padding: 10px 15px;
-    border: none;
-    border-radius: 20px;
-    background: #f0f2f5;
-    font-size: 14px;
-}
-.chats-list {
-    flex: 1;
-    overflow-y: auto;
-    background: white;
-}
+
 .chat-item {
-    display: flex;
-    padding: 12px 15px;
-    border-bottom: 1px solid #f0f2f5;
-    cursor: pointer;
-    align-items: center;
     position: relative;
 }
-.chat-item:hover {
-    background: #f8f9fa;
+
+.chat-item .chat-header {
+    margin-bottom: 2px;
 }
-.chat-avatar {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    background: #0088cc;
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    font-size: 18px;
-    margin-right: 15px;
+
+.chat-item .chat-preview {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-style: italic;
 }
-.chat-info {
-    flex: 1;
-    min-width: 0;
+
+/* Search active state */
+.search-input:focus {
+    background: var(--background);
+    box-shadow: 0 0 0 2px var(--primary-color);
 }
-.chat-name {
-    font-weight: 500;
-    color: #000;
-    margin-bottom: 4px;
+
+/* Loading animation for contacts */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
-.chat-preview {
-    font-size: 14px;
-    color: #666;
+
+.chat-item {
+    animation: fadeInUp 0.3s ease-out;
+    animation-fill-mode: both;
 }
-.bottom-nav {
-    display: flex;
-    border-top: 1px solid #e1e5e9;
-    padding: 10px;
-    background: white;
-}
-.nav-item {
-    flex: 1;
+
+.chat-item:nth-child(1) { animation-delay: 0.1s; }
+.chat-item:nth-child(2) { animation-delay: 0.15s; }
+.chat-item:nth-child(3) { animation-delay: 0.2s; }
+.chat-item:nth-child(4) { animation-delay: 0.25s; }
+.chat-item:nth-child(5) { animation-delay: 0.3s; }
+.chat-item:nth-child(6) { animation-delay: 0.35s; }
+
+/* Enhanced empty state */
+.empty-state {
+    padding: 60px 20px;
     text-align: center;
-    padding: 12px;
-    text-decoration: none;
-    color: #666;
-    border-radius: 8px;
+    color: var(--text-muted);
 }
-.nav-item.active {
-    background: #f0f2f5;
-    color: #0088cc;
-}
-.main-content {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #f8f9fa;
-}
-.welcome-screen {
-    text-align: center;
-    color: #666;
-}
-.welcome-icon {
+
+.empty-state-icon {
     font-size: 64px;
     margin-bottom: 20px;
+    opacity: 0.5;
+}
+
+.empty-state-text {
+    font-size: 18px;
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+
+.empty-state-subtext {
+    font-size: 14px;
+    opacity: 0.7;
+    line-height: 1.4;
+}
+
+/* Refresh indicator */
+.refresh-indicator {
+    text-align: center;
+    padding: 10px;
+    color: var(--text-muted);
+    font-size: 14px;
+    display: none;
+}
+
+.refresh-indicator.show {
+    display: block;
+    animation: fadeIn 0.3s ease;
+}
+
+/* Contact actions menu */
+.contact-actions {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.chat-item:hover .contact-actions {
+    opacity: 1;
+}
+
+.action-button {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+    .chat-avatar {
+        width: 48px;
+        height: 48px;
+        font-size: 16px;
+    }
+
+    .chat-status-indicator {
+        width: 10px;
+        height: 10px;
+        right: 12px;
+    }
+
+    .contact-actions {
+        display: none; /* Hide on mobile for simplicity */
+    }
+}
+
+/* Large screen optimizations */
+@media (min-width: 769px) {
+    .mobile-app {
+        max-width: 420px;
+        margin: 0 auto;
+        box-shadow: 0 0 20px rgba(0,0,0,0.1);
+    }
 }
 </style>
 {% endblock %}
