@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="telegram-layout">
+    <!-- Sidebar -->
+    <div class="sidebar" style="display: none;">
+        <div class="sidebar-header">
+            <div class="user-info">
+                <strong>{{ current_user }}</strong>
+            </div>
+            <div class="header-actions">
+                <a href="/search" class="icon-btn">🔍</a>
+            </div>
+        </div>
+        
+        <div class="search-box">
+            <input type="text" placeholder="Search" class="search-input" onclick="location.href='/search'">
+        </div>
+        
+        <div class="chats-list">
+            <!-- Chat list would be here -->
+        </div>
+        
+        <div class="bottom-nav">
+            <a href="/chat_list" class="nav-item">💬 Chats</a>
+            <a href="/users" class="nav-item">👥 Contacts</a>
+        </div>
+    </div>
+    
+    <!-- Chat Area -->
+    <div class="chat-area">
+        <div class="chat-header">
+            <a href="/chat_list" class="back-btn">←</a>
+            <div class="chat-user-info">
+                <div class="chat-avatar small">
+                    {{ receiver.username[0]|upper }}
+                </div>
+                <div>
+                    <div class="chat-name">{{ receiver.username }}</div>
+                    <div class="chat-status">online</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="messages-container" id="messagesContainer">
+            {% for message in messages %}
+            <div class="message {% if message.sender.username == current_user %}outgoing{% else %}incoming{% endif %}">
+                <div class="message-bubble">
+                    <div class="message-text">{{ message.content }}</div>
+                    <div class="message-time">
+                        {{ message.timestamp.strftime('%H:%M') }}
+                        {% if message.sender.username == current_user %}
+                            <span class="message-status">
+                                {% if message.is_read %}✓✓{% else %}✓{% endif %}
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="no-messages">
+                <p>No messages yet</p>
+                <p>Send a message to start the conversation!</p>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div class="message-input-container">
+            <form method="POST" class="message-form">
+                <div class="input-wrapper">
+                    <input type="text" name="message" placeholder="Message" class="message-input" required autocomplete="off">
+                    <button type="submit" class="send-btn">➤</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.telegram-layout {
+    display: flex;
+    height: 100vh;
+    background: white;
+}
+.sidebar {
+    width: 350px;
+    border-right: 1px solid #e1e5e9;
+    display: flex;
+    flex-direction: column;
+}
+.sidebar-header {
+    padding: 15px;
+    border-bottom: 1px solid #e1e5e9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #0088cc;
+    color: white;
+}
+.user-info {
+    flex: 1;
+    font-weight: 500;
+}
+.header-actions {
+    display: flex;
+    gap: 10px;
+}
+.icon-btn {
+    padding: 8px;
+    border-radius: 6px;
+    text-decoration: none;
+    color: white;
+}
+.icon-btn:hover {
+    background: rgba(255,255,255,0.1);
+}
+.search-box {
+    padding: 15px;
+    border-bottom: 1px solid #e1e5e9;
+    background: white;
+}
+.search-input {
+    width: 100%;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 20px;
+    background: #f0f2f5;
+    font-size: 14px;
+}
+.chats-list {
+    flex: 1;
+    overflow-y: auto;
+    background: white;
+}
+.chat-item {
+    display: flex;
+    padding: 12px 15px;
+    border-bottom: 1px solid #f0f2f5;
+    cursor: pointer;
+    align-items: center;
+}
+.chat-item:hover {
+    background: #f8f9fa;
+}
+.chat-avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: #0088cc;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 18px;
+    margin-right: 15px;
+}
+.bottom-nav {
+    display: flex;
+    border-top: 1px solid #e1e5e9;
+    padding: 10px;
+    background: white;
+}
+.nav-item {
+    flex: 1;
+    text-align: center;
+    padding: 12px;
+    text-decoration: none;
+    color: #666;
+    border-radius: 8px;
+}
+.chat-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #e5ddd5;
+    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" opacity="0.05"><path fill="%230088cc" d="M0 0h100v100H0z"/></svg>');
+}
+.chat-header {
+    background: white;
+    padding: 15px;
+    border-bottom: 1px solid #e1e5e9;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+.back-btn {
+    text-decoration: none;
+    color: #0088cc;
+    font-size: 18px;
+    padding: 5px;
+}
+.chat-user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.chat-avatar.small {
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+}
+.chat-status {
+    font-size: 13px;
+    color: #00a884;
+}
+.messages-container {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.message {
+    display: flex;
+}
+.message.incoming {
+    justify-content: flex-start;
+}
+.message.outgoing {
+    justify-content: flex-end;
+}
+.message-bubble {
+    max-width: 70%;
+    padding: 12px 16px;
+    border-radius: 12px;
+    position: relative;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+.message.incoming .message-bubble {
+    background: white;
+    border-bottom-left-radius: 4px;
+}
+.message.outgoing .message-bubble {
+    background: #e3f2fd;
+    border-bottom-right-radius: 4px;
+}
+.message-text {
+    margin-bottom: 4px;
+    line-height: 1.4;
+}
+.message-time {
+    font-size: 12px;
+    color: #999;
+    text-align: right;
+}
+.message-status {
+    margin-left: 4px;
+}
+.no-messages {
+    text-align: center;
+    color: #999;
+    margin-top: 50px;
+}
+.message-input-container {
+    background: white;
+    padding: 15px;
+    border-top: 1px solid #e1e5e9;
+}
+.message-form {
+    display: flex;
+}
+.input-wrapper {
+    display: flex;
+    flex: 1;
+    background: #f0f2f5;
+    border-radius: 25px;
+    padding: 5px;
+}
+.message-input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    padding: 10px 15px;
+    font-size: 16px;
+    outline: none;
+}
+.send-btn {
+    background: #0088cc;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    font-size: 16px;
+}
+</style>
+
+<script>
+// Auto-scroll to bottom
+const messagesContainer = document.getElementById('messagesContainer');
+messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+// Auto-refresh every 3 seconds
+setTimeout(() => {
+    window.location.reload();
+}, 3000);
+</script>
+{% endblock %}
