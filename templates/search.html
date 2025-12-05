@@ -1,43 +1,471 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Search - Kiselgram</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .header {
+            background: #007bff;
+            color: white;
+            padding: 15px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 1.3em;
+            margin-bottom: 10px;
+        }
+        
+        .search-box {
+            background: white;
+            border-radius: 25px;
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .search-box input {
+            border: none;
+            outline: none;
+            flex: 1;
+            font-size: 16px;
+            background: transparent;
+        }
+        
+        .search-types {
+            display: flex;
+            gap: 5px;
+            margin-top: 10px;
+            overflow-x: auto;
+            padding-bottom: 5px;
+        }
+        
+        .search-type {
+            padding: 8px 15px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 15px;
+            font-size: 0.9em;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .search-type.active {
+            background: white;
+            color: #007bff;
+        }
+        
+        .container {
+            padding: 15px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .section {
+            background: white;
+            border-radius: 15px;
+            margin-bottom: 15px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        
+        .section-header {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            font-weight: 600;
+            color: #666;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
 
-{% block content %}
-<div class="mobile-layout">
-    <div class="sidebar">
-        <div class="sidebar-header">
-            <div class="user-info">
-                <strong>Search</strong>
-            </div>
-            <div class="header-actions">
-                <a href="/chat_list" class="icon-btn">←</a>
-                <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
-            </div>
-        </div>
+        .section-header h3 {
+            font-size: 1.1em;
+        }
 
-        <div class="chats-list">
-            <div style="padding: 2rem; text-align: center; color: #666;">
-                <p>Mobile-optimized Search view</p>
-                <p style="font-size: 0.9rem; margin-top: 1rem;">Fully responsive design</p>
-            </div>
-        </div>
+        .result-item {
+            padding: 15px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
 
-        <div class="bottom-nav">
-            <a href="/chat_list" class="nav-item">💬 Chats</a>
-            <a href="/users" class="nav-item">👥 Contacts</a>
-            <a href="/settings" class="nav-item">⚙️ Settings</a>
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        .result-item:hover {
+            background: #f8f9fa;
+        }
+
+        .avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: #007bff;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        .avatar.group {
+            background: #28a745;
+        }
+
+        .avatar.channel {
+            background: #dc3545;
+        }
+
+        .result-info {
+            flex: 1;
+        }
+
+        .result-name {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .result-meta {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .message-content {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 10px;
+            margin-top: 5px;
+            font-size: 0.9em;
+        }
+
+        .message-context {
+            font-size: 0.8em;
+            color: #007bff;
+            margin-top: 5px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #666;
+        }
+
+        .empty-state .icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        .action-button {
+            padding: 8px 15px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 15px;
+            font-size: 0.9em;
+            cursor: pointer;
+        }
+
+        .highlight {
+            background: #fff3cd;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 10px;
+            }
+
+            .result-item {
+                padding: 12px;
+            }
+
+            .avatar {
+                width: 45px;
+                height: 45px;
+                font-size: 1.1em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Search</h1>
+        <form method="GET" action="/search" id="searchForm">
+            <div class="search-box">
+                <input
+                    type="text"
+                    name="q"
+                    value="{{ query }}"
+                    placeholder="Search users, groups, channels, messages..."
+                    autocomplete="off"
+                    id="searchInput"
+                >
+                <button type="submit" style="display: none;">Search</button>
+            </div>
+        </form>
+
+        <div class="search-types">
+            <div class="search-type {{ 'active' if search_type == 'all' }}" onclick="setSearchType('all')">All</div>
+            <div class="search-type {{ 'active' if search_type == 'users' }}" onclick="setSearchType('users')">Users</div>
+            <div class="search-type {{ 'active' if search_type == 'groups' }}" onclick="setSearchType('groups')">Groups</div>
+            <div class="search-type {{ 'active' if search_type == 'channels' }}" onclick="setSearchType('channels')">Channels</div>
+            <div class="search-type {{ 'active' if search_type == 'messages' }}" onclick="setSearchType('messages')">Messages</div>
         </div>
     </div>
 
-    <div class="main-content">
-        <div style="padding: 2rem; text-align: center;">
-            <h2>Search</h2>
-            <p>Mobile-optimized interface</p>
-        </div>
-    </div>
-</div>
+    <div class="container">
+        {% if query %}
+            <!-- Users Results -->
+            {% if search_type in ['all', 'users'] and results.users %}
+            <div class="section">
+                <div class="section-header">
+                    <h3>Users ({{ results.users|length }})</h3>
+                </div>
+                {% for user in results.users %}
+                <div class="result-item" onclick="openChat({{ user.id }}, 'personal')">
+                    <div class="avatar">{{ user.username[0].upper() }}</div>
+                    <div class="result-info">
+                        <div class="result-name" id="user-{{ user.id }}">{{ user.username }}</div>
+                        <div class="result-meta">User</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
 
-<script>
-function toggleSidebar() {
-    document.getElementById('sidebar').classList.toggle('active');
-}
-</script>
-{% endblock %}
+            <!-- Groups Results -->
+            {% if search_type in ['all', 'groups'] and results.groups %}
+            <div class="section">
+                <div class="section-header">
+                    <h3>Groups ({{ results.groups|length }})</h3>
+                </div>
+                {% for group in results.groups %}
+                <div class="result-item" onclick="openChat({{ group.id }}, 'group')">
+                    <div class="avatar group">G</div>
+                    <div class="result-info">
+                        <div class="result-name" id="group-{{ group.id }}">{{ group.name }}</div>
+                        <div class="result-meta">
+                            {{ group.members|length }} members
+                            {% if group.description %} • {{ group.description }}{% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Channels Results -->
+            {% if search_type in ['all', 'channels'] and results.channels %}
+            <div class="section">
+                <div class="section-header">
+                    <h3>Channels ({{ results.channels|length }})</h3>
+                </div>
+                {% for channel in results.channels %}
+                <div class="result-item" onclick="openChat({{ channel.id }}, 'channel')">
+                    <div class="avatar channel">C</div>
+                    <div class="result-info">
+                        <div class="result-name" id="channel-{{ channel.id }}">{{ channel.name }}</div>
+                        <div class="result-meta">
+                            {{ channel.subscribers|length }} subscribers
+                            {% if channel.description %} • {{ channel.description }}{% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Messages Results -->
+            {% if search_type in ['all', 'messages'] and results.messages %}
+            <div class="section">
+                <div class="section-header">
+                    <h3>Messages ({{ results.messages|length }})</h3>
+                </div>
+                {% for message in results.messages %}
+                <div class="result-item" onclick="openMessage({{ message.id }}, '{{ 'group' if message.group_id else 'channel' if message.channel_id else 'personal' }}')">
+                    <div class="avatar">{{ message.sender.username[0].upper() }}</div>
+                    <div class="result-info">
+                        <div class="result-name">{{ message.sender.username }}</div>
+                        <div class="message-content" id="message-{{ message.id }}">{{ message.content }}</div>
+                        <div class="message-context">
+                            {% if message.group_id %}
+                                Group: {{ message.group.name }}
+                            {% elif message.channel_id %}
+                                Channel: {{ message.channel.name }}
+                            {% else %}
+                                Personal chat
+                            {% endif %}
+                            • {{ message.timestamp.strftime('%Y-%m-%d %H:%M') }}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- No Results -->
+            {% if not results.users and not results.groups and not results.channels and not results.messages %}
+            <div class="section">
+                <div class="empty-state">
+                    <div class="icon">🔍</div>
+                    <h3>No results found</h3>
+                    <p>Try different keywords or search in other categories</p>
+                </div>
+            </div>
+            {% endif %}
+
+        {% else %}
+            <!-- Empty Search State -->
+            <div class="section">
+                <div class="empty-state">
+                    <div class="icon">🔍</div>
+                    <h3>Search Kiselgram</h3>
+                    <p>Find users, groups, channels, and messages</p>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="section">
+                <div class="section-header">
+                    <h3>Quick Access</h3>
+                </div>
+                <div class="result-item" onclick="window.location.href='/create_group'">
+                    <div class="avatar group">+</div>
+                    <div class="result-info">
+                        <div class="result-name">Create New Group</div>
+                        <div class="result-meta">Start a group conversation</div>
+                    </div>
+                </div>
+                <div class="result-item" onclick="window.location.href='/create_channel'">
+                    <div class="avatar channel">+</div>
+                    <div class="result-info">
+                        <div class="result-name">Create New Channel</div>
+                        <div class="result-meta">Broadcast messages to subscribers</div>
+                    </div>
+                </div>
+                <div class="result-item" onclick="window.location.href='/users'">
+                    <div class="avatar">U</div>
+                    <div class="result-info">
+                        <div class="result-name">Browse All Users</div>
+                        <div class="result-meta">Discover new people to chat with</div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <script>
+        function setSearchType(type) {
+            const form = document.getElementById('searchForm');
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'type';
+            input.value = type;
+            form.appendChild(input);
+            form.submit();
+        }
+
+        function openChat(id, type) {
+            if (type === 'personal') {
+                window.location.href = `/chat/${id}`;
+            } else if (type === 'group') {
+                window.location.href = `/group/${id}`;
+            } else if (type === 'channel') {
+                window.location.href = `/channel/${id}`;
+            }
+        }
+
+        function openMessage(messageId, chatType) {
+            // For now, just redirect to the appropriate chat
+            if (chatType === 'personal') {
+                alert('Opening personal chat with message...');
+            } else if (chatType === 'group') {
+                window.location.href = `/group/${messageId}`;
+            } else if (chatType === 'channel') {
+                window.location.href = `/channel/${messageId}`;
+            }
+        }
+
+        // Auto-focus search input
+        document.getElementById('searchInput').focus();
+
+        // Simple client-side highlighting
+        function highlightSearchTerms() {
+            const query = "{{ query }}";
+            if (!query) return;
+
+            // Highlight user names
+            {% for user in results.users %}
+            const userElement = document.getElementById('user-{{ user.id }}');
+            if (userElement) {
+                userElement.innerHTML = userElement.textContent.replace(
+                    new RegExp(query, 'gi'),
+                    match => `<span class="highlight">${match}</span>`
+                );
+            }
+            {% endfor %}
+
+            // Highlight group names
+            {% for group in results.groups %}
+            const groupElement = document.getElementById('group-{{ group.id }}');
+            if (groupElement) {
+                groupElement.innerHTML = groupElement.textContent.replace(
+                    new RegExp(query, 'gi'),
+                    match => `<span class="highlight">${match}</span>`
+                );
+            }
+            {% endfor %}
+
+            // Highlight channel names
+            {% for channel in results.channels %}
+            const channelElement = document.getElementById('channel-{{ channel.id }}');
+            if (channelElement) {
+                channelElement.innerHTML = channelElement.textContent.replace(
+                    new RegExp(query, 'gi'),
+                    match => `<span class="highlight">${match}</span>`
+                );
+            }
+            {% endfor %}
+
+            // Highlight message content
+            {% for message in results.messages %}
+            const messageElement = document.getElementById('message-{{ message.id }}');
+            if (messageElement) {
+                messageElement.innerHTML = messageElement.textContent.replace(
+                    new RegExp(query, 'gi'),
+                    match => `<span class="highlight">${match}</span>`
+                );
+            }
+            {% endfor %}
+        }
+
+        // Run highlighting after page load
+        document.addEventListener('DOMContentLoaded', highlightSearchTerms);
+    </script>
+</body>
+</html>

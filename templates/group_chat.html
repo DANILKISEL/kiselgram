@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ group.name }} - Kiselgram</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="theme-color" content="#0088cc">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="msapplication-tap-highlight" content="no">
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="stylesheet" href="/static/css/mobile.css">
+    <link rel="stylesheet" href="/static/css/animations.css">
+    {% block styles %}{% endblock %}
+    <style>
+        /* Add your mobile-optimized chat CSS here */
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+        .header { background: #007bff; color: white; padding: 15px; position: fixed; top: 0; width: 100%; z-index: 1000; }
+        .messages { padding: 60px 10px 70px; }
+        .message { margin: 10px 0; padding: 10px; border-radius: 10px; max-width: 80%; }
+        .own-message { background: #007bff; color: white; margin-left: auto; }
+        .other-message { background: #f1f1f1; }
+        .input-area { position: fixed; bottom: 0; width: 100%; background: white; padding: 10px; border-top: 1px solid #ddd; }
+        input { width: 70%; padding: 10px; border: 1px solid #ddd; border-radius: 20px; }
+        button { width: 25%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 20px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h3>{{ group.name }}</h3>
+        <p>{{ group.members|length }} members</p>
+    </div>
+
+    <div class="messages" id="messages">
+        <!-- Messages will be loaded here via JavaScript -->
+    </div>
+
+    <div class="input-area">
+        <input type="text" id="messageInput" placeholder="Type a message...">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <script>
+        let lastMessageId = 0;
+
+        function loadMessages() {
+            fetch(`/api/group_messages/{{ group.id }}?after=${lastMessageId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.messages) {
+                        data.messages.forEach(message => {
+                            addMessageToChat(message);
+                            lastMessageId = Math.max(lastMessageId, message.id);
+                        });
+                    }
+                });
+        }
+
+        function addMessageToChat(message) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${message.is_own ? 'own-message' : 'other-message'}`;
+            messageDiv.innerHTML = `
+                <strong>${message.sender_name}</strong><br>
+                ${message.content}
+                <div style="font-size: 12px; text-align: right;">${message.timestamp}</div>
+            `;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const content = input.value.trim();
+
+            if (content) {
+                fetch('/api/send_group_message', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        group_id: {{ group.id }},
+                        content: content
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        input.value = '';
+                        addMessageToChat(data.message);
+                    }
+                });
+            }
+        }
+
+        // Load messages periodically
+        setInterval(loadMessages, 2000);
+        loadMessages();
+
+        // Send message on Enter key
+        document.getElementById('messageInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+                window.location.reload()
+            }
+        });
+    </script>
+</body>
+</html>

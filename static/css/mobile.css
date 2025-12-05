@@ -1,24 +1,45 @@
 /* Telegram-like Mobile CSS */
+/* Mobile-specific styles */
 :root {
-  --primary-color: #0088cc;
-  --primary-dark: #0077b3;
-  --background: #ffffff;
-  --surface: #f8f9fa;
-  --border: #e1e5e9;
-  --text-primary: #000000;
-  --text-secondary: #707579;
-  --text-muted: #999999;
-  --bubble-outgoing: #e3f2fd;
-  --bubble-incoming: #ffffff;
-  --unread-badge: #0088cc;
-  --online-status: #00a884;
-  --typing-indicator: #0088cc;
-  --safe-area-top: env(safe-area-inset-top, 0px);
-  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
-  --safe-area-left: env(safe-area-inset-left, 0px);
-  --safe-area-right: env(safe-area-inset-right, 0px);
+    /* Mobile color variables */
+    --primary-color: #0088cc;
+    --primary-dark: #0077b3;
+    --background: #ffffff;
+    --surface: #f8f9fa;
+    --border: #e1e5e9;
+    --text-primary: #000000;
+    --text-secondary: #707579;
+    --text-muted: #999999;
+    --bubble-outgoing: #e3f2fd;
+    --bubble-incoming: #ffffff;
+    --unread-badge: #0088cc;
+    --online-status: #00a884;
+    --safe-area-top: env(safe-area-inset-top, 0px);
+    --safe-area-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/* Hide desktop layout by default in mobile CSS */
+.desktop-layout {
+    display: none !important;
+}
+
+.mobile-layout {
+    display: block !important;
+}
+
+/* Rest of your mobile CSS remains the same */
+.mobile-app {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--background);
+    display: flex;
+    flex-direction: column;
+}
+
+/* ... rest of mobile CSS ... */
 /* Dark mode variables */
 @media (prefers-color-scheme: dark) {
   :root {
