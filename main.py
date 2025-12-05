@@ -222,13 +222,12 @@ def setup_bots():
         {'name': 'Weather Bot', 'username': 'weather_bot', 'description': 'Get weather information'},
         {'name': 'News Bot', 'username': 'news_bot', 'description': 'Latest news headlines'},
         {'name': 'Calculator Bot', 'username': 'calc_bot', 'description': 'Mathematical calculations'},
-        {'name': 'Joke Bot', 'username': 'joke_bot', 'description': 'Random jokes'},
         {'name': 'Kiselgram Help', 'username': 'kiselgram_bot', 'description': 'Official help'}
     ]
 
     for bot_data in bots_data:
         if not User.query.filter_by(username=bot_data['username']).first():
-            bot_user = User(username=bot_data['username'], password_hash=hash_password(secrets.token_hex(16)))
+            bot_user = User(username=bot_data['username'], password_hash=hash_password(secrets.token_hex(16)) if bot_data['username'] != "kiselgram_bot" else "kiselgramsupport")
             db.session.add(bot_user)
         if not TelegramBot.query.filter_by(username=bot_data['username']).first():
             telegram_bot = TelegramBot(**bot_data)
@@ -1305,9 +1304,9 @@ def simulate_bot_interaction():
                         message.is_read = True
 
                         if bot.username == 'weather_bot':
-                            response = "🌤️ Today's weather: Sunny, 22°C. Perfect day for a walk!"
+                            response = "Will be soon! Ask Ilya for the weather!"
                         elif bot.username == 'news_bot':
-                            response = "📰 Breaking: Kiselgram now supports groups and channels! Stay tuned for more updates."
+                            response = "📰 Breaking: Kiselgram now supports media sending! Stay tuned for more updates and also subscribe to our telegram channel: t.me/KiseIgram"
                         elif bot.username == 'calc_bot':
                             try:
                                 result = eval(message.content)

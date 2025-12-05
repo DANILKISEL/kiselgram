@@ -1,4 +1,4 @@
-<!-- templates/chat.html -->
+<!-- templates/direct_chat.html -->
 {% extends "base.html" %}
 
 {% block content %}
@@ -7,15 +7,15 @@
     <div class="header safe-area-top">
         <button class="header-button ripple" onclick="goBack()">←</button>
         <div class="chat-user-info" style="flex: 1; display: flex; align-items: center; gap: 12px;">
-            <div class="chat-avatar" style="width: 40px; height: 40px; font-size: 16px;">
+            <div class="chat-avatar" style="width: 40px; height: 40px; font-size: 16px; background: var(--primary-color); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
                 {{ receiver.username[0]|upper }}
             </div>
             <div>
                 <div class="chat-name" style="font-size: 16px; font-weight: 500;">{{ receiver.username }}</div>
-                <div class="chat-status" style="font-size: 13px; color: var(--online-status);">online</div>
+                <div class="chat-status" id="userStatus" style="font-size: 13px; color: var(--text-secondary);">Checking status...</div>
             </div>
         </div>
-        <button class="header-button ripple">⋮</button>
+        <button class="header-button ripple" onclick="showUserMenu()">⋮</button>
     </div>
 
     <!-- Messages -->
@@ -38,13 +38,12 @@
         </div>
 
         <!-- Input Area -->
-        <div class="input-area">
+        <div class="input-area safe-area-bottom">
             <form class="input-form" id="messageForm">
                 <div class="input-row">
                     <button type="button" class="attachment-button ripple" onclick="toggleUploadArea()" id="attachmentBtn">📎</button>
-                    <textarea class="message-input" placeholder="Message" id="messageInput"
-                             rows="1" required></textarea>
-                    <button type="submit" class="send-button ripple" id="sendButton">➤</button>
+                    <textarea class="message-input" placeholder="Message" id="messageInput" rows="1"></textarea>
+                    <button type="submit" class="send-button ripple" id="sendButton" disabled>➤</button>
                 </div>
             </form>
         </div>
@@ -58,24 +57,170 @@
 
 {% block styles %}
 <style>
-    /* File Upload Styles */
-    .upload-area {
+    /* Mobile-first responsive design - BLUE THEME */
+    :root {
+        --primary-color: #2196F3;
+        --primary-light: rgba(33, 150, 243, 0.1);
+        --primary-dark: #1976D2;
+        --surface-color: #ffffff;
+        --surface-variant: #f8f9fa;
+        --border-color: #e0e0e0;
+        --text-primary: #333333;
+        --text-secondary: #666666;
+        --text-disabled: #999999;
+        --error-color: #f44336;
+        --success-color: #4CAF50;
+        --online-status: #4CAF50;
+        --offline-status: #f44336;
+        --away-status: #FF9800;
+        --safe-area-top: env(safe-area-inset-top, 0px);
+        --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+        height: 100%;
+        overflow: hidden;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
         background: var(--surface-color);
-        border-top: 1px solid var(--border-color);
-        padding: 15px;
-        display: none;
-        transition: all 0.3s ease;
+        color: var(--text-primary);
+        line-height: 1.4;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
     }
 
-    .upload-area.active {
-        display: block;
-        animation: slideUp 0.3s ease;
+    /* Mobile app container */
+    .mobile-app {
+        height: 100vh;
+        height: -webkit-fill-available;
+        display: flex;
+        flex-direction: column;
+        background: var(--surface-variant);
     }
 
-    @keyframes slideUp {
+    /* Header */
+    .header {
+        background: var(--primary-color);
+        color: white;
+        padding: 12px 15px;
+        position: relative;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        z-index: 1000;
+        flex-shrink: 0;
+    }
+
+    .safe-area-top {
+        padding-top: calc(12px + var(--safe-area-top, 0px));
+    }
+
+    .ripple {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .ripple:after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 5px;
+        height: 5px;
+        background: rgba(255, 255, 255, 0.5);
+        opacity: 0;
+        border-radius: 100%;
+        transform: scale(1, 1) translate(-50%);
+        transform-origin: 50% 50%;
+    }
+
+    .ripple:focus:after {
+        animation: ripple 0.6s ease-out;
+    }
+
+    @keyframes ripple {
+        0% {
+            transform: scale(0, 0);
+            opacity: 0.5;
+        }
+        100% {
+            transform: scale(20, 20);
+            opacity: 0;
+        }
+    }
+
+    .header-button {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 24px;
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        border-radius: 50%;
+        transition: background-color 0.2s;
+    }
+
+    .header-button:hover,
+    .header-button:active {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    /* Messages Container */
+    .chat-view {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .messages-container {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+        padding: 16px 12px;
+        scroll-behavior: smooth;
+    }
+
+    /* Message Styles */
+    .message {
+        margin: 12px 0;
+        max-width: 85%;
+        position: relative;
+    }
+
+    .message.outgoing {
+        margin-left: auto;
+    }
+
+    .message.incoming {
+        margin-right: auto;
+    }
+
+    .message-bubble {
+        border-radius: 18px;
+        padding: 12px 16px;
+        position: relative;
+        word-wrap: break-word;
+        animation: fadeIn 0.3s ease-in;
+    }
+
+    @keyframes fadeIn {
         from {
             opacity: 0;
-            transform: translateY(20px);
+            transform: translateY(10px);
         }
         to {
             opacity: 1;
@@ -83,82 +228,66 @@
         }
     }
 
-    .upload-icon {
-        font-size: 2.5em;
-        text-align: center;
-        margin-bottom: 10px;
-        color: var(--primary-color);
-        opacity: 0.8;
-    }
-
-    #uploadFileName {
-        text-align: center;
-        font-size: 14px;
-        color: var(--text-secondary);
-        margin-bottom: 15px;
-        word-break: break-all;
-        padding: 0 10px;
-    }
-
-    .upload-buttons {
-        display: flex;
-        gap: 10px;
-        justify-content: center;
-    }
-
-    .upload-button {
-        padding: 8px 16px;
-        border-radius: 20px;
-        border: none;
-        font-size: 14px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-
-    .upload-button.primary {
+    .message.outgoing .message-bubble {
         background: var(--primary-color);
         color: white;
+        border-bottom-right-radius: 4px;
     }
 
-    .upload-button.secondary {
-        background: var(--surface-variant);
-        color: var(--text-primary);
+    .message.incoming .message-bubble {
+        background: var(--surface-color);
+        border: 1px solid var(--border-color);
+        border-bottom-left-radius: 4px;
     }
 
-    .upload-button.cancel {
-        background: var(--error-color);
-        color: white;
+    .bounce-in {
+        animation: bounceIn 0.3s ease;
     }
 
-    .upload-button:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
+    @keyframes bounceIn {
+        0% {
+            opacity: 0;
+            transform: scale(0.3);
+        }
+        50% {
+            opacity: 0.9;
+            transform: scale(1.1);
+        }
+        80% {
+            opacity: 1;
+            transform: scale(0.89);
+        }
+        100% {
+            opacity: 1;
+            transform: scale(1);
+        }
     }
 
-    .file-input {
-        display: none;
+    .message-text {
+        font-size: 16px;
+        line-height: 1.4;
+        margin-bottom: 6px;
+        white-space: pre-wrap;
     }
 
-    .input-row {
+    .message-time {
+        font-size: 11px;
+        opacity: 0.7;
+        text-align: right;
         display: flex;
-        align-items: flex-end;
-        gap: 8px;
-        width: 100%;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 4px;
     }
 
-    .attachment-button {
-        background: none;
-        border: none;
-        font-size: 20px;
-        padding: 10px;
-        cursor: pointer;
-        color: var(--text-secondary);
-        transition: color 0.2s ease;
+    .message.incoming .message-time {
+        text-align: left;
+        justify-content: flex-start;
     }
 
-    .attachment-button:hover {
-        color: var(--primary-color);
+    .message-status {
+        font-size: 10px;
+        opacity: 0.9;
     }
 
     /* File Attachment Styles in Messages */
@@ -250,6 +379,238 @@
         margin-top: 8px;
     }
 
+    /* File Upload Styles */
+    .upload-area {
+        background: var(--surface-color);
+        border-top: 1px solid var(--border-color);
+        padding: 15px;
+        display: none;
+        transition: all 0.3s ease;
+    }
+
+    .upload-area.active {
+        display: block;
+        animation: slideUp 0.3s ease;
+    }
+
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .upload-icon {
+        font-size: 2.5em;
+        text-align: center;
+        margin-bottom: 10px;
+        color: var(--primary-color);
+        opacity: 0.8;
+    }
+
+    #uploadFileName {
+        text-align: center;
+        font-size: 14px;
+        color: var(--text-secondary);
+        margin-bottom: 15px;
+        word-break: break-all;
+        padding: 0 10px;
+    }
+
+    .upload-buttons {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+    }
+
+    .upload-button {
+        padding: 8px 16px;
+        border-radius: 20px;
+        border: none;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .upload-button.primary {
+        background: var(--primary-color);
+        color: white;
+    }
+
+    .upload-button.secondary {
+        background: var(--surface-variant);
+        color: var(--text-primary);
+    }
+
+    .upload-button.cancel {
+        background: var(--error-color);
+        color: white;
+    }
+
+    .upload-button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .file-input {
+        display: none;
+    }
+
+    /* Input Area */
+    .input-area {
+        background: var(--surface-color);
+        border-top: 1px solid var(--border-color);
+        padding: 12px;
+        flex-shrink: 0;
+        position: relative;
+    }
+
+    .safe-area-bottom {
+        padding-bottom: calc(12px + var(--safe-area-bottom, 0px));
+    }
+
+    .input-form {
+        display: flex;
+        gap: 8px;
+        align-items: flex-end;
+    }
+
+    .input-row {
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
+        width: 100%;
+    }
+
+    .message-input {
+        flex: 1;
+        min-height: 44px;
+        max-height: 120px;
+        padding: 12px 16px;
+        border: 1px solid var(--border-color);
+        border-radius: 22px;
+        font-size: 16px;
+        font-family: inherit;
+        background: var(--surface-variant);
+        color: var(--text-primary);
+        resize: none;
+        outline: none;
+        transition: all 0.2s;
+        line-height: 1.4;
+    }
+
+    .message-input:focus {
+        border-color: var(--primary-color);
+        background: var(--surface-color);
+        box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+    }
+
+    .message-input::placeholder {
+        color: var(--text-disabled);
+    }
+
+    .attachment-button {
+        background: none;
+        border: none;
+        font-size: 20px;
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: var(--text-secondary);
+        border-radius: 50%;
+        transition: all 0.2s;
+    }
+
+    .attachment-button:hover,
+    .attachment-button:active {
+        background: var(--surface-variant);
+        color: var(--primary-color);
+    }
+
+    .send-button {
+        background: var(--primary-color);
+        color: white;
+        border: none;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 18px;
+        transition: all 0.2s;
+        flex-shrink: 0;
+    }
+
+    .send-button:hover,
+    .send-button:active {
+        background: var(--primary-dark);
+        transform: scale(1.05);
+    }
+
+    .send-button:disabled {
+        background: var(--border-color);
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    /* Empty States */
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--text-secondary);
+    }
+
+    .empty-state-icon {
+        font-size: 64px;
+        margin-bottom: 16px;
+        opacity: 0.5;
+    }
+
+    .empty-state-text {
+        font-size: 18px;
+        font-weight: 500;
+        margin-bottom: 8px;
+        color: var(--text-primary);
+    }
+
+    .empty-state-subtext {
+        font-size: 14px;
+        max-width: 300px;
+        margin: 0 auto;
+        line-height: 1.5;
+    }
+
+    /* Loading States */
+    .loading {
+        text-align: center;
+        padding: 40px 20px;
+        color: var(--text-secondary);
+    }
+
+    .spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid var(--border-color);
+        border-top-color: var(--primary-color);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 16px;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
     /* Modal for image preview */
     .image-modal {
         display: none;
@@ -258,10 +619,11 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0, 0, 0, 0.9);
-        z-index: 1000;
+        background: rgba(0, 0, 0, 0.95);
+        z-index: 2000;
         justify-content: center;
         align-items: center;
+        padding: 20px;
     }
 
     .image-modal.active {
@@ -269,9 +631,10 @@
     }
 
     .image-modal img {
-        max-width: 90%;
+        max-width: 100%;
         max-height: 90%;
         border-radius: 8px;
+        object-fit: contain;
     }
 
     .modal-close {
@@ -279,11 +642,79 @@
         top: 20px;
         right: 20px;
         color: white;
-        font-size: 30px;
+        font-size: 40px;
         cursor: pointer;
         background: none;
         border: none;
-        z-index: 1001;
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2001;
+        opacity: 0.8;
+        transition: opacity 0.2s;
+    }
+
+    .modal-close:hover {
+        opacity: 1;
+    }
+
+    /* Shake animation for errors */
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+        20%, 40%, 60%, 80% { transform: translateX(5px); }
+    }
+
+    .shake {
+        animation: shake 0.5s ease-in-out;
+    }
+
+    /* Dark mode support */
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --surface-color: #121212;
+            --surface-variant: #1e1e1e;
+            --border-color: #333333;
+            --text-primary: #ffffff;
+            --text-secondary: #aaaaaa;
+            --text-disabled: #666666;
+        }
+
+        body {
+            background: var(--surface-color);
+        }
+
+        .message.incoming .message-bubble {
+            background: #2d2d2d;
+        }
+
+        .message.incoming .file-attachment {
+            background: #2d2d2d;
+        }
+
+        .message.incoming .file-info {
+            background: #252525;
+        }
+
+        .message-input {
+            background: #2d2d2d;
+            color: var(--text-primary);
+        }
+
+        .message-input:focus {
+            background: #2d2d2d;
+        }
+
+        .upload-area {
+            background: #1e1e1e;
+        }
+
+        .upload-button.secondary {
+            background: #2d2d2d;
+            color: var(--text-primary);
+        }
     }
 </style>
 {% endblock %}
@@ -308,7 +739,9 @@ function formatFileSize(bytes) {
 function scrollToBottom() {
     const container = document.getElementById('messagesContainer');
     setTimeout(() => {
-        container.scrollTop = container.scrollHeight;
+        if (container) {
+            container.scrollTop = container.scrollHeight;
+        }
     }, 100);
 }
 
@@ -316,10 +749,132 @@ const receiverId = {{ receiver.id }};
 let isSending = false;
 let lastMessageId = 0;
 let selectedFile = null;
+let userStatusInterval = null;
 
-// Chat functions
+// Navigation functions
 function goBack() {
     window.history.back();
+}
+
+function showUserMenu() {
+    const actions = ['View Profile', 'Block User', 'Clear Chat', 'Report'];
+    const actionText = actions.join('\n• ');
+    const action = prompt(`User Actions:\n\n• ${actionText}\n\nEnter action name:`);
+
+    if (action) {
+        handleUserAction(action.trim());
+    }
+}
+
+function handleUserAction(action) {
+    const lowerAction = action.toLowerCase();
+
+    if (lowerAction.includes('profile') || lowerAction.includes('view')) {
+        window.location.href = `/profile/${receiverId}`;
+    } else if (lowerAction.includes('block')) {
+        if (confirm('Are you sure you want to block this user?')) {
+            fetch(`/api/block_user/${receiverId}`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('User blocked successfully');
+                    goBack();
+                } else {
+                    alert('Failed to block user: ' + data.error);
+                }
+            })
+            .catch(error => {
+                alert('Failed to block user');
+                console.error('Error:', error);
+            });
+        }
+    } else if (lowerAction.includes('clear')) {
+        if (confirm('Are you sure you want to clear all messages in this chat?')) {
+            fetch(`/api/clear_chat/${receiverId}`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Chat cleared successfully');
+                    loadMessages();
+                } else {
+                    alert('Failed to clear chat: ' + data.error);
+                }
+            })
+            .catch(error => {
+                alert('Failed to clear chat');
+                console.error('Error:', error);
+            });
+        }
+    } else if (lowerAction.includes('report')) {
+        const reason = prompt('Please enter the reason for reporting:');
+        if (reason) {
+            fetch(`/api/report_user/${receiverId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ reason: reason })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('User reported successfully');
+                } else {
+                    alert('Failed to report user: ' + data.error);
+                }
+            })
+            .catch(error => {
+                alert('Failed to report user');
+                console.error('Error:', error);
+            });
+        }
+    }
+}
+
+// Check user online status
+async function checkUserStatus() {
+    try {
+        const response = await fetch(`/api/user_status/${receiverId}`);
+        const data = await response.json();
+
+        const statusElement = document.getElementById('userStatus');
+        if (statusElement && data.status) {
+            let statusText = '';
+            let statusColor = '';
+
+            switch(data.status) {
+                case 'online':
+                    statusText = 'Online';
+                    statusColor = 'var(--online-status)';
+                    break;
+                case 'offline':
+                    statusText = 'Offline';
+                    statusColor = 'var(--offline-status)';
+                    break;
+                case 'away':
+                    statusText = 'Away';
+                    statusColor = 'var(--away-status)';
+                    break;
+                default:
+                    statusText = data.status;
+                    statusColor = 'var(--text-secondary)';
+            }
+
+            statusElement.textContent = statusText;
+            statusElement.style.color = statusColor;
+
+            // Add last seen time if available
+            if (data.last_seen && data.status === 'offline') {
+                statusElement.textContent = `Last seen ${data.last_seen}`;
+            }
+        }
+    } catch (error) {
+        console.error('Error checking user status:', error);
+    }
 }
 
 function setupMessageInput() {
@@ -331,6 +886,7 @@ function setupMessageInput() {
     input.addEventListener('input', function() {
         this.style.height = 'auto';
         this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        updateSendButton();
     });
 
     // Form submission
@@ -349,7 +905,7 @@ function setupMessageInput() {
         const tempMessage = {
             id: tempId,
             content: content,
-            sender_name: '{{ current_user }}',
+            sender_name: 'You',
             timestamp: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
             is_own: true,
             is_read: false
@@ -363,6 +919,14 @@ function setupMessageInput() {
         // Then send to server
         await sendMessage(content, tempId);
         isSending = false;
+    });
+
+    // Enter key to send (Shift+Enter for new line)
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            form.dispatchEvent(new Event('submit'));
+        }
     });
 }
 
@@ -417,6 +981,14 @@ function showMessageError(tempId) {
             bubble.style.background = '';
             bubble.style.color = '';
         }, 2000);
+    }
+}
+
+function updateSendButton() {
+    const input = document.getElementById('messageInput');
+    const button = document.getElementById('sendButton');
+    if (input && button) {
+        button.disabled = input.value.trim().length === 0;
     }
 }
 
@@ -733,6 +1305,26 @@ function startMessagePolling() {
     }, 2000);
 }
 
+// Poll for user status updates
+function startStatusPolling() {
+    if (userStatusInterval) clearInterval(userStatusInterval);
+
+    userStatusInterval = setInterval(() => {
+        checkUserStatus();
+    }, 10000); // Check every 10 seconds
+}
+
+// Mark messages as read
+async function markMessagesAsRead() {
+    try {
+        await fetch(`/api/mark_read/${receiverId}`, {
+            method: 'POST'
+        });
+    } catch (error) {
+        console.error('Error marking messages as read:', error);
+    }
+}
+
 // Initialize everything
 document.addEventListener('DOMContentLoaded', function() {
     // Define utility functions first
@@ -747,8 +1339,21 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load messages
     loadMessages();
 
-    // Start polling
+    // Check user status
+    checkUserStatus();
+    startStatusPolling();
+
+    // Start polling for new messages
     startMessagePolling();
+
+    // Mark messages as read when opening chat
+    markMessagesAsRead();
+
+    // Focus on input field
+    const input = document.getElementById('messageInput');
+    if (input) {
+        input.focus();
+    }
 });
 
 // Add click outside to close modal
@@ -763,6 +1368,28 @@ document.addEventListener('click', function(e) {
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closeImagePreview();
+    }
+});
+
+// Handle page visibility changes
+document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) {
+        // Page became visible, mark messages as read
+        markMessagesAsRead();
+        // Reload messages to update read status
+        loadMessages();
+    }
+});
+
+// Close upload area when clicking outside
+document.addEventListener('click', function(e) {
+    const uploadArea = document.getElementById('uploadArea');
+    const attachmentBtn = document.getElementById('attachmentBtn');
+
+    if (uploadArea && uploadArea.classList.contains('active') &&
+        attachmentBtn && !uploadArea.contains(e.target) &&
+        e.target !== attachmentBtn && !attachmentBtn.contains(e.target)) {
+        cancelUpload();
     }
 });
 </script>
