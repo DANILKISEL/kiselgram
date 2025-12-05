@@ -26,90 +26,300 @@
             </div>
         </div>
 
+        <!-- File Upload Area -->
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📁</div>
+            <div id="uploadFileName">No file selected</div>
+            <div class="upload-buttons">
+                <button type="button" class="upload-button secondary ripple" onclick="document.getElementById('fileInput').click()">Choose File</button>
+                <button type="button" class="upload-button primary ripple" onclick="uploadFile()" id="uploadBtn">Upload</button>
+                <button type="button" class="upload-button cancel ripple" onclick="cancelUpload()">Cancel</button>
+            </div>
+        </div>
+
         <!-- Input Area -->
         <div class="input-area">
             <form class="input-form" id="messageForm">
-                <textarea class="message-input" placeholder="Message" id="messageInput"
-                         rows="1" required></textarea>
-                <button type="submit" class="send-button ripple" id="sendButton">➤</button>
+                <div class="input-row">
+                    <button type="button" class="attachment-button ripple" onclick="toggleUploadArea()" id="attachmentBtn">📎</button>
+                    <textarea class="message-input" placeholder="Message" id="messageInput"
+                             rows="1" required></textarea>
+                    <button type="submit" class="send-button ripple" id="sendButton">➤</button>
+                </div>
             </form>
         </div>
     </div>
 </div>
+
+<!-- Hidden file input -->
+<input type="file" id="fileInput" class="file-input" onchange="handleFileSelect(this.files)">
+<input type="hidden" id="receiverId" value="{{ receiver.id }}">
+{% endblock %}
+
+{% block styles %}
+<style>
+    /* File Upload Styles */
+    .upload-area {
+        background: var(--surface-color);
+        border-top: 1px solid var(--border-color);
+        padding: 15px;
+        display: none;
+        transition: all 0.3s ease;
+    }
+
+    .upload-area.active {
+        display: block;
+        animation: slideUp 0.3s ease;
+    }
+
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .upload-icon {
+        font-size: 2.5em;
+        text-align: center;
+        margin-bottom: 10px;
+        color: var(--primary-color);
+        opacity: 0.8;
+    }
+
+    #uploadFileName {
+        text-align: center;
+        font-size: 14px;
+        color: var(--text-secondary);
+        margin-bottom: 15px;
+        word-break: break-all;
+        padding: 0 10px;
+    }
+
+    .upload-buttons {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+    }
+
+    .upload-button {
+        padding: 8px 16px;
+        border-radius: 20px;
+        border: none;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .upload-button.primary {
+        background: var(--primary-color);
+        color: white;
+    }
+
+    .upload-button.secondary {
+        background: var(--surface-variant);
+        color: var(--text-primary);
+    }
+
+    .upload-button.cancel {
+        background: var(--error-color);
+        color: white;
+    }
+
+    .upload-button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .file-input {
+        display: none;
+    }
+
+    .input-row {
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
+        width: 100%;
+    }
+
+    .attachment-button {
+        background: none;
+        border: none;
+        font-size: 20px;
+        padding: 10px;
+        cursor: pointer;
+        color: var(--text-secondary);
+        transition: color 0.2s ease;
+    }
+
+    .attachment-button:hover {
+        color: var(--primary-color);
+    }
+
+    /* File Attachment Styles in Messages */
+    .file-attachment {
+        margin: 8px 0;
+        border-radius: 12px;
+        overflow: hidden;
+        background: var(--surface-variant);
+        border: 1px solid var(--border-color);
+    }
+
+    .message.outgoing .file-attachment {
+        background: var(--primary-light);
+        border-color: var(--primary-light);
+    }
+
+    .file-preview {
+        text-align: center;
+        padding: 12px;
+    }
+
+    .file-preview img {
+        max-width: 100%;
+        max-height: 200px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: transform 0.2s ease;
+    }
+
+    .file-preview img:hover {
+        transform: scale(1.02);
+    }
+
+    .file-preview audio,
+    .file-preview video {
+        width: 100%;
+        border-radius: 8px;
+        margin-top: 8px;
+    }
+
+    .attachment-icon {
+        font-size: 2.5em;
+        margin-bottom: 8px;
+        opacity: 0.7;
+        color: var(--text-secondary);
+    }
+
+    .file-info {
+        padding: 10px 12px;
+        background: rgba(0, 0, 0, 0.03);
+        border-top: 1px solid var(--border-color);
+    }
+
+    .message.outgoing .file-info {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .file-name {
+        font-weight: 500;
+        font-size: 14px;
+        margin-bottom: 4px;
+        word-break: break-all;
+        color: var(--text-primary);
+    }
+
+    .file-size {
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-bottom: 8px;
+    }
+
+    .file-download {
+        display: inline-block;
+        padding: 6px 12px;
+        background: var(--primary-color);
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 500;
+        transition: background 0.2s ease;
+    }
+
+    .file-download:hover {
+        background: var(--primary-dark);
+    }
+
+    .message-content {
+        margin-top: 8px;
+    }
+
+    /* Modal for image preview */
+    .image-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.9);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .image-modal.active {
+        display: flex;
+    }
+
+    .image-modal img {
+        max-width: 90%;
+        max-height: 90%;
+        border-radius: 8px;
+    }
+
+    .modal-close {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        color: white;
+        font-size: 30px;
+        cursor: pointer;
+        background: none;
+        border: none;
+        z-index: 1001;
+    }
+</style>
 {% endblock %}
 
 {% block scripts %}
-<!-- In the scripts section of templates/chat.html -->
 <script>
+// Utility functions - define these first
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function scrollToBottom() {
+    const container = document.getElementById('messagesContainer');
+    setTimeout(() => {
+        container.scrollTop = container.scrollHeight;
+    }, 100);
+}
+
 const receiverId = {{ receiver.id }};
 let isSending = false;
 let lastMessageId = 0;
+let selectedFile = null;
 
+// Chat functions
 function goBack() {
     window.history.back();
-}
-
-// Load messages when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    loadMessages();
-    setupMessageInput();
-});
-
-async function loadMessages() {
-    try {
-        const response = await fetch(`/api/messages/${receiverId}`);
-        const data = await response.json();
-
-        const container = document.getElementById('messagesContainer');
-
-        if (data.messages && data.messages.length > 0) {
-            // Get current last message ID to check if we have new messages
-            const currentLastId = data.messages[data.messages.length - 1].id;
-
-            if (currentLastId > lastMessageId) {
-                // Only update if we have new messages
-                container.innerHTML = '';
-                data.messages.forEach(message => {
-                    const messageDiv = createMessageElement(message, false); // No animation for existing messages
-                    container.appendChild(messageDiv);
-                });
-                scrollToBottom();
-                lastMessageId = currentLastId;
-            }
-        } else {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <div class="empty-state-icon">💬</div>
-                    <div class="empty-state-text">No messages yet</div>
-                    <div class="empty-state-subtext">Send a message to start the conversation!</div>
-                </div>
-            `;
-        }
-    } catch (error) {
-        console.error('Error loading messages:', error);
-    }
-}
-
-function createMessageElement(message, animate = false) {
-    const div = document.createElement('div');
-    div.className = `message ${message.is_own ? 'outgoing' : 'incoming'}`;
-    div.dataset.messageId = message.id;
-
-    if (animate) {
-        div.classList.add('bounce-in');
-    }
-
-    div.innerHTML = `
-        <div class="message-bubble">
-            <div class="message-text">${escapeHtml(message.content)}</div>
-            <div class="message-time">
-                ${message.timestamp}
-                ${message.is_own ? `<span class="message-status">${message.is_read ? '✓✓' : '✓'}</span>` : ''}
-            </div>
-        </div>
-    `;
-
-    return div;
 }
 
 function setupMessageInput() {
@@ -186,20 +396,6 @@ async function sendMessage(content, tempId) {
     }
 }
 
-function addMessageToUI(message, animate = false) {
-    const container = document.getElementById('messagesContainer');
-
-    // Remove empty state if it exists
-    const emptyState = container.querySelector('.empty-state');
-    if (emptyState) {
-        emptyState.remove();
-    }
-
-    const messageDiv = createMessageElement(message, animate);
-    container.appendChild(messageDiv);
-    scrollToBottom();
-}
-
 function removeTempMessage(tempId) {
     const tempMessage = document.querySelector(`[data-message-id="${tempId}"]`);
     if (tempMessage) {
@@ -224,37 +420,350 @@ function showMessageError(tempId) {
     }
 }
 
-function scrollToBottom() {
-    const container = document.getElementById('messagesContainer');
-    setTimeout(() => {
-        container.scrollTop = container.scrollHeight;
-    }, 100);
+// File upload functions
+function toggleUploadArea() {
+    const uploadArea = document.getElementById('uploadArea');
+    const isActive = uploadArea.classList.toggle('active');
+
+    // Toggle attachment button color
+    const attachmentBtn = document.getElementById('attachmentBtn');
+    if (isActive) {
+        attachmentBtn.style.color = 'var(--primary-color)';
+    } else {
+        attachmentBtn.style.color = '';
+    }
 }
 
-function escapeHtml(text) {
+function cancelUpload() {
+    const uploadArea = document.getElementById('uploadArea');
+    uploadArea.classList.remove('active');
+    selectedFile = null;
+    document.getElementById('fileInput').value = '';
+    document.getElementById('uploadFileName').textContent = 'No file selected';
+
+    // Reset attachment button color
+    const attachmentBtn = document.getElementById('attachmentBtn');
+    if (attachmentBtn) attachmentBtn.style.color = '';
+}
+
+function handleFileSelect(files) {
+    if (files.length > 0) {
+        selectedFile = files[0];
+        document.getElementById('uploadFileName').textContent = selectedFile.name;
+
+        // Check file size (16MB limit)
+        if (selectedFile.size > 16 * 1024 * 1024) {
+            alert('File size must be less than 16MB');
+            cancelUpload();
+            return;
+        }
+    }
+}
+
+async function uploadFile() {
+    if (!selectedFile) {
+        alert('Please select a file first');
+        return;
+    }
+
+    const messageText = document.getElementById('messageInput').value.trim();
+    const uploadBtn = document.getElementById('uploadBtn');
+
+    uploadBtn.disabled = true;
+    uploadBtn.textContent = 'Uploading...';
+
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    formData.append('receiver_id', receiverId);
+    if (messageText) {
+        formData.append('message', messageText);
+    }
+
+    try {
+        const response = await fetch('/upload_file', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Add the message to chat
+            addMessageToUI(data.message, true);
+            scrollToBottom();
+
+            // Clear inputs
+            document.getElementById('messageInput').value = '';
+            cancelUpload();
+        } else {
+            alert('Upload failed: ' + data.error);
+        }
+    } catch (error) {
+        alert('Upload failed. Please try again.');
+        console.error('Error:', error);
+    } finally {
+        uploadBtn.disabled = false;
+        uploadBtn.textContent = 'Upload';
+    }
+}
+
+function setupFileUpload() {
+    // Add image preview modal to body
+    const modalHTML = `
+        <div class="image-modal" id="imageModal">
+            <button class="modal-close" onclick="closeImagePreview()">×</button>
+            <img id="modalImage" src="" alt="Preview">
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+}
+
+function openImagePreview(imageUrl) {
+    const modal = document.getElementById('imageModal');
+    const modalImage = document.getElementById('modalImage');
+    modalImage.src = imageUrl;
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeImagePreview() {
+    const modal = document.getElementById('imageModal');
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+// Message display functions
+function createMessageElement(message, animate = false) {
     const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    div.className = `message ${message.is_own ? 'outgoing' : 'incoming'}`;
+    div.dataset.messageId = message.id;
+
+    if (animate) {
+        div.classList.add('bounce-in');
+    }
+
+    let messageHTML = '<div class="message-bubble">';
+
+    // Add file attachment if exists
+    if (message.has_attachment) {
+        messageHTML += renderFileAttachment(message);
+    }
+
+    // Add text content if exists
+    if (message.content) {
+        messageHTML += `<div class="message-text">${escapeHtml(message.content)}</div>`;
+    }
+
+    messageHTML += `
+            <div class="message-time">
+                ${message.timestamp}
+                ${message.is_own ? `<span class="message-status">${message.is_read ? '✓✓' : '✓'}</span>` : ''}
+            </div>
+        </div>
+    `;
+
+    div.innerHTML = messageHTML;
+    return div;
+}
+
+function renderFileAttachment(message) {
+    const fileType = message.file_type || 'unknown';
+    const fileName = message.file_name || 'file';
+    const fileUrl = message.file_url || '';
+    const fileSize = message.file_size || 0;
+    const thumbnailUrl = message.thumbnail_url || fileUrl;
+
+    let previewHTML = '';
+
+    switch(fileType.toLowerCase()) {
+        case 'image':
+        case 'jpg':
+        case 'jpeg':
+        case 'png':
+        case 'gif':
+        case 'webp':
+            previewHTML = `
+                <div class="file-preview">
+                    <img src="${thumbnailUrl}" alt="${fileName}"
+                         onclick="openImagePreview('${fileUrl}')"
+                         onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNFNUU1RTUiLz48cGF0aCBkPSJNNzAgODBDNzAgNzIuMjM4MSA3Ni4yMzgxIDY2IDg0IDY2QzkxLjc2MTkgNjYgOTggNzIuMjM4MSA5OCA4MEM5OCA4Ny43NjE5IDkxLjc2MTkgOTQgODQgOTRDNzYuMjM4MSA5NCA3MCA4Ny43NjE5IDcwIDgwWiIgZmlsbD0iI0NDQyIvPjxwYXRoIGQ9Ik02NCAxMTRMMzYgMTQyVjE2NEgxNjRWMTE0TDEzNiA4NkwxMDQgMTE0TDg0IDk0TDY0IDExNFoiIGZpbGw9IiNDQ0MiLz48L3N2Zz4='">
+                </div>
+            `;
+            break;
+        case 'document':
+        case 'pdf':
+        case 'doc':
+        case 'docx':
+        case 'txt':
+            previewHTML = `
+                <div class="file-preview">
+                    <div class="attachment-icon">📄</div>
+                    <div style="font-size: 14px; color: var(--text-secondary);">Document</div>
+                </div>
+            `;
+            break;
+        case 'audio':
+        case 'mp3':
+        case 'wav':
+        case 'ogg':
+            previewHTML = `
+                <div class="file-preview">
+                    <div class="attachment-icon">🎵</div>
+                    <audio controls>
+                        <source src="${fileUrl}" type="audio/mpeg">
+                        Your browser does not support the audio element.
+                    </audio>
+                </div>
+            `;
+            break;
+        case 'video':
+        case 'mp4':
+        case 'webm':
+        case 'mov':
+            previewHTML = `
+                <div class="file-preview">
+                    <div class="attachment-icon">🎬</div>
+                    <video controls style="max-height: 200px;">
+                        <source src="${fileUrl}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+            `;
+            break;
+        default:
+            previewHTML = `
+                <div class="file-preview">
+                    <div class="attachment-icon">📁</div>
+                    <div style="font-size: 14px; color: var(--text-secondary);">File Attachment</div>
+                </div>
+            `;
+    }
+
+    return `
+        <div class="file-attachment">
+            ${previewHTML}
+            <div class="file-info">
+                <div class="file-name">${escapeHtml(fileName)}</div>
+                <div class="file-size">${formatFileSize(fileSize)}</div>
+                <a href="${fileUrl}" class="file-download" download="${escapeHtml(fileName)}">Download</a>
+            </div>
+        </div>
+    `;
+}
+
+function addMessageToUI(message, animate = false) {
+    const container = document.getElementById('messagesContainer');
+
+    // Remove empty state if it exists
+    const emptyState = container.querySelector('.empty-state');
+    if (emptyState) {
+        emptyState.remove();
+    }
+
+    // Remove loading spinner if it exists
+    const loading = container.querySelector('.loading');
+    if (loading) {
+        loading.remove();
+    }
+
+    const messageDiv = createMessageElement(message, animate);
+    container.appendChild(messageDiv);
+    scrollToBottom();
+}
+
+async function loadMessages() {
+    try {
+        const response = await fetch(`/api/messages/${receiverId}`);
+        const data = await response.json();
+
+        const container = document.getElementById('messagesContainer');
+
+        if (data.messages && data.messages.length > 0) {
+            // Get current last message ID to check if we have new messages
+            const currentLastId = data.messages[data.messages.length - 1].id;
+
+            if (currentLastId > lastMessageId) {
+                // Only update if we have new messages
+                container.innerHTML = '';
+                data.messages.forEach(message => {
+                    const messageDiv = createMessageElement(message, false);
+                    container.appendChild(messageDiv);
+                });
+                scrollToBottom();
+                lastMessageId = currentLastId;
+            }
+        } else {
+            // Remove loading and show empty state
+            const loading = container.querySelector('.loading');
+            if (loading) {
+                loading.remove();
+            }
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">💬</div>
+                    <div class="empty-state-text">No messages yet</div>
+                    <div class="empty-state-subtext">Send a message to start the conversation!</div>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Error loading messages:', error);
+    }
 }
 
 // Poll for new messages (only load unseen ones)
-setInterval(async () => {
-    try {
-        const response = await fetch(`/api/messages/${receiverId}?after=${lastMessageId}`);
-        const data = await response.json();
+function startMessagePolling() {
+    setInterval(async () => {
+        try {
+            const response = await fetch(`/api/messages/${receiverId}?after=${lastMessageId}`);
+            const data = await response.json();
 
-        if (data.messages && data.messages.length > 0) {
-            data.messages.forEach(message => {
-                // Only add messages we haven't seen yet
-                if (message.id > lastMessageId) {
-                    addMessageToUI(message, true); // Animate new incoming messages
-                    lastMessageId = message.id;
-                }
-            });
+            if (data.messages && data.messages.length > 0) {
+                data.messages.forEach(message => {
+                    // Only add messages we haven't seen yet
+                    if (message.id > lastMessageId) {
+                        addMessageToUI(message, true); // Animate new incoming messages
+                        lastMessageId = message.id;
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Error polling messages:', error);
         }
-    } catch (error) {
-        console.error('Error polling messages:', error);
+    }, 2000);
+}
+
+// Initialize everything
+document.addEventListener('DOMContentLoaded', function() {
+    // Define utility functions first
+    if (typeof escapeHtml === 'undefined') {
+        window.escapeHtml = escapeHtml;
     }
-}, 2000);
+
+    // Setup all components
+    setupMessageInput();
+    setupFileUpload();
+
+    // Load messages
+    loadMessages();
+
+    // Start polling
+    startMessagePolling();
+});
+
+// Add click outside to close modal
+document.addEventListener('click', function(e) {
+    const modal = document.getElementById('imageModal');
+    if (modal && modal.classList.contains('active') && e.target === modal) {
+        closeImagePreview();
+    }
+});
+
+// Add escape key to close modal
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeImagePreview();
+    }
+});
 </script>
 {% endblock %}
