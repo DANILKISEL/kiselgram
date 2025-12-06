@@ -34,7 +34,7 @@ def print_header():
  | |/ // _ \_   _| ____/ ___/ ___/ _ \|  _ \|  \/  |
  | ' /| | | || | |  _| \___ \___ \ | | | |_) | |\/| |
  | . \| |_| || | | |___ ___) |__) | |_| |  _ <| |  | |
- |_|\_\\___/ |_| |_____|____/____/ \___/|_| \_\_|  |_|
+ |_|\_\___/ |_| |_____|____/____/ \___/|_| \_\_|  |_|
     """)
     print("=" * 60)
     print("📱 Complete Messaging Platform v2.0")
@@ -141,7 +141,6 @@ def run_flask_app(host, port, debug):
             cmd = [sys.executable, 'run_modular.py']
         elif os.path.exists('app'):
             # Create a temporary runner for modular app
-            # FIXED: Use 'True' instead of 'true' for Python boolean
             runner_content = f'''#!/usr/bin/env python3
 import sys
 import os
@@ -195,16 +194,18 @@ if __name__ == '__main__':
         # Monitor output in a separate thread
         def monitor_output():
             for line in flask_process.stdout:
-                print(f"[Flask] {line}", end='')
-                if "Running on" in line and "http://" in line:
-                    # Try to open browser
-                    try:
-                        time.sleep(1)
-                        url = f"http://localhost:{port}"
-                        webbrowser.open(url)
-                        print(f"\n🌐 Opened browser at: {url}")
-                    except:
-                        pass
+                line = line.rstrip()
+                if line:  # Skip empty lines
+                    print(f"[App] {line}")
+                    if "Running on" in line and "http://" in line:
+                        # Try to open browser
+                        try:
+                            time.sleep(2)
+                            url = f"http://localhost:{port}"
+                            webbrowser.open(url)
+                            print(f"\n🌐 Opened browser at: {url}")
+                        except:
+                            pass
 
         monitor_thread = threading.Thread(target=monitor_output, daemon=True)
         monitor_thread.start()
@@ -220,66 +221,83 @@ if __name__ == '__main__':
         print(f"❌ Error starting Flask: {e}")
         return False
 
+
 def stop_application():
     """Stop the running application"""
     global flask_process, is_running
 
     status = load_status()
     if not status or not status.get('running'):
-        print("❌ No running application found")
-        return False
+        print("❌ No running application found (status file)")
+        # Try to kill anything on port 5000 anyway
+        port = 5000
+    else:
+        port = status.get('port', 5000)
 
-    pid = status.get('pid')
-    port = status.get('port', 5000)
-
-    print(f"🛑 Stopping Kiselgram (PID: {pid}, Port: {port})...")
+    print(f"🛑 Stopping Kiselgram on port {port}...")
 
     try:
-        # Try to kill by PID
-        if pid:
-            if platform.system() == 'Windows':
-                subprocess.run(['taskkill', '/F', '/PID', str(pid)],
-                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            else:
-                os.kill(pid, signal.SIGTERM)
-
-        # Also try to kill any process on the port
-        if check_port_available(port):
-            print("✅ Application stopped")
+        # Kill by port (most reliable method)
+        if platform.system() == 'Windows':
+            # Find PID using port on Windows
+            result = subprocess.run(['netstat', '-ano'], capture_output=True, text=True, shell=True)
+            for line in result.stdout.split('\n'):
+                if f':{port}' in line and 'LISTENING' in line:
+                    parts = line.strip().split()
+                    if len(parts) >= 5:
+                        pid = parts[-1]
+                        subprocess.run(['taskkill', '/F', '/PID', pid],
+                                       stdout=subprocess.DEVNULL,
+                                       stderr=subprocess.DEVNULL)
+                        print(f"✓ Killed process {pid} on port {port}")
         else:
-            # Port still in use, try harder
-            if platform.system() == 'Windows':
-                subprocess.run(['netstat', '-ano'], capture_output=True, text=True)
-                # Find and kill process using the port
-                result = subprocess.run(['netstat', '-ano'], capture_output=True, text=True)
-                for line in result.stdout.split('\n'):
-                    if f':{port}' in line:
-                        parts = line.strip().split()
-                        if len(parts) >= 5:
-                            pid = parts[-1]
-                            subprocess.run(['taskkill', '/F', '/PID', pid],
-                                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            else:
-                # For Linux/Mac
-                subprocess.run(['lsof', '-ti', f':{port}'], capture_output=True, text=True)
-                result = subprocess.run(['lsof', '-ti', f':{port}'], capture_output=True, text=True)
+            # Unix/Linux/Mac - find and kill process on port
+            import signal
+            # Try lsof first
+            try:
+                result = subprocess.run(['lsof', '-ti', f':{port}'],
+                                        capture_output=True, text=True)
                 if result.stdout.strip():
                     pids = result.stdout.strip().split()
                     for pid in pids:
-                        os.kill(int(pid), signal.SIGKILL)
+                        try:
+                            os.kill(int(pid), signal.SIGTERM)
+                            time.sleep(0.5)
+                            os.kill(int(pid), signal.SIGKILL)
+                            print(f"✓ Killed process {pid} on port {port}")
+                        except ProcessLookupError:
+                            pass  # Process already dead
+            except FileNotFoundError:
+                # lsof not available, use pkill
+                subprocess.run(['pkill', '-f', f'port.*{port}'],
+                               stdout=subprocess.DEVNULL,
+                               stderr=subprocess.DEVNULL)
+                print(f"✓ Sent kill signal to processes on port {port}")
 
+        # Also kill any Python processes running our app
+        subprocess.run(['pkill', '-f', 'run_modular.py'],
+                       stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL)
+        subprocess.run(['pkill', '-f', 'tmp_runner.py'],
+                       stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL)
+
+        # Clear status
         clear_status()
 
         # Clean up temporary files
-        for tmp_file in ['tmp_runner.py', 'init_db.py']:
+        for tmp_file in ['tmp_runner.py', 'init_db.py', '.kiselgram.pid']:
             if os.path.exists(tmp_file):
                 os.remove(tmp_file)
+                print(f"✓ Removed {tmp_file}")
 
         print("✅ Application stopped successfully")
         return True
 
     except Exception as e:
-        print(f"❌ Error stopping application: {e}")
+        print(f"⚠️  Error stopping application: {e}")
+        # Clear status anyway
+        clear_status()
         return False
 
 
@@ -300,10 +318,10 @@ def check_application():
         # Check if port is actually responding
         if check_port_available(port):
             print(f"⚠️  Warning: Port {port} appears to be free (process may have crashed)")
+            return False
         else:
             print(f"✓ Port {port} is active")
-
-        return True
+            return True
     else:
         print("❌ Kiselgram is NOT running")
         return False
@@ -349,6 +367,8 @@ MAX_CONTENT_LENGTH=16777216  # 16MB
         with open('.env', 'w') as f:
             f.write(env_content)
         print("✓ Created .env file")
+    else:
+        print("✓ .env file already exists")
 
     # Create requirements.txt if it doesn't exist
     if not os.path.exists('requirements.txt'):
@@ -361,6 +381,8 @@ pyTelegramBotAPI>=4.12.0
         with open('requirements.txt', 'w') as f:
             f.write(req_content)
         print("✓ Created requirements.txt")
+    else:
+        print("✓ requirements.txt already exists")
 
     print("\n✅ Setup completed!")
     print("\nNext steps:")
@@ -415,11 +437,7 @@ def clean_temporary_files():
     files_to_remove = [
         'tmp_runner.py',
         'init_db.py',
-        '__pycache__',
-        'app/__pycache__',
-        'app/routes/__pycache__',
-        'app/utils/__pycache__',
-        'instance',
+        '.kiselgram.pid',
         '.kiselgram_status.json'
     ]
 
@@ -432,6 +450,13 @@ def clean_temporary_files():
             else:
                 os.remove(item)
                 print(f"✓ Removed file: {item}")
+
+    # Clean __pycache__ directories
+    for root, dirs, files in os.walk('.'):
+        if '__pycache__' in dirs:
+            pycache_path = os.path.join(root, '__pycache__')
+            shutil.rmtree(pycache_path)
+            print(f"✓ Removed: {pycache_path}")
 
     # Clean .pyc files
     for root, dirs, files in os.walk('.'):
@@ -567,10 +592,11 @@ def main():
 
     # Restart command
     restart_parser = subparsers.add_parser('restart', help='Restart the application')
-    restart_parser.add_argument('--port', type=int, help='Port to run on')
-    restart_parser.add_argument('--host', help='Host to bind to')
-    restart_parser.add_argument('--debug', action='store_true', help='Enable debug mode')
+    restart_parser.add_argument('--port', type=int, default=5000, help='Port to run on')
+    restart_parser.add_argument('--host', default='0.0.0.0', help='Host to bind to')
+    restart_parser.add_argument('--debug', action='store_true', default=True, help='Enable debug mode')
     restart_parser.add_argument('--no-debug', action='store_false', dest='debug', help='Disable debug mode')
+    restart_parser.add_argument('--no-browser', action='store_true', help="Don't open browser")
 
     # Status command
     subparsers.add_parser('status', help='Check application status')
@@ -582,7 +608,7 @@ def main():
     subparsers.add_parser('clean', help='Clean temporary files')
 
     # Reset DB command
-    subparsers.add_parser('reset-db', help='Reset database (⚠️ deletes all data)')
+    subparsers.add_parser('reset-db', help='Reset database (⚠️ deletes data)')
 
     # Test command
     subparsers.add_parser('test', help='Run basic tests')
@@ -619,12 +645,12 @@ def main():
                 return
 
         # Check if already running
-        status = load_status()
-        if status and status.get('running'):
-            print(f"\n⚠️  Application is already running on port {status.get('port')}")
+        if check_application():
+            print(f"\n⚠️  Application is already running on port {args.port}")
             choice = input("Stop and restart? (y/n): ")
             if choice.lower() == 'y':
                 stop_application()
+                time.sleep(2)
             else:
                 return
 
@@ -644,9 +670,10 @@ def main():
         flask_thread.start()
 
         # Wait a bit and check if started
-        time.sleep(2)
-        if not args.no_browser and check_port_available(args.port):
-            # Port is free, so Flask didn't start properly
+        time.sleep(3)
+
+        # Check if port is now in use (meaning Flask started)
+        if check_port_available(args.port):
             print("\n⚠️  Flask may not have started properly. Check logs above.")
         else:
             print("\n✅ Application started!")
@@ -669,22 +696,35 @@ def main():
         print_header()
         print("\n🔄 Restarting Kiselgram...")
 
-        # Get current status for defaults
-        status = load_status()
-        current_port = args.port if args.port else (status.get('port') if status else 5000)
-        current_host = args.host if args.host else (status.get('host') if status else '0.0.0.0')
-
         # Stop if running
-        if status and status.get('running'):
-            stop_application()
-            time.sleep(2)
+        stop_application()
+        time.sleep(3)
 
-        # Start again
-        import subprocess
-        cmd = [sys.executable, __file__, 'start', '--port', str(current_port), '--host', current_host]
+        # Clear temp files
+        clean_temporary_files()
+
+        # Build and run start command
+        start_cmd = [sys.executable, __file__, 'start',
+                     '--port', str(args.port),
+                     '--host', args.host]
+
         if args.debug:
-            cmd.append('--debug')
-        subprocess.run(cmd)
+            start_cmd.append('--debug')
+        else:
+            start_cmd.append('--no-debug')
+
+        if args.no_browser:
+            start_cmd.append('--no-browser')
+
+        print(f"\n🚀 Starting fresh instance...")
+        try:
+            # Run as subprocess
+            process = subprocess.Popen(start_cmd)
+            process.wait()
+        except KeyboardInterrupt:
+            print("\n👋 Restart interrupted.")
+        except Exception as e:
+            print(f"❌ Error during restart: {e}")
 
     elif args.command == 'status':
         print_header()
@@ -717,8 +757,13 @@ def main():
 # Cleanup on exit
 def cleanup():
     """Cleanup function called on exit"""
-    if os.path.exists('tmp_runner.py'):
-        os.remove('tmp_runner.py')
+    # Clean up temporary files
+    for tmp_file in ['tmp_runner.py', 'init_db.py']:
+        if os.path.exists(tmp_file):
+            try:
+                os.remove(tmp_file)
+            except:
+                pass
 
 
 atexit.register(cleanup)
