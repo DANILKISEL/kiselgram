@@ -51,6 +51,7 @@ def create_app():
         from app.routes.files import files_bp
         from app.routes.api import api_bp
         from app.routes.search import search_bp
+        from app.routes.status import status_bp  # NEW
 
         app.register_blueprint(auth_bp)
         app.register_blueprint(chats_bp)
@@ -59,6 +60,7 @@ def create_app():
         app.register_blueprint(files_bp)
         app.register_blueprint(api_bp)
         app.register_blueprint(search_bp)
+        app.register_blueprint(status_bp)  # NEW
 
     except ImportError as e:
         print(f"Error importing blueprints: {e}")
