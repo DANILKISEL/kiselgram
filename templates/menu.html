@@ -1,0 +1,63 @@
+
+
+<style>
+           .nav-tab {
+            flex: 1;
+            text-align: center;
+            padding: 15px;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .nav-tab.active {
+            border-bottom-color: #007bff;
+            color: #007bff;
+                .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            display: flex;
+            border-top: 1px solid #eee;
+            z-index: 1000;
+        }
+
+        .nav-item {
+            flex: 1;
+            text-align: center;
+            padding: 15px 10px;
+            color: #666;
+            text-decoration: none;
+            font-size: 0.8em;
+        }
+
+        .nav-item.active {
+            color: #007bff;
+        }
+
+        .nav-icon {
+            font-size: 1.5em;
+            margin-bottom: 5px;
+        }
+    </style>
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav">
+        <a href="/chat_list" class="nav-item active">
+            <div class="nav-icon">💬</div>
+            <div>Chats</div>
+        </a>
+        <a href="/search" class="nav-item">
+            <div class="nav-icon">🔍</div>
+            <div>Search</div>
+        </a>
+        <a href="/users" class="nav-item">
+            <div class="nav-icon">👥</div>
+            <div>Users</div>
+        </a>
+        <a href="/settings" class="nav-item">
+            <div class="nav-icon">⚙️</div>
+            <div>Settings</div>
+        </a>
+    </div>
