@@ -17,6 +17,9 @@
 </head>
 <body>
     {% block content %}{% endblock %}
+    {% if request.endpoint != 'auth.login' %}
+        {% include "menu.html" %}
+    {% endif %}
     {% block scripts %}{% endblock %}
 
     <script>
