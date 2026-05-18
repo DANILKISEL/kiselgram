@@ -26,6 +26,9 @@
     let isOnline = navigator.onLine;
     const cachedMessages = new Map();
 
+    // Mention autocomplete state
+    let mentionState = { active: false, query: '', startPos: -1, users: [], selectedIdx: 0 };
+
     function getEl(id) { return document.getElementById(id); }
     const DOM = {
         get emptyChat() { return getEl('emptyChat'); },
@@ -85,11 +88,89 @@
         return d.toLocaleDateString();
     }
 
+    // Mention autocomplete
+    async function showMentionPopup(query) {
+        let popup = document.getElementById('mentionPopup');
+        if (!popup) {
+            popup = document.createElement('div');
+            popup.id = 'mentionPopup'; popup.className = 'mention-popup';
+            const inputArea = DOM.messageInput?.parentElement;
+            if (inputArea) { inputArea.style.position = 'relative'; inputArea.appendChild(popup); }
+        }
+        if (!query) { popup.innerHTML = '<div class="mention-item" style="justify-content:center;color:var(--text-muted)">Type to search</div>'; popup.classList.add('active'); return; }
+        try {
+            const r = await fetch(`/api/users?search=${encodeURIComponent(query)}`);
+            const data = await r.json();
+            let users = data.users || data || [];
+            if (activeChat?.type === 'group') {
+                const gr = await fetch(`/api/groups/${activeChat.id}`);
+                const gd = await gr.json();
+                if (gd.success && gd.members) users = gd.members;
+                else users = [];
+            }
+            mentionState.users = users;
+            if (!users.length) { popup.innerHTML = '<div class="mention-item" style="justify-content:center;color:var(--text-muted)">No users found</div>'; popup.classList.add('active'); return; }
+            popup.innerHTML = users.slice(0, 8).map((u, i) =>
+                `<div class="mention-item ${i === mentionState.selectedIdx ? 'selected' : ''}" onmousedown="insertMention(${u.id},'${escapeHtml(u.display_name || u.username)}')">
+                    <span class="mention-avatar">${(u.display_name || u.username)[0].toUpperCase()}</span>
+                    <span class="mention-name">${escapeHtml(u.display_name || u.username)}</span>
+                    <span class="mention-username">@${escapeHtml(u.username)}</span>
+                </div>`
+            ).join('');
+            popup.classList.add('active');
+        } catch (e) { popup.classList.remove('active'); }
+    }
+
+    function closeMentionPopup() {
+        const popup = document.getElementById('mentionPopup');
+        if (popup) popup.classList.remove('active');
+        mentionState.active = false;
+    }
+
+    function insertMention(userId, name) {
+        const input = DOM.messageInput;
+        if (!input) return;
+        const val = input.value;
+        const before = val.slice(0, mentionState.startPos);
+        const after = val.slice(input.selectionStart);
+        input.value = before + '@' + name + ' ' + after;
+        input.focus();
+        input.selectionStart = input.selectionEnd = (before + '@' + name + ' ').length;
+        closeMentionPopup();
+        handleMessageInput();
+    }
+
+    function completeMention() {
+        const users = mentionState.users;
+        if (!users.length) return;
+        const user = users[mentionState.selectedIdx] || users[0];
+        insertMention(user.id, user.display_name || user.username);
+    }
+
+    // Copy message to clipboard
+    window.copyMessage = async (msgId) => {
+        const el = document.getElementById(`msg-${msgId}`);
+        const text = el?.querySelector('.message-text')?.textContent || '';
+        try { await navigator.clipboard.writeText(text); showToast('Copied!', 'success'); } catch (e) { showToast('Failed to copy', 'error'); }
+    };
+
+    // Forward message stub
+    window.forwardMessage = (msgId) => {
+        enterSelectionMode(msgId);
+        showToast('Select a chat to forward', 'info');
+    };
+
     // Initialization
     document.addEventListener('DOMContentLoaded', async () => {
         if ('serviceWorker' in navigator) {
             try { await navigator.serviceWorker.register('/sw.js'); } catch (e) {}
         }
+        // Offline indicator banner
+        const banner = document.createElement('div');
+        banner.className = 'offline-banner'; banner.id = 'offlineBanner';
+        banner.textContent = 'No internet connection';
+        document.body.prepend(banner);
+
         await loadCurrentUser();
         await loadChatList();
         await loadStories();
@@ -112,6 +193,33 @@
         setInterval(() => { if (activeChat) refreshMessages(); }, 5000);
         setInterval(() => { if (activeChat) fetchTypingStatus(); }, 2000);
         setInterval(() => fetch('/api/update_last_seen', { method: 'POST' }), 60000);
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', e => {
+            if (e.ctrlKey || e.metaKey) {
+                if (e.key === 'k' || e.key === 'K') { e.preventDefault(); DOM.globalSearchInput?.focus(); }
+                if (e.key === 'n' || e.key === 'N') { e.preventDefault(); document.querySelector('[onclick*="openCreateGroup"]')?.click(); }
+            }
+            if (e.key === 'Escape') {
+                if (document.querySelector('.lightbox-overlay')) { document.querySelector('.lightbox-overlay')?.remove(); return; }
+                document.querySelectorAll('.modal-overlay').forEach(m => m.remove());
+                if (mentionState.active) { closeMentionPopup(); }
+            }
+            if (e.key === 'Tab' && mentionState.active) { e.preventDefault(); completeMention(); }
+        });
+    });
+
+    window.addEventListener('online', () => {
+        isOnline = true;
+        const b = document.getElementById('offlineBanner');
+        if (b) b.classList.remove('show');
+        syncOfflineMessages();
+    });
+
+    window.addEventListener('offline', () => {
+        isOnline = false;
+        const b = document.getElementById('offlineBanner');
+        if (b) b.classList.add('show');
     });
 
     async function loadCurrentUser() {
@@ -192,6 +300,27 @@
     function handleMessageInput() {
         if (DOM.messageInput && DOM.sendBtn) DOM.sendBtn.disabled = !DOM.messageInput.value.trim();
         if (DOM.messageInput) { DOM.messageInput.style.height = 'auto'; DOM.messageInput.style.height = Math.min(DOM.messageInput.scrollHeight, 100) + 'px'; }
+        // Mention autocomplete
+        if (DOM.messageInput) {
+            const val = DOM.messageInput.value;
+            const pos = DOM.messageInput.selectionStart;
+            const textBefore = val.slice(0, pos);
+            const atIdx = textBefore.lastIndexOf('@');
+            if (atIdx !== -1 && (atIdx === 0 || val[atIdx-1] === ' ')) {
+                const query = textBefore.slice(atIdx + 1);
+                if (!query.includes(' ')) {
+                    mentionState.active = true;
+                    mentionState.query = query;
+                    mentionState.startPos = atIdx;
+                    mentionState.selectedIdx = 0;
+                    showMentionPopup(query);
+                } else if (mentionState.active) {
+                    closeMentionPopup();
+                }
+            } else if (mentionState.active) {
+                closeMentionPopup();
+            }
+        }
         if (activeChat && DOM.messageInput.value.trim().length > 0) {
             fetch(`/api/typing/${activeChat.type}/${activeChat.id}`, { method: 'POST' });
         }
@@ -199,6 +328,19 @@
 
     async function handleMessageKeydown(e) {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); await sendMessage(); }
+        if (e.key === 'Tab' && mentionState.active) { e.preventDefault(); completeMention(); }
+        if (e.key === 'ArrowDown' && mentionState.active) {
+            e.preventDefault();
+            mentionState.selectedIdx = Math.min(mentionState.selectedIdx + 1, mentionState.users.length - 1);
+            const popup = document.getElementById('mentionPopup');
+            if (popup) { const items = popup.querySelectorAll('.mention-item'); items.forEach((el, i) => el.classList.toggle('selected', i === mentionState.selectedIdx)); }
+        }
+        if (e.key === 'ArrowUp' && mentionState.active) {
+            e.preventDefault();
+            mentionState.selectedIdx = Math.max(mentionState.selectedIdx - 1, 0);
+            const popup = document.getElementById('mentionPopup');
+            if (popup) { const items = popup.querySelectorAll('.mention-item'); items.forEach((el, i) => el.classList.toggle('selected', i === mentionState.selectedIdx)); }
+        }
     }
 
     async function fetchTypingStatus() {
@@ -432,10 +574,83 @@
 
     // Chat List (local time)
     async function loadChatList() {
+        const c = DOM.chatList; if (!c) return;
+        // Show skeleton while loading
+        c.innerHTML = Array(5).fill('<div class="skeleton-chat-item"><div class="skeleton-avatar"></div><div class="skeleton-lines"><div class="skeleton-line medium"></div><div class="skeleton-line short"></div></div></div>').join('');
         try {
-            const r = await fetch('/api/chat_list'); const d = await r.json();
-            if (d.success) { localStorage.setItem('kiselgram_chatlist_premium', JSON.stringify(d.chats)); renderChatList(d.chats); }
-        } catch (e) {}
+            const res = await fetch('/api/chat_list'); const data = await res.json();
+            if (data.success) renderChatList(data.chats || []);
+        } catch (e) { c.innerHTML = '<div class="empty-state"><p>Failed to load</p></div>'; }
+    }
+
+    function renderChatList(chats) {
+        const c = DOM.chatList; if (!c) return;
+        if (!chats?.length) {
+            let savedMsg = '';
+            if (window.currentUserId) {
+                const active = activeChat?.type === 'saved' || false;
+                savedMsg = `<div class="chat-item ${active?'active':''}" data-chat-type="saved" data-chat-id="${window.currentUserId}" onclick="openSavedMessages()">
+                    <div class="chat-avatar saved"><span style="font-size:20px">📌</span></div>
+                    <div class="chat-info">
+                        <div class="chat-name-row"><span class="chat-name">Saved Messages</span></div>
+                        <div class="chat-preview"><span>Your saved messages</span></div>
+                    </div>
+                </div>`;
+            }
+            c.innerHTML = savedMsg + `
+                <div class="empty-state-detailed">
+                    <svg class="empty-icon-svg" viewBox="0 0 120 120" fill="none">
+                        <circle cx="60" cy="60" r="50" stroke="currentColor" stroke-width="2" stroke-dasharray="6 4" opacity="0.3"/>
+                        <path d="M36 72 L60 84 L84 72" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+                        <circle cx="60" cy="52" r="16" stroke="currentColor" stroke-width="2" opacity="0.4"/>
+                        <circle cx="60" cy="52" r="6" fill="currentColor" opacity="0.3"/>
+                    </svg>
+                    <h3>No chats yet</h3>
+                    <p>Start a conversation or save messages to yourself.</p>
+                    <button class="empty-btn" onclick="showAddContactModal()">New Chat</button>
+                </div>`;
+            return;
+        }
+        // Saved Messages: always first chat
+        let savedHtml = '';
+        if (window.currentUserId) {
+            const active = activeChat?.type === 'saved' || false;
+            savedHtml = `<div class="chat-item ${active?'active':''}" data-chat-type="saved" data-chat-id="${window.currentUserId}" onclick="openSavedMessages()">
+                <div class="chat-avatar saved">
+                    <span style="font-size:20px">📌</span>
+                </div>
+                <div class="chat-info">
+                    <div class="chat-name-row"><span class="chat-name">Saved Messages</span></div>
+                    <div class="chat-preview"><span>Your saved messages</span></div>
+                </div>
+            </div>`;
+        }
+        c.innerHTML = savedHtml + (chats || []).map(chat => {
+            const active = activeChat?.type===chat.type && activeChat?.id===chat.id;
+            let avatarHtml = '';
+            if (chat.avatar_url) {
+                avatarHtml = `<img src="${chat.avatar_url}" alt="${escapeHtml(chat.name)}">`;
+            } else {
+                avatarHtml = chat.avatar || '?';
+            }
+            // Truncate preview: show "Photo"/"Video"/"Voice Message"/"Document" instead of filenames
+            let preview = chat.last_message || '';
+            if (chat.last_message_type === 'image') preview = '📷 Photo';
+            else if (chat.last_message_type === 'video') preview = '🎬 Video';
+            else if (chat.last_message_type === 'audio' || chat.last_message_type === 'voice') preview = '🎤 Voice message';
+            else if (chat.last_message_type === 'file') preview = '📎 Document';
+            const muted = chat.is_muted;
+            return `<div class="chat-item ${active?'active':''}" data-chat-type="${chat.type}" data-chat-id="${chat.id}" onclick="openChat('${chat.type}',${chat.id})">
+                <div class="chat-avatar ${chat.type} ${chat.has_story?'has-story':''}">
+                    ${avatarHtml}
+                    ${chat.type==='personal'&&chat.is_online?'<span class="online-indicator"></span>':''}
+                </div>
+                <div class="chat-info">
+                    <div class="chat-name-row"><span class="chat-name">${escapeHtml(chat.name)}</span><span class="chat-time">${formatChatTime(chat.timestamp)}</span></div>
+                    <div class="chat-preview"><span>${escapeHtml(preview)}</span>${chat.unread_count>0?`<span class="unread-badge ${muted?'muted':''}">${chat.unread_count}</span>`:''}</div>
+                </div>
+            </div>`;
+        }).join('');
     }
 
     function renderChatList(chats) {
@@ -523,7 +738,7 @@
         const isOwn = m.is_own || m.sender_id === window.currentUserId;
         const msgTime = m.timestamp ? new Date(m.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '';
 
-        // Read receipt status (Feature 6)
+        // Read receipt status
         let readStatus = '';
         if (isOwn) {
             if (m.is_read) readStatus = `<span class="read-receipt read" title="Read">✓✓</span>`;
@@ -547,6 +762,14 @@
 
         const groupClass = consecutive ? ' grouped' : '';
 
+        // Hover actions: Reply, Forward, Copy
+        const hoverActions = `
+            <div class="message-hover-actions">
+                <button class="message-hover-btn" onclick="event.stopPropagation();setReply(${m.id})" title="Reply">↩️</button>
+                <button class="message-hover-btn" onclick="event.stopPropagation();forwardMessage(${m.id})" title="Forward">➡️</button>
+                <button class="message-hover-btn" onclick="event.stopPropagation();copyMessage(${m.id})" title="Copy">📋</button>
+            </div>`;
+
         return `<div class="message-wrapper ${isOwn?'outgoing':'incoming'}${groupClass}" id="msg-${m.id}" ${isOwn ? '' : ''}>
             <div class="message-checkbox" onclick="event.stopPropagation();toggleMessageSelection('${m.id}')"></div>
             ${(!isOwn && !consecutive) ? `<div class="message-sender">${escapeHtml(m.sender_name||'User')}</div>` : ''}
@@ -559,6 +782,7 @@
                     ${readStatus}
                 </div>
             </div>
+            ${hoverActions}
         </div>`;
     }
 
@@ -599,6 +823,25 @@
             } else { document.getElementById(`msg-${tempId}`)?.remove(); showToast('Failed to send', 'error'); }
         } catch (e) { document.getElementById(`msg-${tempId}`)?.remove(); offlineQueue.push({...payload, temp_id: tempId, target_type: activeChat.type, target_id: activeChat.id}); showToast('Offline – message queued', 'info'); }
     }
+
+    window.openSavedMessages = async () => {
+        const id = window.currentUserId;
+        if (!id) return;
+        activeChat = { type: 'personal', id, is_saved: true };
+        document.querySelectorAll('.chat-item').forEach(i => i.classList.remove('active'));
+        document.querySelector(`.chat-item[data-chat-type="saved"]`)?.classList.add('active');
+        hideAllPanels(); if (DOM.chatView) DOM.chatView.style.display = 'flex';
+        if (DOM.chatHeaderName) DOM.chatHeaderName.textContent = 'Saved Messages';
+        if (DOM.chatHeaderStatus) { DOM.chatHeaderStatus.textContent = 'Your notes & bookmarks'; DOM.chatHeaderStatus.classList.remove('online'); }
+        if (DOM.chatHeaderAvatar) { DOM.chatHeaderAvatar.innerHTML = '📌'; DOM.chatHeaderAvatar.className = 'chat-header-avatar saved'; }
+        await loadMessages('personal', id, true);
+        // Restore header after loadChatInfo overwrites it
+        if (DOM.chatHeaderName) DOM.chatHeaderName.textContent = 'Saved Messages';
+        if (DOM.chatHeaderStatus) DOM.chatHeaderStatus.textContent = 'Your notes & bookmarks';
+        if (DOM.chatHeaderAvatar) { DOM.chatHeaderAvatar.innerHTML = '📌'; DOM.chatHeaderAvatar.className = 'chat-header-avatar saved'; }
+        DOM.messageInput?.focus();
+        exitSelectionMode();
+    };
 
     window.openChat = async (type, id) => {
         activeChat = { type, id };
@@ -697,7 +940,22 @@
     window.openPrivacyPanel = () => { window.closeAllPanels(); getEl('privacyPanel')?.classList.add('open'); getEl('panelOverlay')?.classList.add('visible'); window.closePopout(); };
     window.closePrivacyPanel = () => { getEl('privacyPanel')?.classList.remove('open'); getEl('panelOverlay')?.classList.remove('visible'); };
     window.setTheme = (theme) => { document.querySelectorAll('.theme-option').forEach(o => o.classList.remove('active')); if (event?.currentTarget) event.currentTarget.classList.add('active'); if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark'); else if (theme === 'light') document.documentElement.setAttribute('data-theme', 'light'); else document.documentElement.removeAttribute('data-theme'); localStorage.setItem('kiselgram_theme', theme); };
-    function loadThemePreference() { const t = localStorage.getItem('kiselgram_theme'); if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark'); else if (t === 'light') document.documentElement.setAttribute('data-theme', 'light'); }
+    function loadThemePreference() {
+        const t = localStorage.getItem('kiselgram_theme');
+        if (t === 'auto' || !t) {
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+                if (localStorage.getItem('kiselgram_theme') === 'auto' || !localStorage.getItem('kiselgram_theme')) {
+                    document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+                }
+            });
+        } else if (t === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+        } else {
+            document.documentElement.setAttribute('data-theme', 'light');
+        }
+    }
     window.setFont = (el) => { document.querySelectorAll('.font-option').forEach(o => o.classList.remove('active')); el.classList.add('active'); document.body.style.setProperty('--font-family', el.dataset.font); localStorage.setItem('kiselgram_font', el.dataset.font); showToast('Font updated', 'success'); };
     function loadFontPreference() { const f = localStorage.getItem('kiselgram_font'); if (f) document.body.style.setProperty('--font-family', f); }
 
@@ -1129,8 +1387,7 @@
         if (offlineQueue.length === 0) return; const toSync = [...offlineQueue]; offlineQueue = [];
         try { const res = await fetch('/api/sync_messages', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ messages: toSync }) }); const data = await res.json(); if (data.success) { data.synced.forEach(item => { const tempEl = document.getElementById(`temp-msg-${item.temp_id}`); if (tempEl) tempEl.outerHTML = renderMessage(item.message); }); loadChatList(); } } catch (e) { offlineQueue.push(...toSync); }
     }
-    window.addEventListener('online', () => { isOnline = true; syncOfflineMessages(); });
-    window.addEventListener('offline', () => { isOnline = false; });
+    // Online/offline handled in DOMContentLoaded init above
 
     // Push notifications (stub)
     async function subscribeToPush() {}

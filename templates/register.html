@@ -202,6 +202,89 @@
             text-decoration: underline;
         }
 
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+        .step-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--border-color);
+            transition: all 0.3s;
+        }
+        .step-dot.active {
+            background: var(--accent-orange);
+            width: 24px;
+            border-radius: 4px;
+        }
+        .step-dot.done {
+            background: var(--accent-green);
+        }
+
+        .password-meter {
+            height: 4px;
+            border-radius: 2px;
+            margin-top: 6px;
+            background: var(--border-color);
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+        .password-meter-bar {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.3s, background 0.3s;
+            width: 0%;
+        }
+        .password-meter-bar.weak { width: 25%; background: var(--accent-red); }
+        .password-meter-bar.fair { width: 50%; background: var(--accent-orange); }
+        .password-meter-bar.good { width: 75%; background: #f7c948; }
+        .password-meter-bar.strong { width: 100%; background: var(--accent-green); }
+
+        .username-suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 6px;
+        }
+        .username-suggestion {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            background: var(--hover-bg);
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+        .username-suggestion:hover {
+            border-color: var(--accent-orange);
+            color: var(--accent-orange);
+            background: rgba(251, 99, 64, 0.05);
+        }
+        .username-check {
+            font-size: 12px;
+            margin-top: 4px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .username-check.available { color: var(--accent-green); }
+        .username-check.taken { color: var(--accent-red); }
+        .username-check.loading { color: var(--text-muted); }
+        .username-spinner {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid var(--border-color);
+            border-top-color: var(--accent-orange);
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
@@ -234,15 +317,23 @@
         <div class="error-message">{{ error }}</div>
         {% endif %}
 
+        <div class="step-indicator">
+            <div class="step-dot active"></div>
+            <div class="step-dot"></div>
+        </div>
+
         <form method="POST" id="registerForm">
             <div class="form-group">
                 <input type="text"
                        name="username"
+                       id="usernameInput"
                        class="form-input"
                        placeholder="Username"
                        value="{{ username or '' }}"
                        required
-                       autofocus>
+                       autofocus
+                       autocomplete="username">
+                <div class="username-suggestions" id="usernameSuggestions"></div>
             </div>
             <div class="form-group">
                 <input type="email"
@@ -250,15 +341,19 @@
                        class="form-input"
                        placeholder="Email address"
                        value="{{ email or '' }}"
-                       required>
+                       required
+                       autocomplete="email">
             </div>
             <div class="form-group">
                 <input type="password"
                        name="password"
+                       id="passwordInput"
                        class="form-input"
                        placeholder="Password"
                        required
-                       minlength="6">
+                       minlength="6"
+                       autocomplete="new-password">
+                <div class="password-meter"><div class="password-meter-bar" id="passwordMeter"></div></div>
                 <div class="password-hint">At least 6 characters</div>
             </div>
             <div class="form-group">
@@ -266,9 +361,10 @@
                        name="confirm_password"
                        class="form-input"
                        placeholder="Confirm password"
-                       required>
+                       required
+                       autocomplete="new-password">
             </div>
-            <button type="submit" class="submit-btn">Create Account</button>
+            <button type="submit" class="submit-btn" id="registerBtn">Create Account</button>
         </form>
 
         <a href="{{ url_for('auth.google_login') }}" class="google-btn">
@@ -287,6 +383,84 @@
     </div>
 
     <script>
+        const debounce = (fn, ms) => { let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); }; };
+
+        // Password strength meter
+        document.getElementById('passwordInput').addEventListener('input', function() {
+            const val = this.value;
+            const meter = document.getElementById('passwordMeter');
+            let score = 0;
+            if (val.length >= 6) score += 1;
+            if (val.length >= 10) score += 1;
+            if (/[A-Z]/.test(val)) score += 1;
+            if (/[0-9]/.test(val)) score += 1;
+            if (/[^A-Za-z0-9]/.test(val)) score += 1;
+            meter.className = 'password-meter-bar';
+            if (val.length === 0) { meter.style.width = '0%'; return; }
+            if (score <= 1) meter.classList.add('weak');
+            else if (score === 2) meter.classList.add('fair');
+            else if (score === 3) meter.classList.add('good');
+            else meter.classList.add('strong');
+        });
+
+        // Username suggestions via API
+        const usernameInput = document.getElementById('usernameInput');
+        const suggestionsEl = document.getElementById('usernameSuggestions');
+        let checkEl = null;
+
+        function showSuggestion(name) {
+            usernameInput.value = name;
+            suggestionsEl.innerHTML = '';
+            checkAvailability(name);
+        }
+
+        function checkAvailability(name) {
+            if (!name || name.length < 2) { suggestionsEl.innerHTML = ''; return; }
+            suggestionsEl.innerHTML = '<span class="username-check loading"><span class="username-spinner"></span> Checking...</span>';
+            fetch('/auth/api/check_username?username=' + encodeURIComponent(name))
+                .then(r => r.json())
+                .then(data => {
+                    if (data.available) {
+                        suggestionsEl.innerHTML = '<span class="username-check available">\u2713 Available</span>';
+                    } else {
+                        const base = name.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase();
+                        const suggestions = [
+                            base + '_' + Math.floor(Math.random() * 999),
+                            base + '.' + Math.floor(Math.random() * 999),
+                            'the' + base,
+                            base + Math.floor(Math.random() * 9999)
+                        ].filter((s, i, a) => a.indexOf(s) === i).slice(0, 3);
+                        suggestionsEl.innerHTML = '<span class="username-check taken">\u2717 Taken</span><div class="username-suggestions">' +
+                            suggestions.map(s => '<span class="username-suggestion" onclick="showSuggestion(\'' + s + '\')">' + s + '</span>').join('') +
+                            '</div>';
+                    }
+                })
+                .catch(() => { suggestionsEl.innerHTML = ''; });
+        }
+
+        usernameInput.addEventListener('input', debounce(function() {
+            if (this.value.length >= 2) checkAvailability(this.value);
+            else suggestionsEl.innerHTML = '';
+        }, 400));
+
+        // Update progress indicator
+        function updateProgress() {
+            const dots = document.querySelectorAll('.step-dot');
+            const fields = ['usernameInput', null, 'passwordInput'];
+            let filled = 0;
+            if (document.getElementById('usernameInput').value) filled++;
+            if (document.querySelector('input[name="email"]').value) filled++;
+            if (document.getElementById('passwordInput').value.length >= 6) filled++;
+            dots.forEach((d, i) => {
+                d.className = 'step-dot';
+                if (i < filled) d.classList.add('done');
+                else if (i === filled) d.classList.add('active');
+            });
+        }
+        document.querySelectorAll('#registerForm input').forEach(el => el.addEventListener('input', updateProgress));
+        updateProgress();
+
+        // Submit handler
         document.getElementById('registerForm').addEventListener('submit', function(e) {
             const password = this.querySelector('input[name="password"]').value;
             const confirm = this.querySelector('input[name="confirm_password"]').value;
@@ -303,7 +477,7 @@
                 return;
             }
 
-            const btn = this.querySelector('.submit-btn');
+            const btn = document.getElementById('registerBtn');
             btn.disabled = true;
             btn.textContent = 'Creating account...';
         });

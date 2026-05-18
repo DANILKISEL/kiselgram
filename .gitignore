@@ -23,3 +23,5 @@ tmp/
 /migrations
 
 .gradle
+app/config.py
+config/kis.toml

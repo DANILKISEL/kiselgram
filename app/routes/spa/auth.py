@@ -102,7 +102,36 @@ def register():
 
 @spa_auth_bp.route('/check-email')
 def check_email():
-    return render_template('auth/check_email.html')
+    user_id = session.get('pending_user_id')
+    return render_template('auth/check_email.html', user_id=user_id)
+
+@spa_auth_bp.route('/api/resend_verification', methods=['POST'])
+def resend_verification():
+    """Resend verification email to the pending user."""
+    user_id = session.get('pending_user_id')
+    if not user_id:
+        return jsonify({'success': False, 'error': 'No pending registration'}), 400
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'success': False, 'error': 'User not found'}), 404
+    if user.email_verified:
+        return jsonify({'success': False, 'error': 'Email already verified'}), 400
+    try:
+        token = secrets.token_urlsafe(32)
+        expires = datetime.utcnow() + timedelta(hours=24)
+        verification = EmailVerification(user_id=user.id, token=token, expires_at=expires)
+        db.session.add(verification)
+        db.session.commit()
+        verify_url = url_for('auth.verify_email', token=token, _external=True)
+        msg = MailMessage(subject='Verify your email – Kiselgram',
+                      sender=current_app.config['MAIL_DEFAULT_SENDER'],
+                      recipients=[user.email])
+        msg.body = f'Welcome to Kiselgram!\n\nPlease verify your email by clicking the link below:\n{verify_url}\n\nThis link expires in 24 hours.'
+        mail.send(msg)
+        return jsonify({'success': True})
+    except Exception as e:
+        current_app.logger.error(f"Resend verification failed: {e}")
+        return jsonify({'success': False, 'error': 'Failed to send email'}), 500
 
 
 @spa_auth_bp.route('/verify/<token>')

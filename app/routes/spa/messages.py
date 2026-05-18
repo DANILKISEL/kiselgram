@@ -3,8 +3,52 @@ from app import db
 from app.models import Message, Reaction, Reply, Forward, User, BlockedUser
 from app.utils.helpers import get_current_user_id, message_to_dict
 from datetime import datetime
+import time
 
 spa_messages_bp = Blueprint('spa_messages', __name__, url_prefix='/api')
+
+# In-memory typing status: {chat_type_chat_id: {user_id: timestamp}}
+_typing_status = {}
+_TYPING_TIMEOUT = 5  # seconds
+
+@spa_messages_bp.route('/typing/<chat_type>/<int:chat_id>', methods=['POST'])
+def set_typing(chat_type, chat_id):
+    """Signal that current user is typing in a chat."""
+    current_user_id = get_current_user_id()
+    if not current_user_id:
+        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+    key = f"{chat_type}_{chat_id}"
+    if key not in _typing_status:
+        _typing_status[key] = {}
+    _typing_status[key][current_user_id] = time.time()
+    return jsonify({'success': True})
+
+@spa_messages_bp.route('/typing/<chat_type>/<int:chat_id>', methods=['GET'])
+def get_typing(chat_type, chat_id):
+    """Get list of users currently typing in a chat."""
+    current_user_id = get_current_user_id()
+    if not current_user_id:
+        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+    key = f"{chat_type}_{chat_id}"
+    now = time.time()
+    typists = []
+    if key in _typing_status:
+        expired = []
+        for uid, ts in _typing_status[key].items():
+            if now - ts > _TYPING_TIMEOUT:
+                expired.append(uid)
+            else:
+                user = User.query.get(uid)
+                if user and uid != current_user_id:
+                    typists.append({
+                        'user_id': uid,
+                        'name': user.display_name or user.username
+                    })
+        for uid in expired:
+            del _typing_status[key][uid]
+        if not _typing_status[key]:
+            del _typing_status[key]
+    return jsonify({'typing': typists})
 
 @spa_messages_bp.route('/send_message', methods=['POST'])
 def send_personal_message():

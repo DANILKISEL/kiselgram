@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, send_file, url_for, session
+from flask import Blueprint, request, jsonify, send_file, url_for, session, current_app
 import os
 import uuid
 import mimetypes
@@ -6,7 +6,7 @@ from datetime import datetime
 
 from app import db
 from app.models import User, Message, Group, Channel, GroupMember, ChannelSubscriber
-from manage import log_main
+from app.utils.logging_utils import log_main
 
 files_bp = Blueprint('files', __name__)
 
@@ -27,31 +27,37 @@ class Logger:
 main_logger = Logger()
 
 
+def _get_config_extensions(key, default):
+    """Helper: read extension list from app config, stripping leading dots"""
+    raw = current_app.config.get(key, default)
+    return {e.lstrip('.').lower() for e in raw}
+
+
 def allowed_file(filename):
-    """Check if file extension is allowed"""
+    """Check if file extension is allowed (reads ALLOWED_* from config/kis.toml)"""
     if '.' not in filename:
         return False
 
     ext = filename.rsplit('.', 1)[1].lower()
 
-    allowed_extensions = {
-        'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp',
-        'pdf', 'doc', 'docx', 'txt', 'rtf',
-        'zip', 'rar', '7z',
-        'mp3', 'mp4', 'm4a', 'wav', 'ogg', 'avi', 'mov', 'mkv'
-    }
+    allowed = (
+        _get_config_extensions('ALLOWED_IMAGES', ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'])
+        | _get_config_extensions('ALLOWED_DOCUMENTS', ['.pdf', '.doc', '.docx', '.txt', '.rtf'])
+        | _get_config_extensions('ALLOWED_VIDEOS', ['.mp4', '.avi', '.mov', '.mkv', '.webm'])
+        | {'webp', 'rtf', 'zip', 'rar', '7z', 'mp3', 'wav', 'ogg', 'm4a'}
+    )
 
-    return ext in allowed_extensions
+    return ext in allowed
 
 
 def get_file_type(filename):
-    """Determine file type based on extension"""
+    """Determine file type based on extension (reads ALLOWED_* from config/kis.toml)"""
     ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
 
-    image_extensions = {'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'}
+    image_extensions = _get_config_extensions('ALLOWED_IMAGES', ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'])
     audio_extensions = {'mp3', 'wav', 'ogg', 'm4a'}
-    video_extensions = {'mp4', 'avi', 'mov', 'mkv', 'webm'}
-    document_extensions = {'pdf', 'doc', 'docx', 'txt', 'rtf'}
+    video_extensions = _get_config_extensions('ALLOWED_VIDEOS', ['.mp4', '.avi', '.mov', '.mkv', '.webm'])
+    document_extensions = _get_config_extensions('ALLOWED_DOCUMENTS', ['.pdf', '.doc', '.docx', '.txt', '.rtf'])
     archive_extensions = {'zip', 'rar', '7z'}
 
     if ext in image_extensions:

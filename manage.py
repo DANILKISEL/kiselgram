@@ -6,7 +6,6 @@ Complete Messaging Platform with Groups, Channels & File Support
 
 import os
 import sys
-import argparse
 import platform
 import time
 import webbrowser
@@ -22,6 +21,10 @@ import secrets
 from pathlib import Path
 from datetime import datetime
 
+import click
+
+from app import create_app
+
 # Try to import TOML support
 try:
     import tomllib
@@ -34,7 +37,6 @@ except ImportError:
 # Try to import requests for API calls
 try:
     import requests
-
     REQUESTS_AVAILABLE = True
 except ImportError:
     REQUESTS_AVAILABLE = False
@@ -122,6 +124,10 @@ def setup_logging(config=None):
     main_logger.addHandler(main_handler)
     main_log_fh = open(f"logs/{log_settings['main']['file']}", 'a', encoding='utf-8')
 
+    # Share main logger with app.utils.logging_utils so files.py can use it
+    from app.utils.logging_utils import set_main_logger
+    set_main_logger(main_logger)
+
     return True
 
 
@@ -160,53 +166,110 @@ def load_config():
             break
 
     if not config_file:
-        print("⚠️  Config file not found, using default configuration")
+        click.echo("⚠️  Config file not found, using default configuration")
         return create_default_config()
 
     if tomllib is None:
-        print("❌ TOML support not available. Install tomli or use Python 3.11+")
+        click.echo("❌ TOML support not available. Install tomli or use Python 3.11+")
         return create_default_config()
 
     try:
         with open(config_file, 'rb') as f:
             config = tomllib.load(f)
-        print(f"✅ Configuration loaded from {config_file}")
+        click.echo(f"✅ Configuration loaded from {config_file}")
         setup_logging(config)
         return config
     except Exception as e:
-        print(f"❌ Error loading config: {e}")
-        print("Using default configuration")
+        click.echo(f"❌ Error loading config: {e}")
+        click.echo("Using default configuration")
         setup_logging()
         return create_default_config()
 
 
 def create_default_config():
     """Create default configuration file"""
-    default_config = '''# Kiselgram Configuration File
+    default_config = r"""# Kiselgram Configuration File
 
 [app]
 name = "Kiselgram"
-version = "3.0.0"
+version = "2.0.0"
 debug = true
 host = "0.0.0.0"
 port = 5000
+secret_key = "dev-secret-key-change-in-production"
 
 [database]
 url = "sqlite:///kiselgram.db"
+echo = false
+
+[server]
+workers = 4
+threaded = true
 
 [video]
 enabled = true
 host = "0.0.0.0"
 port = 5001
+quality = "medium"
+max_size = 104857600
+auto_start = true
 
 [logging]
+
+[logging.kiselgram]
+file = "kiselgram.log"
 level = "INFO"
-'''
+max_bytes = 10485760
+backup_count = 5
+
+[logging.video]
+file = "kis_vid.log"
+level = "INFO"
+max_bytes = 10485760
+backup_count = 5
+
+[logging.main]
+file = "kis_main.log"
+level = "INFO"
+max_bytes = 10485760
+backup_count = 5
+
+[telegram]
+bot_token = "YOUR_BOT_TOKEN_HERE"
+webhook_url = ""
+
+[uploads]
+folder = "uploads"
+max_size = 16777216
+allowed_images = [".jpg", ".jpeg", ".png", ".gif", ".bmp"]
+allowed_documents = [".pdf", ".doc", ".docx", ".txt", ".md"]
+allowed_videos = [".mp4", ".avi", ".mov", ".mkv"]
+
+[features]
+groups = true
+channels = true
+bots = true
+video_streaming = true
+file_sharing = true
+reactions = true
+
+[mail]
+server = "mail.kiselgram.ru"
+port = 587
+username = "Auth@mail.kiselgram.ru"
+password = "$uper$ecurePassWo_d"
+sender_name = "Kiselgram - Auth"
+sender_email = "auth@mail.kiselgram.ru"
+
+[google]
+client_id = ""
+client_secret = ""
+"""
 
     os.makedirs('config', exist_ok=True)
     with open('config/kis.toml', 'w') as f:
         f.write(default_config)
-    print("✅ Created default kis.toml configuration file")
+    click.echo("✅ Created default kis.toml configuration file")
     setup_logging()
     return {'app': {'port': 5000, 'host': '0.0.0.0', 'debug': True},
             'video': {'port': 5001, 'host': '0.0.0.0', 'enabled': True}}
@@ -214,30 +277,30 @@ level = "INFO"
 
 def print_header():
     """Print fancy header"""
-    print("\n" + "=" * 74)
-    print("  ____      __ __ _________ ________    __________  ___    __  ___   ____")
-    print(" / / /     / //_//  _/ ___// ____/ /   / ____/ __ \\/   |  /  |/  /   \\ \\ \\")
-    print("/ / /     / ,<   / / \\__ \\/ __/ / /   / / __/ /_/ / /| | / /|_/ /     \\ \\ \\")
-    print("\\ \\ \\    / /| |_/ / ___/ / /___/ /___/ /_/ / _, _/ ___ |/ /  / /      / / /")
-    print(" \\_\\_\\  /_/ |_/___//____/_____/_____/\\____/_/ |_/_/  |_/_/  /_/      /_/_/")
-    print("=" * 74)
-    print("📱 Complete Messaging Platform v3.0")
-    print("👥 Groups | 📢 Channels | 📁 File Support | 🤖 Bots | 🎥 Video Server")
-    print("=" * 74)
+    click.echo("\n" + "=" * 74)
+    click.echo("  ____      __ __ _________ ________    __________  ___    __  ___   ____")
+    click.echo(" / / /     / //_//  _/ ___// ____/ /   / ____/ __ \\/   |  /  |/  /   \\ \\ \\")
+    click.echo("/ / /     / ,<   / / \\__ \\/ __/ / /   / / __/ /_/ / /| | / /|_/ /     \\ \\ \\")
+    click.echo("\\ \\ \\    / /| |_/ / ___/ / /___/ /___/ /_/ / _, _/ ___ |/ /  / /      / / /")
+    click.echo(" \\_\\_\\  /_/ |_/___//____/_____/_____/\\____/_/ |_/_/  |_/_/  /_/      /_/_/")
+    click.echo("=" * 74)
+    click.echo("📱 Complete Messaging Platform v3.0")
+    click.echo("👥 Groups | 📢 Channels | 📁 File Support | 🤖 Bots | 🎥 Video Server")
+    click.echo("=" * 74)
 
 
 def check_dependencies():
     """Check if required dependencies are installed"""
-    print("\n📦 Checking dependencies...")
+    click.echo("\n📦 Checking dependencies...")
     required = ['flask', 'flask_sqlalchemy', 'dotenv', 'PIL']
     all_installed = True
 
     for dep in required:
         try:
             __import__(dep.replace('-', '_'))
-            print(f"✅ {dep}")
+            click.echo(f"✅ {dep}")
         except ImportError:
-            print(f"❌ {dep} - Install with: pip install {dep}")
+            click.echo(f"❌ {dep} - Install with: pip install {dep}")
             all_installed = False
 
     return all_installed
@@ -291,7 +354,7 @@ def kill_process_on_port(port):
                     if len(parts) >= 5:
                         pid = parts[-1]
                         subprocess.run(['taskkill', '/F', '/PID', pid], capture_output=True)
-                        print(f"✓ Killed process {pid} on port {port}")
+                        click.echo(f"✓ Killed process {pid} on port {port}")
         else:
             try:
                 result = subprocess.run(['lsof', '-ti', f':{port}'], capture_output=True, text=True)
@@ -305,14 +368,14 @@ def kill_process_on_port(port):
                                 os.kill(int(pid), signal.SIGKILL)
                             except ProcessLookupError:
                                 pass
-                            print(f"✓ Killed process {pid} on port {port}")
+                            click.echo(f"✓ Killed process {pid} on port {port}")
                         except:
                             pass
             except FileNotFoundError:
                 subprocess.run(['fuser', '-k', f'{port}/tcp'], capture_output=True)
-                print(f"✓ Sent kill signal to processes on port {port}")
+                click.echo(f"✓ Sent kill signal to processes on port {port}")
     except Exception as e:
-        print(f"⚠️ Error killing process on port {port}: {e}")
+        click.echo(f"⚠️ Error killing process on port {port}: {e}")
 
 
 def stop_application(service='all'):
@@ -321,23 +384,22 @@ def stop_application(service='all'):
         status = load_status('main')
         if status:
             port = status.get('port', 5000)
-            print(f"🛑 Stopping main app on port {port}...")
+            click.echo(f"🛑 Stopping main app on port {port}...")
             kill_process_on_port(port)
         clear_status('main')
         subprocess.run(['pkill', '-f', 'run_kiselgram.py'], capture_output=True)
-        print("✅ Main application stopped")
+        click.echo("✅ Main application stopped")
 
     if service == 'all' or service == 'video':
         video_status = load_status('video')
         if video_status:
             port = video_status.get('port', 5001)
-            print(f"🛑 Stopping video server on port {port}...")
+            click.echo(f"🛑 Stopping video server on port {port}...")
             kill_process_on_port(port)
         clear_status('video')
         subprocess.run(['pkill', '-f', 'run_video_server.py'], capture_output=True)
-        print("✅ Video server stopped")
+        click.echo("✅ Video server stopped")
 
-    # Cleanup tmp files
     for tmp_file in ['/tmp/run_kiselgram.py', '/tmp/run_video_server.py']:
         if os.path.exists(tmp_file):
             try:
@@ -363,7 +425,6 @@ def run_flask_app(host, port, debug, no_browser=False):
         env['FLASK_ENV'] = 'development' if debug else 'production'
         env['KISELGRAM_TOKEN'] = SHUTDOWN_TOKEN
 
-        # Create runner script
         runner_content = f'''#!/usr/bin/env python3
 import sys
 import os
@@ -399,8 +460,8 @@ if __name__ == '__main__':
 
         cmd = [sys.executable, runner_path]
 
-        print(f"🚀 Starting Flask on http://{host if host != '0.0.0.0' else 'localhost'}:{port}")
-        print(f"🔑 Shutdown token: {SHUTDOWN_TOKEN}")
+        click.echo(f"🚀 Starting Flask on http://{host if host != '0.0.0.0' else 'localhost'}:{port}")
+        click.echo(f"🔑 Shutdown token: {SHUTDOWN_TOKEN}")
 
         flask_process = subprocess.Popen(
             cmd,
@@ -415,7 +476,6 @@ if __name__ == '__main__':
         is_running = True
         save_status(port, flask_process.pid, 'main')
 
-        # Open browser if requested
         if not no_browser:
             def open_browser():
                 time.sleep(2)
@@ -429,7 +489,7 @@ if __name__ == '__main__':
         return True
 
     except Exception as e:
-        print(f"❌ Error starting Flask: {e}")
+        click.echo(f"❌ Error starting Flask: {e}")
         log_main('ERROR', f'Error starting Flask: {e}', 'flask')
         return False
 
@@ -479,7 +539,7 @@ except ImportError:
 
         cmd = [sys.executable, runner_path]
 
-        print(f"🎥 Starting Video Server on http://{host if host != '0.0.0.0' else 'localhost'}:{port}")
+        click.echo(f"🎥 Starting Video Server on http://{host if host != '0.0.0.0' else 'localhost'}:{port}")
 
         video_process = subprocess.Popen(
             cmd,
@@ -495,211 +555,234 @@ except ImportError:
         return True
 
     except Exception as e:
-        print(f"❌ Error starting video server: {e}")
+        click.echo(f"❌ Error starting video server: {e}")
         return False
 
 
-def start_all_services(args):
-    """Start main app and video server"""
+# ---------------------------------------------------------------------------
+# Click commands
+# ---------------------------------------------------------------------------
+
+@click.group()
+def cli():
+    pass
+
+
+@cli.command()
+@click.option('-p', '--port', type=int, default=None, help='Main app port')
+@click.option('-h', '--host', default=None, help='Host to bind to')
+@click.option('--debug/--no-debug', default=None, help='Enable/disable debug mode')
+@click.option('--no-video', is_flag=True, help='Disable video server')
+@click.option('--no-browser', is_flag=True, help="Don't open browser")
+@click.option('--video-port', type=int, default=None, help='Video server port')
+@click.option('--video-host', default=None, help='Video server host')
+def start(port, host, debug, no_video, no_browser, video_port, video_host):
+    """Start main app and video server as background services"""
     print_header()
 
     config = load_config()
 
-    # Get settings
-    main_port = getattr(args, 'port', None) or config.get('app', {}).get('port', 5000)
-    main_host = getattr(args, 'host', None) or config.get('app', {}).get('host', '0.0.0.0')
-    debug = getattr(args, 'debug', None) or config.get('app', {}).get('debug', True)
-    no_video = getattr(args, 'no_video', False)
-    video_port = getattr(args, 'video_port', None) or config.get('video', {}).get('port', 5001)
-    video_host = getattr(args, 'video_host', None) or config.get('video', {}).get('host', '0.0.0.0')
-    no_browser = getattr(args, 'no_browser', False)
+    main_port = port or config.get('app', {}).get('port', 5000)
+    main_host = host or config.get('app', {}).get('host', '0.0.0.0')
+    debug_val = debug if debug is not None else config.get('app', {}).get('debug', True)
+    video_port_val = video_port or config.get('video', {}).get('port', 5001)
+    video_host_val = video_host or config.get('video', {}).get('host', '0.0.0.0')
 
     if not check_dependencies():
-        print("\n❌ Missing dependencies. Install with: pip install -r requirements.txt")
-        return False
+        click.echo("\n❌ Missing dependencies. Install with: pip install -r requirements.txt")
+        raise SystemExit(1)
 
     if not check_port_available(main_port):
-        print(f"\n❌ Port {main_port} is already in use!")
-        return False
+        click.echo(f"\n❌ Port {main_port} is already in use!")
+        raise SystemExit(1)
 
-    # Stop existing services
     stop_application('all')
     time.sleep(1)
 
     main_url = f"http://{main_host if main_host != '0.0.0.0' else 'localhost'}:{main_port}"
-    video_url = f"http://{video_host if video_host != '0.0.0.0' else 'localhost'}:{video_port}" if not no_video else "DISABLED"
+    video_url = f"http://{video_host_val if video_host_val != '0.0.0.0' else 'localhost'}:{video_port_val}" if not no_video else "DISABLED"
 
-    print(f"\n🚀 Starting Kiselgram services...")
-    print(f"   Main App: {main_url}")
-    print(f"   Video Server: {video_url}")
-    print(f"   Debug: {debug}")
-    print(f"   Open Browser: {not no_browser}")
-    print("-" * 40)
+    click.echo(f"\n🚀 Starting Kiselgram services...")
+    click.echo(f"   Main App: {main_url}")
+    click.echo(f"   Video Server: {video_url}")
+    click.echo(f"   Debug: {debug_val}")
+    click.echo(f"   Open Browser: {not no_browser}")
+    click.echo("-" * 40)
 
-    # Start Flask
-    flask_thread = threading.Thread(target=run_flask_app, args=(main_host, main_port, debug, no_browser), daemon=True)
+    flask_thread = threading.Thread(target=run_flask_app, args=(main_host, main_port, debug_val, no_browser), daemon=True)
     flask_thread.start()
 
-    # Start video server if enabled
     if not no_video:
         time.sleep(2)
-        video_thread = threading.Thread(target=run_video_server_process, args=(video_port, video_host), daemon=True)
+        video_thread = threading.Thread(target=run_video_server_process, args=(video_port_val, video_host_val), daemon=True)
         video_thread.start()
 
     time.sleep(3)
 
-    print("\n" + "=" * 40)
-    print("✅ Services started!")
-    print(f"🌐 Main App: {main_url}")
-    print(f"🔑 Shutdown token: {SHUTDOWN_TOKEN}")
-    print("\n🛑 To stop: python manage.py stop")
-    print("Press Ctrl+C to exit (services continue running)")
+    click.echo("\n" + "=" * 40)
+    click.echo("✅ Services started!")
+    click.echo(f"🌐 Main App: {main_url}")
+    click.echo(f"🔑 Shutdown token: {SHUTDOWN_TOKEN}")
+    click.echo("\n🛑 To stop: python manage.py stop")
+    click.echo("Press Ctrl+C to exit (services continue running)")
 
     try:
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
-        print("\n👋 Management script stopped. Services continue running.")
-        print(f"   Use 'python manage.py stop' to stop services")
-
-    return True
+        click.echo("\n👋 Management script stopped. Services continue running.")
+        click.echo(f"   Use 'python manage.py stop' to stop services")
 
 
-def main():
-    """Main entry point"""
-    setup_logging()
+@cli.command()
+def stop():
+    """Stop all services"""
+    print_header()
+    click.echo("\n🛑 Stopping all services...")
+    stop_application('all')
 
-    parser = argparse.ArgumentParser(description='Kiselgram Management Script')
-    subparsers = parser.add_subparsers(dest='command', help='Command')
 
-    # Start command
-    start_parser = subparsers.add_parser('start', help='Start services')
-    start_parser.add_argument('--port', type=int, help='Main app port')
-    start_parser.add_argument('--host', help='Host to bind to')
-    start_parser.add_argument('--debug', action='store_true', help='Enable debug mode')
-    start_parser.add_argument('--no-debug', action='store_false', dest='debug', help='Disable debug mode')
-    start_parser.add_argument('--no-browser', action='store_true', help="Don't open browser")
-    start_parser.add_argument('--no-video', action='store_true', help='Disable video server')
-    start_parser.add_argument('--video-port', type=int, help='Video server port')
-    start_parser.add_argument('--video-host', help='Video server host')
+@cli.command()
+@click.option('-p', '--port', type=int, default=None, help='Main app port')
+@click.option('-h', '--host', default=None, help='Host to bind to')
+@click.option('--no-video', is_flag=True, help='Disable video server')
+def restart(port, host, no_video):
+    """Restart all services"""
+    print_header()
+    click.echo("\n🔄 Restarting all services...")
+    stop_application('all')
+    time.sleep(2)
+    # Re-run start logic in-process
+    ctx = click.get_current_context()
+    ctx.invoke(start, port=port, host=host, debug=None, no_video=no_video,
+               no_browser=True, video_port=None, video_host=None)
 
-    # Stop command
-    subparsers.add_parser('stop', help='Stop services')
 
-    # Restart command
-    restart_parser = subparsers.add_parser('restart', help='Restart services')
-    restart_parser.add_argument('--port', type=int, help='Main app port')
-    restart_parser.add_argument('--host', help='Host to bind to')
-    restart_parser.add_argument('--no-video', action='store_true', help='Disable video server')
+@cli.command()
+def status():
+    """Check service status"""
+    print_header()
+    click.echo("\n📊 Service Status")
+    click.echo("-" * 40)
+    main_status = load_status('main')
+    video_status = load_status('video')
 
-    # Status command
-    status_parser = subparsers.add_parser('status', help='Check status')
-    status_parser.add_argument('--all', action='store_true', help='Check all services')
+    if main_status:
+        click.echo(f"Main App: ✅ RUNNING on port {main_status.get('port')}")
+    else:
+        click.echo("Main App: ❌ NOT RUNNING")
 
-    # Setup command
-    subparsers.add_parser('setup', help='Setup environment')
+    if video_status:
+        click.echo(f"Video Server: ✅ RUNNING on port {video_status.get('port')}")
+    else:
+        click.echo("Video Server: ❌ NOT RUNNING")
 
-    # Clean command
-    subparsers.add_parser('clean', help='Clean temporary files')
 
-    # Reset-db command
-    subparsers.add_parser('reset-db', help='Reset database')
+@cli.command()
+def setup():
+    """Setup environment (create dirs and default config)"""
+    print_header()
+    click.echo("\n🔧 Setting up environment...")
+    os.makedirs('uploads/images', exist_ok=True)
+    os.makedirs('uploads/documents', exist_ok=True)
+    os.makedirs('uploads/media', exist_ok=True)
+    os.makedirs('logs', exist_ok=True)
+    os.makedirs('status', exist_ok=True)
+    create_default_config()
+    click.echo("\n✅ Setup completed!")
+    click.echo("Next: pip install -r requirements.txt && python manage.py start")
 
-    # Test command
-    subparsers.add_parser('test', help='Run tests')
 
-    # Help command
-    subparsers.add_parser('help', help='Show help')
+@cli.command()
+def clean():
+    """Clean temporary files"""
+    print_header()
+    click.echo("\n🧹 Cleaning temporary files...")
+    for tmp in ['/tmp/run_kiselgram.py', '/tmp/run_video_server.py']:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+    click.echo("✅ Cleanup completed")
 
-    args = parser.parse_args()
 
-    if not args.command:
-        print_header()
-        print("\n❌ No command specified. Use 'python manage.py help' for usage.")
-        return
+@cli.command()
+@click.option('-y', '--yes', is_flag=True, help='Skip confirmation')
+def reset_db(yes):
+    """Delete all data (reset database)"""
+    print_header()
+    if not yes:
+        confirm = click.prompt("\n⚠️ This will DELETE ALL DATA! Type 'yes' to continue", type=str)
+        if confirm.lower() != 'yes':
+            click.echo("Cancelled")
+            return
+    for db_file in ['kiselgram.db', 'instance/kiselgram.db']:
+        if os.path.exists(db_file):
+            os.remove(db_file)
+            click.echo(f"✓ Removed {db_file}")
+    click.echo("✅ Database reset complete")
 
-    if args.command == 'start':
-        start_all_services(args)
-    elif args.command == 'stop':
-        print_header()
-        print("\n🛑 Stopping all services...")
-        stop_application('all')
-    elif args.command == 'restart':
-        print_header()
-        print("\n🔄 Restarting all services...")
-        stop_application('all')
-        time.sleep(2)
-        start_all_services(args)
-    elif args.command == 'status':
-        print_header()
-        print("\n📊 Service Status")
-        print("-" * 40)
-        main_status = load_status('main')
-        video_status = load_status('video')
 
-        if main_status:
-            print(f"Main App: ✅ RUNNING on port {main_status.get('port')}")
-        else:
-            print("Main App: ❌ NOT RUNNING")
+@cli.command()
+def test():
+    """Run basic dependency tests"""
+    print_header()
+    click.echo("\n🧪 Running tests...")
+    if check_dependencies():
+        click.echo("✅ All basic tests passed!")
+    else:
+        click.echo("❌ Some tests failed")
 
-        if video_status:
-            print(f"Video Server: ✅ RUNNING on port {video_status.get('port')}")
-        else:
-            print("Video Server: ❌ NOT RUNNING")
-    elif args.command == 'setup':
-        print_header()
-        print("\n🔧 Setting up environment...")
-        os.makedirs('uploads/images', exist_ok=True)
-        os.makedirs('uploads/documents', exist_ok=True)
-        os.makedirs('uploads/media', exist_ok=True)
-        os.makedirs('logs', exist_ok=True)
-        os.makedirs('status', exist_ok=True)
-        create_default_config()
-        print("\n✅ Setup completed!")
-        print("Next: pip install -r requirements.txt && python manage.py start")
-    elif args.command == 'clean':
-        print_header()
-        print("\n🧹 Cleaning temporary files...")
-        for tmp in ['/tmp/run_kiselgram.py', '/tmp/run_video_server.py']:
-            if os.path.exists(tmp):
-                os.remove(tmp)
-        print("✅ Cleanup completed")
-    elif args.command == 'reset-db':
-        print_header()
-        confirm = input("\n⚠️ This will DELETE ALL DATA! Type 'yes' to continue: ")
-        if confirm.lower() == 'yes':
-            for db_file in ['kiselgram.db', 'instance/kiselgram.db']:
-                if os.path.exists(db_file):
-                    os.remove(db_file)
-                    print(f"✓ Removed {db_file}")
-            print("✅ Database reset complete")
-    elif args.command == 'test':
-        print_header()
-        print("\n🧪 Running tests...")
-        if check_dependencies():
-            print("✅ All basic tests passed!")
-        else:
-            print("❌ Some tests failed")
-    elif args.command == 'help':
-        print_header()
-        print("\n📚 Commands:")
-        print("  start              - Start all services")
-        print("  stop               - Stop all services")
-        print("  restart            - Restart all services")
-        print("  status             - Check service status")
-        print("  setup              - Setup environment")
-        print("  clean              - Clean temporary files")
-        print("  reset-db           - Reset database")
-        print("  test               - Run tests")
-        print("\nOptions:")
-        print("  --port PORT        - Main app port (default: 5000)")
-        print("  --no-video         - Disable video server")
-        print("  --no-browser       - Don't open browser")
-        print("  --video-port PORT  - Video server port (default: 5001)")
 
+# ---------------------------------------------------------------------------
+# Video sub-commands
+# ---------------------------------------------------------------------------
+
+@cli.group()
+def video():
+    """Manage the video server"""
+    pass
+
+
+@video.command()
+@click.option('-p', '--port', type=int, default=None, help='Video server port')
+@click.option('-h', '--host', default=None, help='Video server host')
+def start(port, host):
+    """Start only the video server"""
+    print_header()
+    config = load_config()
+    video_port = port or config.get('video', {}).get('port', 5001)
+    video_host = host or config.get('video', {}).get('host', '0.0.0.0')
+
+    if not check_port_available(video_port):
+        click.echo(f"\n❌ Port {video_port} is already in use!")
+        raise SystemExit(1)
+
+    click.echo(f"\n🎥 Starting Video Server...")
+    run_video_server_process(video_port, video_host)
+
+    click.echo("\n" + "=" * 40)
+    click.echo("✅ Video server started!")
+    click.echo(f"🌐 http://{video_host if video_host != '0.0.0.0' else 'localhost'}:{video_port}")
+    click.echo("\nPress Ctrl+C to exit (server continues running)")
+
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        click.echo("\n👋 Exiting. Video server continues running.")
+
+
+@video.command()
+def stop():
+    """Stop only the video server"""
+    click.echo("\n🛑 Stopping video server...")
+    stop_application('video')
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
 
 def cleanup():
-    """Cleanup on exit"""
     global kiselgram_log_fh, video_log_fh, main_log_fh
     for fh in [kiselgram_log_fh, video_log_fh, main_log_fh]:
         if fh:
@@ -713,9 +796,9 @@ atexit.register(cleanup)
 
 if __name__ == '__main__':
     try:
-        main()
+        cli()
     except KeyboardInterrupt:
-        print("\n👋 Goodbye!")
+        click.echo("\n👋 Goodbye!")
     except Exception as e:
-        print(f"\n❌ Error: {e}")
+        click.echo(f"\n❌ Error: {e}")
         sys.exit(1)
