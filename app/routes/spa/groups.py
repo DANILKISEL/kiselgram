@@ -5,9 +5,7 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify, session
 
 from app import db
-from app.models import User, Group, GroupMember, Message, BlockedUser
-# If you add the GroupPermission model later, import it here:
-# from app.models import GroupPermission
+from app.models import User, Group, GroupMember, GroupPermission, Message, BlockedUser
 from app.utils.helpers import get_current_user_id, get_current_user, format_file_size, message_to_dict
 
 spa_groups_bp = Blueprint('spa_groups', __name__, url_prefix='/api')
@@ -15,16 +13,33 @@ spa_groups_bp = Blueprint('spa_groups', __name__, url_prefix='/api')
 
 
 def create_group_permissions(group_id):
-    """Insert default permissions for a new group (if GroupPermission model exists)."""
-    # This function should be implemented after adding the GroupPermission model.
-    # For now we leave it empty – no permissions will be stored, but the
-    # permission endpoints will still work with a stub.
-    pass
+    """Insert default permissions for all roles in a new group."""
+    roles_perms = {
+        'owner': dict(can_send_messages=True, can_send_media=True, can_add_members=True,
+                       can_pin_messages=True, can_change_info=True, can_delete_messages=True, can_ban_users=True),
+        'admin': dict(can_send_messages=True, can_send_media=True, can_add_members=True,
+                       can_pin_messages=True, can_change_info=True, can_delete_messages=True, can_ban_users=False),
+        'member': dict(can_send_messages=True, can_send_media=True, can_add_members=False,
+                        can_pin_messages=False, can_change_info=False, can_delete_messages=False, can_ban_users=False),
+    }
+    for role, perms in roles_perms.items():
+        db.session.add(GroupPermission(group_id=group_id, role=role, **perms))
+    db.session.flush()
 
 
 def get_group_permissions(group_id, role):
-    """Stub – returns default permissions if model not yet added."""
-    # TODO: replace with actual database query once GroupPermission is available
+    """Query group permissions from DB, with fallback to defaults."""
+    perms = GroupPermission.query.filter_by(group_id=group_id, role=role).first()
+    if perms:
+        return {
+            'can_send_messages': perms.can_send_messages,
+            'can_send_media': perms.can_send_media,
+            'can_add_members': perms.can_add_members,
+            'can_pin_messages': perms.can_pin_messages,
+            'can_change_info': perms.can_change_info,
+            'can_delete_messages': perms.can_delete_messages,
+            'can_ban_users': perms.can_ban_users,
+        }
     default_perms = {
         'can_send_messages': True,
         'can_send_media': True,
@@ -38,8 +53,18 @@ def get_group_permissions(group_id, role):
 
 
 def update_group_permissions_db(group_id, role, **kwargs):
-    """Stub – update permissions in DB once model exists."""
-    pass
+    """Update or insert permissions for a role."""
+    perms = GroupPermission.query.filter_by(group_id=group_id, role=role).first()
+    if perms:
+        for key, value in kwargs.items():
+            if hasattr(perms, key):
+                setattr(perms, key, value)
+    else:
+        defaults = dict(can_send_messages=True, can_send_media=True, can_add_members=False,
+                        can_pin_messages=False, can_change_info=False, can_delete_messages=False, can_ban_users=False)
+        defaults.update(kwargs)
+        db.session.add(GroupPermission(group_id=group_id, role=role, **defaults))
+    db.session.commit()
 
 
 # ==================== ENDPOINTS ====================

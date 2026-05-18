@@ -380,15 +380,47 @@
                         <div class="chat-header-info"><div class="chat-header-name" id="chatHeaderName"></div><div class="chat-header-status" id="chatHeaderStatus"></div></div>
                     </div>
                     <div class="chat-header-actions">
+                        <button class="header-action-btn" onclick="toggleChatSearch()" title="Search in chat">🔍</button>
                         <button class="header-action-btn" onclick="openChatCustomization()">🎨</button>
                         <button class="header-action-btn" onclick="showChatInfo()">ℹ️</button>
                         <button class="header-action-btn" onclick="showChatMenu()">⋮</button>
                     </div>
                 </div>
-                <div class="messages-container" id="messagesContainer"><div class="loading-spinner"></div></div>
+                <!-- Chat search bar (Feature 9) -->
+                <div class="chat-search-bar">
+                    <input type="text" class="chat-search-input" placeholder="Search messages..." oninput="handleChatSearchInput()">
+                    <span class="chat-search-count"></span>
+                    <div class="chat-search-nav">
+                        <button onclick="chatSearchPrev()">▲</button>
+                        <button onclick="chatSearchNext()">▼</button>
+                    </div>
+                    <button class="chat-search-close" onclick="toggleChatSearch()">✕</button>
+                </div>
+                <!-- Messages container with drag-drop overlay (Feature 8) -->
+                <div class="messages-container" id="messagesContainer" style="position:relative">
+                    <div class="drop-overlay" id="dropOverlay">
+                        <div class="drop-overlay-content">
+                            <span>📁</span>
+                            <p>Drop files here</p>
+                        </div>
+                    </div>
+                    <div class="loading-spinner"></div>
+                </div>
+                <!-- Voice recorder bar (Feature 3) -->
+                <div class="voice-recorder-bar">
+                    <span class="recording-indicator"></span>
+                    <span class="voice-timer">0:00</span>
+                    <div class="voice-waveform"></div>
+                    <button class="voice-cancel-btn" onclick="cancelRecording()">✕</button>
+                    <button class="voice-send-btn" onclick="sendVoiceMessage()">➤</button>
+                </div>
                 <div class="chat-input-area">
                     <div id="replyPreview" class="reply-preview" style="display:none"><div class="reply-preview-content"><div class="reply-preview-name"></div><div class="reply-preview-text"></div></div><button class="cancel-reply-btn" onclick="cancelReply()">✕</button></div>
-                    <div class="input-wrapper">
+                    <div class="input-wrapper" style="position:relative">
+                        <!-- Emoji picker (Feature 4) -->
+                        <div class="emoji-picker"></div>
+                        <button class="attachment-btn" onclick="toggleEmojiPicker()" title="Emoji">😊</button>
+                        <button class="attachment-btn" onclick="toggleVoiceRecorder()" title="Voice">🎤</button>
                         <button class="attachment-btn" onclick="triggerFileUpload()">📎</button>
                         <textarea class="message-input" id="messageInput" placeholder="Type a message..." rows="1"></textarea>
                         <button class="send-btn" id="sendBtn" disabled>➤</button>
@@ -426,6 +458,16 @@
                     <button class="create-btn" onclick="createChannel()">Create Channel</button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Selection mode bar (Feature 5) -->
+    <div class="selection-bar">
+        <span class="selection-count">0 selected</span>
+        <div class="selection-actions">
+            <button class="selection-action-btn cancel" onclick="exitSelectionMode()">Cancel</button>
+            <button class="selection-action-btn forward" onclick="forwardSelectedMessages()">Forward</button>
+            <button class="selection-action-btn delete" onclick="deleteSelectedMessages()">Delete</button>
         </div>
     </div>
 

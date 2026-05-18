@@ -1,12 +1,14 @@
 # app/__init__.py
 import os
+import threading
+import time
+from datetime import datetime, timedelta
 from flask import Flask, redirect, session, render_template, make_response
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_mail import Mail
 from authlib.integrations.flask_client import OAuth
-import datetime
 
 oauth = OAuth()
 db = SQLAlchemy()
@@ -68,7 +70,7 @@ def create_app():
             app.config['MAIL_PORT'] = config['mail'].get('port', 587)
             app.config['MAIL_USE_TLS'] = True
             app.config['MAIL_USERNAME'] = config['mail'].get('username', 'auth@mail.kiselgram.ru')
-            app.config['MAIL_PASSWORD'] = config['mail'].get('password', 'KiselgramBackend2026')
+            app.config['MAIL_PASSWORD'] = config['mail'].get('password', '######')
             app.config['MAIL_DEFAULT_SENDER'] = (config['mail'].get('sender_name', 'Kiselgram'),
                                                   config['mail'].get('sender_email', 'auth@mail.kiselgram.ru'))
         else:
@@ -77,7 +79,7 @@ def create_app():
             app.config['MAIL_PORT'] = 587
             app.config['MAIL_USE_TLS'] = True
             app.config['MAIL_USERNAME'] = 'auth@mail.kiselgram.ru'
-            app.config['MAIL_PASSWORD'] = 'KiselgramBackend2026'
+            app.config['MAIL_PASSWORD'] = '######'
             app.config['MAIL_DEFAULT_SENDER'] = ('Kiselgram', 'auth@mail.kiselgram.ru')
 
     except Exception as e:
@@ -152,7 +154,7 @@ def create_app():
             user = User.query.get(user_id)
             if user:
                 user.is_online = False
-                user.last_seen = datetime.datetime.now(datetime.timezone.utc)
+                user.last_seen = datetime.utcnow()
                 db.session.commit()
         session.clear()
         return redirect('/auth/login')
@@ -160,5 +162,31 @@ def create_app():
     # Create tables if they don't exist (development convenience)
     with app.app_context():
         db.create_all()
+
+    # Background thread: cleanup expired stories every 30 minutes
+    def story_cleanup_loop():
+        with app.app_context():
+            while True:
+                try:
+                    from app.models import Story
+                    cutoff = datetime.utcnow() - timedelta(hours=24)
+                    expired = Story.query.filter(Story.created_at < cutoff).all()
+                    for story in expired:
+                        if story.media_path:
+                            p = os.path.join('uploads', story.media_path)
+                            if os.path.exists(p):
+                                os.remove(p)
+                        if getattr(story, 'music_path', None):
+                            p = os.path.join('uploads', story.music_path)
+                            if os.path.exists(p):
+                                os.remove(p)
+                        db.session.delete(story)
+                    db.session.commit()
+                except Exception:
+                    pass
+                time.sleep(1800)
+
+    t = threading.Thread(target=story_cleanup_loop, daemon=True)
+    t.start()
 
     return app

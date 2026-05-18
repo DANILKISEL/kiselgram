@@ -260,7 +260,7 @@ class Reaction(db.Model):
     reaction_type = db.Column(db.String(20), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    __table_args__ = (db.UniqueConstraint('message_id', 'user_id', name='unique_user_message_reaction'),)
+    __table_args__ = (db.UniqueConstraint('message_id', 'user_id', 'reaction_type', name='unique_user_message_reaction'),)
 
 
 class Reply(db.Model):

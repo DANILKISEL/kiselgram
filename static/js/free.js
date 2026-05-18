@@ -43,7 +43,22 @@
     function debounce(fn, wait) { let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), wait); }; }
     function escapeHtml(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
     function formatTime(ts) { if (!ts) return ''; const d = new Date(ts), n = new Date(), diff = n - d; if (diff < 60000) return 'Just now'; if (diff < 3600000) return Math.floor(diff/60000)+'m ago'; if (diff < 86400000) return Math.floor(diff/3600000)+'h ago'; return d.toLocaleDateString(); }
-    function showToast(msg, type='info') { const toast = document.createElement('div'); toast.textContent = msg; toast.style.cssText = `position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:${type==='success'?'#2dce89':type==='error'?'#fb6340':'#5e72e4'};color:white;padding:12px 24px;border-radius:30px;font-weight:500;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.3);`; document.body.appendChild(toast); setTimeout(() => toast.remove(), 3000); }
+    function showToast(msg, type='info') {
+        let container = document.querySelector('.toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.className = 'toast-container';
+            document.body.appendChild(container);
+        }
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = msg;
+        container.appendChild(toast);
+        setTimeout(() => {
+            toast.classList.add('removing');
+            setTimeout(() => toast.remove(), 250);
+        }, 3000);
+    }
     window.showToast = showToast;
     function formatFileSize(bytes) { if (!bytes) return ''; if (bytes<1024) return bytes+' B'; if (bytes<1024*1024) return (bytes/1024).toFixed(1)+' KB'; return (bytes/(1024*1024)).toFixed(1)+' MB'; }
     function formatLastSeen(ls) { if (!ls) return ''; const d = new Date(ls), n = new Date(), diff = Math.floor((n - d)/1000); if (diff < 60) return 'just now'; if (diff < 3600) return Math.floor(diff/60)+'m ago'; if (diff < 86400) return Math.floor(diff/3600)+'h ago'; return d.toLocaleDateString(); }
@@ -110,6 +125,37 @@
         });
         const memberSearch = getEl('memberSearchInput');
         if (memberSearch) memberSearch.addEventListener('input', debounce(handleMemberSearch, 300));
+
+        // ===== FEATURE 8: DRAG-AND-DROP =====
+        const mc = DOM.messagesContainer;
+        if (mc) {
+            mc.addEventListener('dragenter', (e) => {
+                e.preventDefault(); e.stopPropagation();
+                document.getElementById('dropOverlay')?.classList.add('active');
+            });
+            mc.addEventListener('dragover', (e) => {
+                e.preventDefault(); e.stopPropagation();
+            });
+            mc.addEventListener('dragleave', (e) => {
+                e.preventDefault(); e.stopPropagation();
+                if (!mc.contains(e.relatedTarget)) {
+                    document.getElementById('dropOverlay')?.classList.remove('active');
+                }
+            });
+            mc.addEventListener('drop', async (e) => {
+                e.preventDefault(); e.stopPropagation();
+                document.getElementById('dropOverlay')?.classList.remove('active');
+                const files = e.dataTransfer.files;
+                if (!files.length || !activeChat) return;
+                const fi = getEl('fileInput');
+                if (fi) {
+                    const dt = new DataTransfer();
+                    for (const f of files) dt.items.add(f);
+                    fi.files = dt.files;
+                    handleFileSelect(fi);
+                }
+            });
+        }
     }
 
     function handleMessageInput() {
@@ -131,7 +177,7 @@
             const data = await res.json();
             const statusEl = getEl('chatHeaderStatus');
             if (statusEl && data.typing && data.typing.length > 0) {
-                statusEl.textContent = data.typing.map(u => u.name).join(', ') + ' typing...';
+                statusEl.innerHTML = `<span class="typing-indicator">${data.typing.map(u => u.name).join(', ')} <span class="typing-dots"><span class="typingDot">.</span><span class="typingDot">.</span><span class="typingDot">.</span></span></span>`;
                 statusEl.classList.add('typing');
             } else {
                 if (activeChat.type === 'personal' && activeChat.last_seen) statusEl.textContent = formatLastSeen(activeChat.last_seen);
@@ -231,7 +277,8 @@
 
     function renderMessages(msgs) {
         const c = DOM.messagesContainer; if (!c) return;
-        let h = '', lastDate = null;
+        let h = '', lastDate = null, lastSender = null, lastTime = null;
+        const isConsecutive = (m, prevSender, prevTime) => m.sender_id === prevSender && prevTime && (new Date(m.timestamp) - new Date(prevTime)) < 300000;
         for (const m of msgs) {
             const d = new Date(m.timestamp || Date.now()); const ds = d.toLocaleDateString();
             if (ds !== lastDate) {
@@ -241,26 +288,44 @@
                 if (ds === today.toLocaleDateString()) label = 'Today';
                 else if (ds === yesterday.toLocaleDateString()) label = 'Yesterday';
                 h += `<div class="message-date-divider"><span>${label}</span></div>`;
+                lastSender = null; lastTime = null;
             }
-            h += renderMessage(m);
+            const consecutive = isConsecutive(m, lastSender, lastTime);
+            h += renderMessage(m, consecutive);
+            lastSender = m.sender_id; lastTime = m.timestamp;
         }
         c.innerHTML = h || '<div class="empty-state"><p>No messages</p></div>';
         c.scrollTop = c.scrollHeight;
+        renderEmojiPicker();
     }
 
-    function renderMessage(m) {
+    function renderMessage(m, consecutive = false) {
         const isOwn = m.is_own || m.sender_id === window.currentUserId;
+        const msgTime = m.timestamp ? new Date(m.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : (m.timestamp_formatted || '');
+
+        let readStatus = '';
+        if (isOwn) {
+            if (m.is_read) readStatus = `<span class="read-receipt read" title="Read">✓✓</span>`;
+            else readStatus = `<span class="read-receipt" title="Delivered">✓✓</span>`;
+        }
+
         let att = '';
         if (m.has_attachment) {
             if (m.file_type === 'image') att = `<img src="${m.file_url}" class="message-image" onclick="openImageViewer('${m.file_url}')">`;
+            else if (m.file_type === 'audio' || m.file_type === 'voice') att = `<audio src="${m.file_url}" controls style="max-width:220px;height:40px;border-radius:8px;display:block;margin-bottom:4px"></audio>`;
             else att = `<div class="file-attachment"><span>📎</span><a href="${m.file_url}" target="_blank">${m.file_name || 'File'}</a></div>`;
         }
-        let reply = ''; if (m.reply_to_id) reply = `<div class="reply-indicator"><span>↩️ Reply</span><div style="font-size:11px">${escapeHtml(m.reply_to_content||'')}</div></div>`;
-        return `<div class="message-wrapper ${isOwn?'outgoing':'incoming'}" id="msg-${m.id}">
-            ${!isOwn?`<div class="message-sender">${escapeHtml(m.sender_name||'User')}</div>`:''}
-            <div class="message-bubble">
+        let reply = '';
+        if (m.reply_to_id) reply = `<div class="reply-indicator"><span>↩️ Reply</span><div style="font-size:11px">${escapeHtml(m.reply_to_content||'')}</div></div>`;
+
+        const groupClass = consecutive ? ' grouped' : '';
+
+        return `<div class="message-wrapper ${isOwn?'outgoing':'incoming'}${groupClass}" id="msg-${m.id}">
+            <div class="message-checkbox" onclick="event.stopPropagation();toggleMessageSelection('${m.id}')"></div>
+            ${(!isOwn && !consecutive) ? `<div class="message-sender">${escapeHtml(m.sender_name||'User')}</div>` : ''}
+            <div class="message-bubble" ondblclick="enterSelectionMode('${m.id}')">
                 ${reply}${att}${m.content?`<div class="message-text">${escapeHtml(m.content).replace(/\n/g,'<br>')}</div>`:''}
-                <div class="message-meta"><span class="message-time">${m.timestamp_formatted||''}</span>${isOwn?`<span>${m.is_read?'✓✓':'✓'}</span>`:''}</div>
+                <div class="message-meta"><span class="message-time">${msgTime}</span>${readStatus}</div>
             </div>
         </div>`;
     }
@@ -305,6 +370,13 @@
         await loadChatInfo(type, id); await loadMessages(type, id, true);
         if (type === 'personal') await fetch(`/api/mark_read/${id}`, { method: 'POST' });
         DOM.messageInput?.focus();
+        // Clear chat search
+        const searchBar = document.querySelector('.chat-search-bar');
+        if (searchBar) { searchBar.classList.remove('active'); searchBar.querySelector('.chat-search-input').value = ''; }
+        chatSearchResults = []; chatSearchIndex = -1;
+        clearChatSearchHighlights();
+        // Exit selection mode
+        exitSelectionMode();
     };
 
     async function loadChatInfo(type, id) {
@@ -376,7 +448,198 @@
     window.setReply = (id) => { replyToMessage = id; const msg = getEl(`msg-${id}`); if (msg && DOM.replyPreview) { const t = msg.querySelector('.message-text')?.textContent || ''; DOM.replyPreview.querySelector('.reply-preview-name').textContent = 'Replying'; DOM.replyPreview.querySelector('.reply-preview-text').textContent = t.substring(0,50); DOM.replyPreview.style.display = 'flex'; } };
     window.cancelReply = () => { replyToMessage = null; if (DOM.replyPreview) DOM.replyPreview.style.display = 'none'; };
     window.deleteMessage = async (id) => { if (!confirm('Delete?')) return; try { await fetch(`/api/messages/${id}`, { method:'DELETE' }); getEl(`msg-${id}`)?.remove(); } catch (e) {} };
-    window.openImageViewer = (url) => window.open(url, '_blank');
+    // ===== FEATURE 1: IMAGE LIGHTBOX =====
+    window.openImageViewer = (url) => {
+        const existing = document.querySelector('.lightbox-overlay');
+        if (existing) existing.remove();
+        const container = DOM.messagesContainer;
+        const images = container ? Array.from(container.querySelectorAll('.message-image')).map(img => img.src) : [url];
+        let idx = images.indexOf(url);
+        if (idx === -1) idx = 0;
+        const render = () => {
+            const overlay = document.createElement('div'); overlay.className = 'lightbox-overlay';
+            overlay.innerHTML = `
+                <button class="lightbox-close" onclick="this.closest('.lightbox-overlay').remove()">✕</button>
+                ${images.length > 1 ? `<button class="lightbox-nav lightbox-prev">‹</button><button class="lightbox-nav lightbox-next">›</button>` : ''}
+                <img src="${images[idx]}" alt="image">
+            `;
+            document.body.appendChild(overlay);
+            overlay.querySelector('.lightbox-prev')?.addEventListener('click', (e) => { e.stopPropagation(); idx = (idx - 1 + images.length) % images.length; overlay.remove(); render(); });
+            overlay.querySelector('.lightbox-next')?.addEventListener('click', (e) => { e.stopPropagation(); idx = (idx + 1) % images.length; overlay.remove(); render(); });
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+            document.addEventListener('keydown', function lbKey(e) {
+                if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', lbKey); }
+                if (e.key === 'ArrowLeft') { idx = (idx - 1 + images.length) % images.length; overlay.remove(); render(); document.removeEventListener('keydown', lbKey); }
+                if (e.key === 'ArrowRight') { idx = (idx + 1) % images.length; overlay.remove(); render(); document.removeEventListener('keydown', lbKey); }
+            });
+        };
+        render();
+    };
+
+    // ===== FEATURE 3: VOICE RECORDER =====
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let recordingTimer = null;
+    let recordingSeconds = 0;
+
+    window.toggleVoiceRecorder = () => {
+        const bar = document.querySelector('.voice-recorder-bar');
+        if (!bar) { showToast('Voice recorder not available', 'error'); return; }
+        if (bar.classList.contains('active')) { stopRecording(); return; }
+        startRecording();
+    };
+
+    async function startRecording() {
+        if (!navigator.mediaDevices?.getUserMedia) { showToast('Voice recording not supported', 'error'); return; }
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4' });
+            audioChunks = []; recordingSeconds = 0;
+            mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
+            mediaRecorder.onstop = () => { stream.getTracks().forEach(t => t.stop()); clearInterval(recordingTimer); document.querySelector('.voice-recorder-bar')?.classList.remove('active'); };
+            mediaRecorder.start();
+            const bar = document.querySelector('.voice-recorder-bar');
+            if (bar) {
+                bar.classList.add('active');
+                const timer = bar.querySelector('.voice-timer');
+                const waveform = bar.querySelector('.voice-waveform');
+                if (waveform) {
+                    waveform.innerHTML = '';
+                    for (let i = 0; i < 20; i++) {
+                        const barEl = document.createElement('div');
+                        barEl.className = 'bar';
+                        barEl.style.animationDelay = `${i * 0.05}s`;
+                        barEl.style.height = `${4 + Math.random() * 24}px`;
+                        waveform.appendChild(barEl);
+                    }
+                }
+                recordingTimer = setInterval(() => {
+                    recordingSeconds++;
+                    if (timer) timer.textContent = `${Math.floor(recordingSeconds / 60)}:${String(recordingSeconds % 60).padStart(2, '0')}`;
+                }, 1000);
+            }
+        } catch (e) { showToast('Microphone access denied', 'error'); }
+    }
+
+    window.stopRecording = () => { if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop(); };
+    window.cancelRecording = () => { audioChunks = []; if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop(); document.querySelector('.voice-recorder-bar')?.classList.remove('active'); clearInterval(recordingTimer); };
+
+    window.sendVoiceMessage = async () => {
+        if (audioChunks.length === 0) return;
+        const blob = new Blob(audioChunks, { type: mediaRecorder?.mimeType || 'audio/webm' });
+        audioChunks = [];
+        document.querySelector('.voice-recorder-bar')?.classList.remove('active');
+        clearInterval(recordingTimer);
+        if (!activeChat) return;
+        const fd = new FormData();
+        fd.append('file', blob, `voice_${Date.now()}.webm`);
+        if (activeChat.type === 'personal') fd.append('receiver_id', activeChat.id);
+        else fd.append('group_id', activeChat.id);
+        try {
+            const r = await fetch('/files/upload_file', { method: 'POST', body: fd });
+            const d = await r.json();
+            if (d.success && DOM.messagesContainer) {
+                if (DOM.messagesContainer.querySelector('.empty-state')) DOM.messagesContainer.innerHTML = '';
+                DOM.messagesContainer.insertAdjacentHTML('beforeend', renderMessage(d.message));
+                DOM.messagesContainer.scrollTop = DOM.messagesContainer.scrollHeight;
+                loadChatList();
+                showToast('Voice sent', 'success');
+            }
+        } catch (e) { showToast('Failed to send voice', 'error'); }
+    };
+
+    // ===== FEATURE 4: EMOJI PICKER =====
+    window.toggleEmojiPicker = () => { document.querySelector('.emoji-picker')?.classList.toggle('active'); };
+    window.insertEmoji = (emoji) => {
+        const input = DOM.messageInput;
+        if (!input) return;
+        const start = input.selectionStart;
+        input.value = input.value.substring(0, start) + emoji + input.value.substring(input.selectionEnd);
+        input.selectionStart = input.selectionEnd = start + emoji.length;
+        input.focus();
+        handleMessageInput();
+        document.querySelector('.emoji-picker')?.classList.remove('active');
+    };
+
+    const EMOJI_CATEGORIES = {
+        '😊': ['😊','😂','😍','🥰','😎','🤩','😢','😡','🥳','😇','🤗','🤔','🙄','😴','🥺','😰','🤒','🤕'],
+        '👍': ['👍','👎','👏','🙌','🤝','💪','✌️','🤞','👀','💅','🫶','🤙','👋','🖐️','✋'],
+        '❤️': ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','💔','💖','💝','✨','🔥','⭐','💯'],
+        '🎉': ['🎉','🎊','🎈','🎁','🎂','🎶','🎵','💃','🕺','🎤','🎧','🎸','🎹','🎨','🏆'],
+        '🐱': ['🐱','🐶','🐰','🦊','🐻','🐼','🐨','🐸','🐧','🐦','🐤','🦄','🐴','🐝','🐞'],
+        '🍕': ['🍕','🍔','🌮','🍣','🍩','🍪','🍫','🍭','🍺','🍷','☕','🥤','🧊','🍰','🥗'],
+    };
+
+    window.switchEmojiCat = (idx) => {
+        document.querySelectorAll('.emoji-cat').forEach((c, i) => c.classList.toggle('active', i === idx));
+        document.querySelectorAll('.emoji-grid').forEach((g, i) => g.style.display = i === idx ? 'grid' : 'none');
+    };
+
+    function renderEmojiPicker() {
+        const picker = document.querySelector('.emoji-picker');
+        if (!picker) return;
+        let catsHtml = ''; let gridsHtml = '';
+        Object.entries(EMOJI_CATEGORIES).forEach(([cat, emojis], ci) => {
+            catsHtml += `<button class="emoji-cat ${ci === 0 ? 'active' : ''}" data-cat="${ci}" onclick="switchEmojiCat(${ci})">${cat}</button>`;
+            gridsHtml += `<div class="emoji-grid" data-cat="${ci}" style="${ci === 0 ? '' : 'display:none'}">${emojis.map(e => `<button onclick="insertEmoji('${e}')">${e}</button>`).join('')}</div>`;
+        });
+        picker.innerHTML = `<div class="emoji-categories">${catsHtml}</div>${gridsHtml}`;
+    }
+
+    // ===== FEATURE 5: SELECTION MODE =====
+    let selectedMessageIds = new Set();
+    window.toggleMessageSelection = (id) => { selectedMessageIds.has(id) ? selectedMessageIds.delete(id) : selectedMessageIds.add(id); updateSelectionUI(); };
+    window.enterSelectionMode = (id) => { document.body.classList.add('selection-mode'); selectedMessageIds.add(id); updateSelectionUI(); showToast('Select messages', 'info'); };
+    window.exitSelectionMode = () => { document.body.classList.remove('selection-mode'); selectedMessageIds.clear(); const bar = document.querySelector('.selection-bar'); if (bar) bar.classList.remove('active'); document.querySelectorAll('.message-checkbox').forEach(cb => cb.remove()); };
+
+    function updateSelectionUI() {
+        const count = selectedMessageIds.size;
+        const bar = document.querySelector('.selection-bar');
+        const countEl = document.querySelector('.selection-count');
+        if (bar && countEl) { bar.classList.toggle('active', count > 0); countEl.textContent = `${count} selected`; }
+        document.querySelectorAll('.message-wrapper').forEach(w => {
+            const id = w.id.replace('msg-', '');
+            const cb = w.querySelector('.message-checkbox');
+            if (cb) cb.classList.toggle('checked', selectedMessageIds.has(id));
+        });
+        if (count === 0) document.body.classList.remove('selection-mode');
+    }
+
+    window.deleteSelectedMessages = async () => {
+        if (selectedMessageIds.size === 0) return;
+        if (!confirm(`Delete ${selectedMessageIds.size} messages?`)) return;
+        for (const id of selectedMessageIds) { try { await fetch(`/api/messages/${id}`, { method:'DELETE' }); document.getElementById(`msg-${id}`)?.remove(); } catch (e) {} }
+        selectedMessageIds.clear(); updateSelectionUI(); showToast('Deleted', 'success');
+    };
+    window.forwardSelectedMessages = () => { if (selectedMessageIds.size === 0) return; showToast(`Forward ${selectedMessageIds.size} message(s) — pick a chat`, 'info'); };
+
+    // ===== FEATURE 9: CHAT SEARCH =====
+    let chatSearchResults = []; let chatSearchIndex = -1;
+    window.toggleChatSearch = () => {
+        const bar = document.querySelector('.chat-search-bar');
+        if (bar) { bar.classList.toggle('active'); if (bar.classList.contains('active')) bar.querySelector('.chat-search-input')?.focus(); else clearChatSearchHighlights(); }
+    };
+
+    async function handleChatSearchInput() {
+        const input = document.querySelector('.chat-search-input');
+        const q = input?.value.trim(); const countEl = document.querySelector('.chat-search-count');
+        if (!q || q.length < 2 || !activeChat) { chatSearchResults = []; chatSearchIndex = -1; if (countEl) countEl.textContent = ''; clearChatSearchHighlights(); return; }
+        try {
+            const res = await fetch('/api/search_in_chat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ chat_id: activeChat.id, chat_type: activeChat.type, query: q }) });
+            const data = await res.json();
+            chatSearchResults = data.messages || []; chatSearchIndex = chatSearchResults.length > 0 ? 0 : -1;
+            highlightChatSearchResults(q);
+            if (countEl) countEl.textContent = chatSearchResults.length > 0 ? `${chatSearchIndex + 1}/${chatSearchResults.length}` : 'No results';
+            scrollToChatSearchResult();
+        } catch (e) {}
+    }
+
+    function highlightChatSearchResults(query) { clearChatSearchHighlights(); if (!query) return; document.querySelectorAll('.message-text').forEach(el => { if (el.textContent.toLowerCase().includes(query.toLowerCase())) { const r = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'); el.innerHTML = el.textContent.replace(r, '<mark class="search-highlight">$1</mark>'); } }); }
+    function clearChatSearchHighlights() { document.querySelectorAll('.message-text mark.search-highlight').forEach(m => { m.parentNode.replaceChild(document.createTextNode(m.textContent), m); m.parentNode.normalize(); }); }
+    function scrollToChatSearchResult() { if (chatSearchIndex < 0 || chatSearchIndex >= chatSearchResults.length) return; const el = document.getElementById(`msg-${chatSearchResults[chatSearchIndex].id}`); if (el) { el.scrollIntoView({ behavior:'smooth', block:'center' }); el.style.transition = 'background 0.5s'; el.style.background = 'rgba(255,213,0,0.15)'; setTimeout(() => { el.style.background = ''; }, 2000); } }
+    window.chatSearchPrev = () => { if (chatSearchResults.length === 0) return; chatSearchIndex = (chatSearchIndex - 1 + chatSearchResults.length) % chatSearchResults.length; const c = document.querySelector('.chat-search-count'); if (c) c.textContent = `${chatSearchIndex + 1}/${chatSearchResults.length}`; scrollToChatSearchResult(); };
+    window.chatSearchNext = () => { if (chatSearchResults.length === 0) return; chatSearchIndex = (chatSearchIndex + 1) % chatSearchResults.length; const c = document.querySelector('.chat-search-count'); if (c) c.textContent = `${chatSearchIndex + 1}/${chatSearchResults.length}`; scrollToChatSearchResult(); };
+
     window.showForwardModal = (messageId) => { showToast('Forward coming soon', 'info'); };
     window.showReactionPicker = (messageId) => { showToast('Reactions coming soon', 'info'); };
 

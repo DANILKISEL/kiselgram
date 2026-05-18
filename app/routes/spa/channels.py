@@ -4,7 +4,7 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify
 
 from app import db
-from app.models import User, Channel, ChannelSubscriber, Message, BlockedUser
+from app.models import User, Channel, ChannelSubscriber, ChannelAdmin, Message, BlockedUser
 from app.utils.helpers import get_current_user_id, get_current_user, message_to_dict
 
 spa_channels_bp = Blueprint('spa_channels', __name__, url_prefix='/api')
@@ -260,22 +260,38 @@ def get_channel_admins(channel_id):
     if not current_user_id:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
 
-    # For now, return only the owner as admin (until ChannelAdmin model is added)
     channel = Channel.query.get(channel_id)
     if not channel:
         return jsonify({'success': False, 'error': 'Channel not found'}), 404
 
+    admins = []
+    # Owner is always an admin
     owner = User.query.get(channel.owner_id)
-    admins = [{
-        'user_id': owner.id,
-        'username': owner.username,
-        'display_name': owner.display_name or owner.username,
-        'avatar_url': owner.avatar_url,
-        'can_post': True,
-        'can_edit': True,
-        'can_delete': True,
-        'can_add_admins': True
-    }]
+    if owner:
+        admins.append({
+            'user_id': owner.id,
+            'username': owner.username,
+            'display_name': owner.display_name or owner.username,
+            'avatar_url': owner.avatar_url,
+            'can_post': True,
+            'can_edit': True,
+            'can_delete': True,
+            'can_add_admins': True
+        })
+    # Other channel admins
+    for ca in ChannelAdmin.query.filter_by(channel_id=channel_id).all():
+        user = User.query.get(ca.user_id)
+        if user:
+            admins.append({
+                'user_id': user.id,
+                'username': user.username,
+                'display_name': user.display_name or user.username,
+                'avatar_url': user.avatar_url,
+                'can_post': ca.can_post,
+                'can_edit': ca.can_edit,
+                'can_delete': ca.can_delete,
+                'can_add_admins': ca.can_add_admins
+            })
 
     return jsonify({'success': True, 'admins': admins})
 
@@ -293,9 +309,27 @@ def add_channel_admin(channel_id):
 
     data = request.get_json() or {}
     user_id = data.get('user_id')
-    permissions = data.get('permissions', {})
+    if not user_id:
+        return jsonify({'success': False, 'error': 'user_id required'}), 400
 
-    # TODO: add logic to insert into a ChannelAdmin table
+    if user_id == current_user_id:
+        return jsonify({'success': False, 'error': 'Owner is already an admin'}), 400
+
+    existing = ChannelAdmin.query.filter_by(channel_id=channel_id, user_id=user_id).first()
+    if existing:
+        return jsonify({'success': True, 'already_admin': True})
+
+    permissions = data.get('permissions', {})
+    admin = ChannelAdmin(
+        channel_id=channel_id,
+        user_id=user_id,
+        can_post=permissions.get('can_post', True),
+        can_edit=permissions.get('can_edit', False),
+        can_delete=permissions.get('can_delete', False),
+        can_add_admins=permissions.get('can_add_admins', False)
+    )
+    db.session.add(admin)
+    db.session.commit()
     return jsonify({'success': True})
 
 
@@ -310,7 +344,15 @@ def remove_channel_admin(channel_id, user_id):
     if not channel or channel.owner_id != current_user_id:
         return jsonify({'success': False, 'error': 'Insufficient permissions'}), 403
 
-    # TODO: remove from ChannelAdmin table
+    if user_id == channel.owner_id:
+        return jsonify({'success': False, 'error': 'Cannot remove owner'}), 400
+
+    admin = ChannelAdmin.query.filter_by(channel_id=channel_id, user_id=user_id).first()
+    if not admin:
+        return jsonify({'success': False, 'error': 'Admin not found'}), 404
+
+    db.session.delete(admin)
+    db.session.commit()
     return jsonify({'success': True})
 
 
