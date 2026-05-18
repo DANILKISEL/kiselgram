@@ -26,23 +26,19 @@ def get_sessions():
         })
     return jsonify({'success': True, 'sessions': result})
 
-@spa_sessions_bp.route('/sessions/terminate', methods=['POST'])
+@spa_sessions_bp.route('/sessions/revoke', methods=['POST'])
 def terminate_session():
-    """Terminate a specific session (except the current one)."""
+    """Revoke a specific session by id."""
     user_id = get_current_user_id()
     if not user_id:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
 
     data = request.get_json()
-    session_token = data.get('session_token')
-    current_token = session.get('session_token')
+    session_id = data.get('session_id')
 
-    if session_token == current_token:
-        return jsonify({'success': False, 'error': 'Cannot terminate current session'}), 400
-
-    s = UserSession.query.filter_by(session_token=session_token, user_id=user_id).first()
+    s = UserSession.query.filter_by(id=session_id, user_id=user_id).first()
     if s:
-        db.session.delete(s)
+        s.is_active = False
         db.session.commit()
     return jsonify({'success': True})
 

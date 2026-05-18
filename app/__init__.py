@@ -40,54 +40,23 @@ def create_app():
                 instance_path=os.path.join(basedir, 'instance')
                 )
 
-    # Load TOML config
+    # Load all config from config/kis.toml via the config module
     try:
-        import tomli
-        config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config', 'kis.toml')
-        with open(config_path, 'rb') as f:
-            config = tomli.load(f)
-
-        # App settings
-        app.config['SECRET_KEY'] = config['app'].get('secret_key', 'dev-key')
-        app.config['DEBUG'] = config['app'].get('debug', False)
-
-        # Database – fix the path
-        db_url = config['database']['url']
-        if db_url.startswith('sqlite:///'):
-            db_path = db_url.replace('sqlite:///', '')
-            if not os.path.isabs(db_path):
-                db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), db_path)
-            db_url = f'sqlite:///{db_path}'
-
-        app.config['SQLALCHEMY_DATABASE_URI'] = db_url if not production else "postgresql://kiselgram_user:String-123@localhost:5432/kiselgram"
-        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-        print(f"✅ Database URI: {app.config['SQLALCHEMY_DATABASE_URI']}")
-
-        # Email settings from config.toml if present, otherwise fallback
-        if 'mail' in config:
-            app.config['MAIL_SERVER'] = config['mail'].get('server', 'mail.kiselgram.ru')
-            app.config['MAIL_PORT'] = config['mail'].get('port', 587)
-            app.config['MAIL_USE_TLS'] = True
-            app.config['MAIL_USERNAME'] = config['mail'].get('username', 'auth@mail.kiselgram.ru')
-            app.config['MAIL_PASSWORD'] = config['mail'].get('password', '######')
-            app.config['MAIL_DEFAULT_SENDER'] = (config['mail'].get('sender_name', 'Kiselgram'),
-                                                  config['mail'].get('sender_email', 'auth@mail.kiselgram.ru'))
-        else:
-            # Use hardcoded values as provided
-            app.config['MAIL_SERVER'] = 'mail.kiselgram.ru'
-            app.config['MAIL_PORT'] = 587
-            app.config['MAIL_USE_TLS'] = True
-            app.config['MAIL_USERNAME'] = 'auth@mail.kiselgram.ru'
-            app.config['MAIL_PASSWORD'] = '######'
-            app.config['MAIL_DEFAULT_SENDER'] = ('Kiselgram', 'auth@mail.kiselgram.ru')
-
+        from app.config import Config
+        app.config.from_object(Config())
     except Exception as e:
         print(f"⚠️ Error loading config: {e}")
+        app.config['SECRET_KEY'] = 'dev-key'
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(app.instance_path, 'kiselgram.db')
 
-    app.config['GOOGLE_CLIENT_ID'] = config['google']['client_id']
-    app.config['GOOGLE_CLIENT_SECRET'] = config['google']['client_secret']
+    # Always enforce these
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+    # Override database for production
+    if production:
+        app.config['SQLALCHEMY_DATABASE_URI'] = "postgresql://kiselgram_user:String-123@localhost:5432/kiselgram"
+
+    print(f"✅ Database URI: {app.config['SQLALCHEMY_DATABASE_URI']}")
 
     # Initialize extensions
     oauth.init_app(app)
@@ -96,8 +65,8 @@ def create_app():
     # Register OAuth provider
     oauth.register(
         name='google',
-        client_id=app.config['GOOGLE_CLIENT_ID'],
-        client_secret=app.config['GOOGLE_CLIENT_SECRET'],
+        client_id=app.config.get('GOOGLE_CLIENT_ID', ''),
+        client_secret=app.config.get('GOOGLE_CLIENT_SECRET', ''),
         server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
         client_kwargs={'scope': 'openid email profile'}
     )

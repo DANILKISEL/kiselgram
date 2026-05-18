@@ -96,6 +96,37 @@
     <p>We've sent a verification link to your email address.</p>
     <p class="text-muted">Please check your inbox and click the link to activate your account.</p>
     <p class="text-muted">The link expires in 24 hours.</p>
-    <a href="{{ url_for('auth.login') }}" class="btn btn-outline">Back to Login</a>
+    <p style="margin-top:16px;">
+        <a href="#" onclick="resendVerification(event)" style="color:#fb6340;font-size:14px;text-decoration:none;font-weight:600;">
+            Didn't get the email? Resend
+        </a>
+    </p>
+    <p id="resendStatus" style="font-size:13px;margin-top:8px;color:#64748b;display:none;"></p>
+    <a href="{{ url_for('auth.login') }}" class="btn btn-outline" style="margin-top:16px;">Back to Login</a>
 </div>
+
+<script>
+function resendVerification(e) {
+    e.preventDefault();
+    const status = document.getElementById('resendStatus');
+    status.style.display = 'block';
+    status.textContent = 'Sending...';
+    status.style.color = '#64748b';
+    fetch('/auth/api/resend_verification', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                status.textContent = '\u2705 Verification email resent! Check your inbox.';
+                status.style.color = '#2dce89';
+            } else {
+                status.textContent = '\u2717 ' + (data.error || 'Failed to resend. Try again.');
+                status.style.color = '#fb6340';
+            }
+        })
+        .catch(() => {
+            status.textContent = '\u2717 Network error. Please try again.';
+            status.style.color = '#fb6340';
+        });
+}
+</script>
 {% endblock %}
