@@ -15,6 +15,13 @@ ALLOWED_IMAGE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'ico', '
 ALLOWED_VIDEO_EXTENSIONS = {'mp4', 'webm', 'avi', 'mov', 'mkv', 'flv', 'wmv', 'm4v', 'mpg', 'mpeg', '3gp', '3g2'}
 
 
+def _require_premium(user_id):
+    user = User.query.get(user_id)
+    if not user or not getattr(user, 'is_premium', False):
+        return jsonify({'success': False, 'error': 'Premium feature. Upgrade to access stories.'}), 403
+    return None
+
+
 def story_to_dict(story, current_user_id):
     """Convert a Story ORM object to a dictionary for API response."""
     liked = StoryLike.query.filter_by(story_id=story.id, user_id=current_user_id).first() is not None
@@ -51,6 +58,9 @@ def get_stories():
     current_user_id = get_current_user_id()
     if not current_user_id:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+    premium = _require_premium(current_user_id)
+    if premium:
+        return premium
 
     cutoff = datetime.utcnow() - timedelta(hours=24)
     # Base query: active stories of the current user and their contacts
@@ -115,6 +125,9 @@ def create_story():
     current_user_id = get_current_user_id()
     if not current_user_id:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+    premium = _require_premium(current_user_id)
+    if premium:
+        return premium
 
     if 'media' not in request.files:
         return jsonify({'success': False, 'error': 'No media provided'}), 400
@@ -190,6 +203,9 @@ def view_story(story_id):
     current_user_id = get_current_user_id()
     if not current_user_id:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+    premium = _require_premium(current_user_id)
+    if premium:
+        return premium
 
     story = Story.query.get_or_404(story_id)
     existing = StoryView.query.filter_by(story_id=story_id, viewer_id=current_user_id).first()
@@ -205,6 +221,9 @@ def like_story(story_id):
     current_user_id = get_current_user_id()
     if not current_user_id:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+    premium = _require_premium(current_user_id)
+    if premium:
+        return premium
 
     existing = StoryLike.query.filter_by(story_id=story_id, user_id=current_user_id).first()
     if existing:
@@ -225,6 +244,9 @@ def react_to_story(story_id):
     current_user_id = get_current_user_id()
     if not current_user_id:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+    premium = _require_premium(current_user_id)
+    if premium:
+        return premium
 
     data = request.get_json()
     reaction = data.get('reaction')
@@ -260,6 +282,9 @@ def reply_to_story(story_id):
     current_user_id = get_current_user_id()
     if not current_user_id:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+    premium = _require_premium(current_user_id)
+    if premium:
+        return premium
 
     data = request.get_json()
     reply_text = data.get('reply_text', '').strip()
@@ -278,8 +303,8 @@ def reply_to_story(story_id):
     db.session.add(msg)
     db.session.commit()
 
-    from app.routes.spa.chat import message_to_dict
-    return jsonify({'success': True, 'chat_id': story.user_id, 'message': message_to_dict(msg, current_user_id)})
+    from app.utils.helpers import message_to_dict as _story_msg_dict
+    return jsonify({'success': True, 'chat_id': story.user_id, 'message': _story_msg_dict(msg, current_user_id)})
 
 
 @spa_stories_bp.route('/stories/<int:story_id>/stats', methods=['GET'])
@@ -288,6 +313,9 @@ def story_stats(story_id):
     current_user_id = get_current_user_id()
     if not current_user_id:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+    premium = _require_premium(current_user_id)
+    if premium:
+        return premium
 
     story = Story.query.get_or_404(story_id)
     if story.user_id != current_user_id:
@@ -340,6 +368,9 @@ def delete_story(story_id):
     current_user_id = get_current_user_id()
     if not current_user_id:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+    premium = _require_premium(current_user_id)
+    if premium:
+        return premium
 
     story = Story.query.get_or_404(story_id)
     if story.user_id != current_user_id:
