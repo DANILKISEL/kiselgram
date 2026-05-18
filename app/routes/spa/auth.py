@@ -182,7 +182,10 @@ def complete_registration():
         user.username = username
         user.display_name = display_name or username
         if avatar:
-            user.avatar_url = avatar
+            # avatar path resolution logic
+            preloaded_url = "/static/uploads/preloaded-avatars/"
+            ava_url = preloaded_url + avatar
+            user.avatar_url = ava_url
         db.session.commit()
 
         session['username'] = username
