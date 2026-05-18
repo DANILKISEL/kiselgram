@@ -8,7 +8,7 @@ from app.models import (
     User, Message, GroupMember, ChannelSubscriber,
 )
 from app.utils.helpers import get_current_user, get_current_user_id, format_file_size
-from app.routes.spa_app import get_blocked_user_ids
+from app.utils.helpers import get_blocked_user_ids
 
 chats_bp = Blueprint('chats', __name__)
 

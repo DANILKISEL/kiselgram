@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from sqlalchemy import or_
 
 from app import db
-from app.models import User, Group, Channel, Message, RecentSearch
+from app.models import User, Group, GroupMember, Channel, ChannelSubscriber, Message, RecentSearch
 from app.utils.helpers import get_current_user_id
 
 spa_search_bp = Blueprint('spa_search', __name__, url_prefix='/api')
@@ -25,9 +25,11 @@ def global_search():
     ).limit(20).all()
 
     # Groups (public only, or ones user is member of)
-    user_group_ids = [gm.group_id for gm in Group.members.filter(Group.members.any(user_id=user_id)).all()] if False else []
-    # For simplicity, show public groups only
-    groups = Group.query.filter(Group.is_public == True, Group.name.ilike(f'%{query}%')).limit(20).all()
+    user_group_ids = [gm.group_id for gm in GroupMember.query.filter_by(user_id=user_id).all()]
+    groups = Group.query.filter(
+        db.or_(Group.is_public == True, Group.id.in_(user_group_ids)),
+        Group.name.ilike(f'%{query}%')
+    ).limit(20).all()
 
     # Channels (public)
     channels = Channel.query.filter(Channel.is_public == True, Channel.name.ilike(f'%{query}%')).limit(20).all()
@@ -73,16 +75,31 @@ def search_in_chat():
 
     data = request.get_json()
     chat_id = data.get('chat_id')
+    chat_type = data.get('chat_type', 'personal')
     query = data.get('query', '').strip()
 
     if not chat_id or len(query) < 2:
         return jsonify({'success': True, 'messages': []})
 
-    messages = Message.query.filter(
-        Message.chat_id == chat_id,
-        Message.content.ilike(f'%{query}%'),
-        Message.is_deleted == False
-    ).order_by(Message.created_at.desc()).limit(100).all()
+    if chat_type == 'group':
+        messages = Message.query.filter(
+            Message.group_id == chat_id,
+            Message.content.ilike(f'%{query}%'),
+            Message.is_deleted == False
+        ).order_by(Message.timestamp.desc()).limit(100).all()
+    elif chat_type == 'channel':
+        messages = Message.query.filter(
+            Message.channel_id == chat_id,
+            Message.content.ilike(f'%{query}%'),
+            Message.is_deleted == False
+        ).order_by(Message.timestamp.desc()).limit(100).all()
+    else:
+        messages = Message.query.filter(
+            ((Message.sender_id == user_id) & (Message.receiver_id == chat_id)) |
+            ((Message.sender_id == chat_id) & (Message.receiver_id == user_id)),
+            Message.content.ilike(f'%{query}%'),
+            Message.is_deleted == False
+        ).order_by(Message.timestamp.desc()).limit(100).all()
 
     results = []
     for msg in messages:
@@ -91,7 +108,7 @@ def search_in_chat():
             'content': msg.content,
             'sender_id': msg.sender_id,
             'sender_name': msg.sender.username if msg.sender else 'Unknown',
-            'timestamp': msg.created_at.isoformat(),
+            'timestamp': msg.timestamp.isoformat(),
             'is_mine': msg.sender_id == user_id
         })
     return jsonify({'success': True, 'messages': results})

@@ -245,15 +245,11 @@ def react_to_story(story_id):
         from app.models import Message
         reaction_map = {'❤️': '❤️', '🔥': '🔥', '👎': '👎', '👍': '👍'}
         reaction_text = reaction_map.get(reaction, reaction)
-        # Find or create a chat with the story owner
-        from app.routes.spa.chat import get_or_create_chat  # defined in chat.py
-        chat_id = get_or_create_chat(current_user_id, story.user_id)
-        if chat_id:
-            msg = Message(content=f"📱 Реакция на вашу историю: {reaction_text}",
-                          sender_id=current_user_id, receiver_id=story.user_id,
-                          chat_id=chat_id, timestamp=datetime.utcnow())
-            db.session.add(msg)
-            db.session.commit()
+        msg = Message(content=f"📱 Реакция на вашу историю: {reaction_text}",
+                      sender_id=current_user_id, receiver_id=story.user_id,
+                      timestamp=datetime.utcnow())
+        db.session.add(msg)
+        db.session.commit()
 
     return jsonify({'success': True})
 
@@ -272,24 +268,18 @@ def reply_to_story(story_id):
 
     story = Story.query.get_or_404(story_id)
     from app.models import Message
-    # Create chat if not exists
-    from app.routes.spa.chat import get_or_create_chat
-    chat_id = get_or_create_chat(current_user_id, story.user_id)
-    if not chat_id:
-        return jsonify({'success': False, 'error': 'Failed to create chat'}), 500
 
     msg = Message(
         content=f"📱 Ответ на историю: {reply_text}",
         sender_id=current_user_id,
         receiver_id=story.user_id,
-        chat_id=chat_id,
         timestamp=datetime.utcnow()
     )
     db.session.add(msg)
     db.session.commit()
 
     from app.routes.spa.chat import message_to_dict
-    return jsonify({'success': True, 'chat_id': chat_id, 'message': message_to_dict(msg, current_user_id)})
+    return jsonify({'success': True, 'chat_id': story.user_id, 'message': message_to_dict(msg, current_user_id)})
 
 
 @spa_stories_bp.route('/stories/<int:story_id>/stats', methods=['GET'])
