@@ -1,6 +1,6 @@
 import pytest
 from app import create_app, db as _db
-from app.models import User
+from app.models import User, UserPremium, Chat, ChatMember
 from datetime import datetime
 
 TEST_DB = "sqlite:///:memory:"
@@ -86,16 +86,31 @@ def admin_user(session):
 
 
 @pytest.fixture
+def personal_chat(session, user, user2):
+    chat = Chat(chat_type='personal')
+    session.add(chat)
+    session.flush()
+    m1 = ChatMember(chat_id=chat.id, user_id=user.id, role='participant')
+    m2 = ChatMember(chat_id=chat.id, user_id=user2.id, role='participant')
+    session.add(m1)
+    session.add(m2)
+    session.commit()
+    return chat
+
+
+@pytest.fixture
 def premium_user(session):
     u = User(
         username="premium",
         email="premium@example.com",
         email_verified=True,
         display_name="Premium User",
-        is_premium=True,
     )
     u.set_password("premiumpass")
     session.add(u)
+    session.flush()
+    up = UserPremium(user_id=u.id, is_premium=True)
+    session.add(up)
     session.commit()
     return u
 

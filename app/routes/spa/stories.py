@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify
 
 from app import db
-from app.models import User, Story, StoryView, StoryLike, StoryReaction, StoryPrivacy, StoryAllowedUser, Message
+from app.models import User, Story, StoryView, StoryLike, StoryReaction, StoryPrivacy, StoryAllowedUser, Message, Chat
 from app.utils.helpers import get_current_user_id, get_current_user
 
 spa_stories_bp = Blueprint('spa_stories', __name__, url_prefix='/api')
@@ -17,9 +17,18 @@ ALLOWED_VIDEO_EXTENSIONS = {'mp4', 'webm', 'avi', 'mov', 'mkv', 'flv', 'wmv', 'm
 
 def _require_premium(user_id):
     user = User.query.get(user_id)
-    if not user or not getattr(user, 'is_premium', False):
+    if not user or not (user.premium.is_premium if user.premium else False):
         return jsonify({'success': False, 'error': 'Premium feature. Upgrade to access stories.'}), 403
     return None
+
+def _get_or_create_personal_chat(user1_id, user2_id):
+    a, b = sorted([user1_id, user2_id])
+    chat = Chat.query.filter_by(chat_type='personal', user1_id=a, user2_id=b).first()
+    if not chat:
+        chat = Chat(chat_type='personal', user1_id=a, user2_id=b)
+        db.session.add(chat)
+        db.session.flush()
+    return chat
 
 
 def story_to_dict(story, current_user_id):
@@ -65,16 +74,6 @@ def get_stories():
     cutoff = datetime.utcnow() - timedelta(hours=24)
     # Base query: active stories of the current user and their contacts
     # For full implementation, use Nexgram logic with privacy checks.
-    # This simplified version returns stories from users that the viewer has chatted with.
-    sent = db.session.query(Story.user_id).join(User).filter(
-        Story.created_at >= cutoff,
-        Story.user_id != current_user_id
-    ).distinct().all()
-    recv = db.session.query(Story.user_id).filter(
-        Story.created_at >= cutoff,
-        Story.user_id == current_user_id  # also include own stories
-    ).distinct().all()
-
     # Gather all story user IDs that the current user might see
     visible_user_ids = set([current_user_id])  # always include own stories
     for (uid,) in db.session.query(Message.sender_id).filter_by(receiver_id=current_user_id).distinct():
@@ -261,15 +260,15 @@ def react_to_story(story_id):
         db.session.add(StoryReaction(story_id=story_id, user_id=current_user_id, reaction=reaction))
     db.session.commit()
 
-    # Optionally, send a message to the story owner (like Nexgram does)
+    # Optionally, send a message to the story owner
     story = Story.query.get(story_id)
     if story and story.user_id != current_user_id:
-        from app.models import Message
+        chat = _get_or_create_personal_chat(current_user_id, story.user_id)
         reaction_map = {'❤️': '❤️', '🔥': '🔥', '👎': '👎', '👍': '👍'}
         reaction_text = reaction_map.get(reaction, reaction)
         msg = Message(content=f"📱 Реакция на вашу историю: {reaction_text}",
                       sender_id=current_user_id, receiver_id=story.user_id,
-                      timestamp=datetime.utcnow())
+                      chat_id=chat.id, timestamp=datetime.utcnow())
         db.session.add(msg)
         db.session.commit()
 
@@ -292,12 +291,14 @@ def reply_to_story(story_id):
         return jsonify({'success': False, 'error': 'Reply text required'}), 400
 
     story = Story.query.get_or_404(story_id)
+    chat = _get_or_create_personal_chat(current_user_id, story.user_id)
     from app.models import Message
 
     msg = Message(
         content=f"📱 Ответ на историю: {reply_text}",
         sender_id=current_user_id,
         receiver_id=story.user_id,
+        chat_id=chat.id,
         timestamp=datetime.utcnow()
     )
     db.session.add(msg)

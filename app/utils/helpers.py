@@ -6,7 +6,7 @@ import os
 import re
 from datetime import datetime, timedelta
 from PIL import Image
-from app.models import Story, BlockedUser, GroupMember, Message, Forward, Reply, Reaction
+from app.models import Story, BlockedUser, ChatMember, Message, Forward, Reply, Reaction
 
 
 def hash_password(password):
@@ -149,11 +149,11 @@ def user_to_dict(user):
         'last_seen': user.last_seen.isoformat() if user.last_seen else None,
         'created_at': user.created_at.isoformat() if user.created_at else None,
         'has_story': has_active_story(user.id),
-        'is_premium': getattr(user, 'is_premium', False),
+        'is_premium': user.premium.is_premium if user.premium else False,
         'status_emoji': getattr(user, 'status_emoji', ''),
         'followers_count': 0,
         'following_count': 0,
-        'groups_count': GroupMember.query.filter_by(user_id=user.id).count()
+        'groups_count': ChatMember.query.filter_by(user_id=user.id).count()
     }
 
 def message_to_dict(message, current_user_id):
@@ -162,8 +162,7 @@ def message_to_dict(message, current_user_id):
         'content': message.content,
         'sender_id': message.sender_id,
         'receiver_id': message.receiver_id,
-        'group_id': message.group_id,
-        'channel_id': message.channel_id,
+        'chat_id': message.chat_id,
         'sender_name': message.sender.username if message.sender else 'Unknown',
         'timestamp': message.timestamp.isoformat() if message.timestamp else None,
         'timestamp_formatted': message.timestamp.strftime('%H:%M') if message.timestamp else '',
@@ -178,11 +177,17 @@ def message_to_dict(message, current_user_id):
     }
 
     if message.has_attachment:
-        msg_data['file_type'] = message.file_type
-        msg_data['file_name'] = message.file_name
-        msg_data['file_size'] = message.file_size
-        msg_data['formatted_size'] = format_file_size(message.file_size) if message.file_size else '0 B'
-        msg_data['file_url'] = f"/uploads/{message.file_path}" if message.file_path else None
+        file = message.file
+        msg_data['file_type'] = file.file_type if file else message.file_type
+        msg_data['file_name'] = file.file_name if file else message.file_name
+        msg_data['file_size'] = file.file_size if file else message.file_size
+        msg_data['formatted_size'] = format_file_size(msg_data['file_size']) if msg_data['file_size'] else '0 B'
+        msg_data['file_url'] = f"/uploads/{file.file_path if file else message.file_path}" if (file or message.file_path) else None
+        msg_data['preview_size'] = file.preview_size if file else (
+            'big' if message.file_type == 'image'
+            else 'medium' if message.file_type in ('video',)
+            else 'none'
+        )
 
     reply = Reply.query.filter_by(reply_message_id=message.id).first()
     if reply:

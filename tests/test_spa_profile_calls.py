@@ -1,7 +1,7 @@
 import io, json
 from datetime import datetime
 from app import db
-from app.models import User, Group, GroupMember, Channel, ChannelSubscriber, Message, Call, VideoCall, VideoCallParticipant, RecentSearch
+from app.models import User, Chat, ChatMember, ChatSubscriber, Message, Call, VideoCall, VideoCallParticipant, RecentSearch
 
 
 class TestProfile:
@@ -198,10 +198,10 @@ class TestSearch:
         assert users[0]["username"] == "friend"
 
     def test_global_search_groups(self, logged_in_client, user):
-        g = Group(name="Python Developers", owner_id=user.id, is_public=True)
+        g = Chat(chat_type='group', name="Python Developers", owner_id=user.id, is_public=True)
         db.session.add(g)
         db.session.commit()
-        db.session.add(GroupMember(user=user, group=g, role="owner"))
+        db.session.add(ChatMember(user=user, chat=g, role="owner"))
         db.session.commit()
         resp = logged_in_client.get("/api/search/global?q=Python")
         assert resp.status_code == 200
@@ -209,7 +209,7 @@ class TestSearch:
         assert len(data["results"]["groups"]) == 1
 
     def test_global_search_channels(self, logged_in_client, user, user2):
-        c = Channel(name="Tech News", owner_id=user2.id, is_public=True)
+        c = Chat(chat_type='channel', name="Tech News", owner_id=user2.id, is_public=True)
         db.session.add(c)
         db.session.commit()
         resp = logged_in_client.get("/api/search/global?q=Tech")

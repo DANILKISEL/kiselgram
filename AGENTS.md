@@ -106,6 +106,15 @@
 
 ## Common Tasks
 
+**View Nexgram app**
+1. CD into ~/Downloads/nexgram-main
+2. Here you are in the app
+
+**View Sputnk app**
+1. CD into ~/Downloads/sputnik-main
+2. Here you are in the app
+
+
 **Adding New Features (Python Version):**
 1. Create/update models in `app/models.py` if needed
 2. Add routes in appropriate file under `app/routes/`
