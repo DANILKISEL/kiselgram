@@ -24,4 +24,4 @@ tmp/
 
 .gradle
 app/config.py
-config/kis.toml
+/config/kis.toml
