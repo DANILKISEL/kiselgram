@@ -9,7 +9,7 @@ def load_toml_config():
     """Load configuration from config/kis.toml"""
     try:
         import tomli
-        config_path = os.path.join(os.path.dirname(__file__), 'config', 'kis.toml')
+        config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config', 'kis.toml')
         if os.path.exists(config_path):
             with open(config_path, 'rb') as f:
                 return tomli.load(f)
@@ -84,6 +84,25 @@ def get_toml_config():
         config['SERVER_WORKERS'] = server.get('workers', 4)
         config['SERVER_THREADED'] = server.get('threaded', True)
 
+    # Mail settings
+    if 'mail' in toml_config:
+        mail_cfg = toml_config['mail']
+        config['MAIL_SERVER'] = mail_cfg.get('server', 'mail.kiselgram.ru')
+        config['MAIL_PORT'] = mail_cfg.get('port', 587)
+        config['MAIL_USE_TLS'] = True
+        config['MAIL_USERNAME'] = mail_cfg.get('username', '')
+        config['MAIL_PASSWORD'] = mail_cfg.get('password', '')
+        config['MAIL_DEFAULT_SENDER'] = (
+            mail_cfg.get('sender_name', 'Kiselgram'),
+            mail_cfg.get('sender_email', '')
+        )
+
+    # Google OAuth
+    if 'google' in toml_config:
+        google = toml_config['google']
+        config['GOOGLE_CLIENT_ID'] = google.get('client_id', '')
+        config['GOOGLE_CLIENT_SECRET'] = google.get('client_secret', '')
+
     # Logging
     if 'logging' in toml_config:
         config['LOGGING'] = toml_config['logging']
@@ -108,9 +127,8 @@ class Config:
     # Upload limits
     MAX_CONTENT_LENGTH = 100 * 1024 * 1024  # 100MB default
 
-    # Upload folders
-    UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'uploads')
-    STATIC_FOLDER = os.path.join(os.path.dirname(__file__), 'app', 'static')
+    UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads')
+    STATIC_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static')
 
     # Session
     PERMANENT_SESSION_LIFETIME = timedelta(days=7)
@@ -151,6 +169,10 @@ class Config:
     TELEGRAM_BOT_TOKEN = ''
     TELEGRAM_WEBHOOK_URL = ''
 
+    # Google OAuth
+    GOOGLE_CLIENT_ID = ''
+    GOOGLE_CLIENT_SECRET = ''
+
     # Cache
     CACHE_TYPE = 'SimpleCache'
     CACHE_DEFAULT_TIMEOUT = 300
@@ -160,7 +182,7 @@ class Config:
     MAIL_PORT = 587
     MAIL_USE_TLS = True
     MAIL_USERNAME = 'auth@mail.kiselgram.ru'
-    MAIL_PASSWORD = 'KiselgramBackend2026'
+    MAIL_PASSWORD = '$uper$ecurePassWo_D'
     MAIL_DEFAULT_SENDER = ('Kiselgram', 'auth@mail.kiselgram.ru')
 
     def __init__(self):
@@ -177,7 +199,7 @@ class DevelopmentConfig(Config):
     TESTING = False
     SESSION_COOKIE_SECURE = False
     REMEMBER_COOKIE_SECURE = False
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(os.path.dirname(__file__), 'instance', 'kiselgram_dev.db')
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(os.path.dirname(os.path.dirname(__file__)), 'instance', 'kiselgram_dev.db')
 
 
 class ProductionConfig(Config):

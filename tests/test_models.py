@@ -1,10 +1,11 @@
 import pytest
 from app.models import (
-    User, Message, Group, GroupMember, GroupPermission,
-    Channel, ChannelSubscriber, ChannelAdmin,
+    User, Message, Chat, ChatMember, GroupPermission,
+    ChannelAdmin, ChatSubscriber, UserPremium,
     Story, StoryView, StoryLike, StoryReaction,
     Contact, BlockedUser, Call, VideoCall, VideoCallParticipant,
     PinnedChat, RecentSearch, Favorite, Reply, Forward, Report,
+    Reaction,
 )
 from datetime import datetime, timedelta
 from app import db
@@ -21,7 +22,7 @@ class TestUserModel:
         assert not u.check_password("wrong")
         assert u.email_verified is False
         assert u.is_online is False
-        assert u.is_premium is False
+        assert u.premium is None
         assert u.is_admin is False
         assert u.is_bot is False
         assert u.last_seen is not None
@@ -47,11 +48,14 @@ class TestUserModel:
         session.rollback()
 
     def test_premium_user(self, session):
-        u = User(username="gold", email="gold@test.com", is_premium=True, premium_plan="yearly")
+        u = User(username="gold", email="gold@test.com")
         session.add(u)
+        session.flush()
+        up = UserPremium(user_id=u.id, is_premium=True, premium_plan="yearly")
+        session.add(up)
         session.commit()
-        assert u.is_premium is True
-        assert u.premium_plan == "yearly"
+        assert u.premium.is_premium is True
+        assert u.premium.premium_plan == "yearly"
 
     def test_bot_user(self, session):
         owner = User(username="owner", email="owner@test.com")
@@ -84,11 +88,12 @@ class TestUserModel:
 
 
 class TestMessageModel:
-    def test_send_personal_message(self, session, user, user2):
+    def test_send_personal_message(self, session, user, user2, personal_chat):
         msg = Message(
             content="Hello",
             sender=user,
             receiver=user2,
+            chat_id=personal_chat.id,
             timestamp=datetime.utcnow()
         )
         session.add(msg)
@@ -99,42 +104,44 @@ class TestMessageModel:
         assert msg.is_deleted is False
         assert msg.sender_id == user.id
         assert msg.receiver_id == user2.id
+        assert msg.chat_id == personal_chat.id
 
     def test_group_message(self, session, user, user2):
-        group = Group(name="Test Group", owner_id=user.id)
+        group = Chat(chat_type='group', name="Test Group", owner_id=user.id)
         session.add(group)
         session.flush()
         msg = Message(
             content="Group hello",
             sender=user,
-            group_id=group.id,
+            chat_id=group.id,
             receiver_id=user.id,
             timestamp=datetime.utcnow()
         )
         session.add(msg)
         session.commit()
-        assert msg.group_id == group.id
+        assert msg.chat_id == group.id
 
     def test_channel_message(self, session, user):
-        channel = Channel(name="Test Channel", owner_id=user.id)
+        channel = Chat(chat_type='channel', name="Test Channel", owner_id=user.id)
         session.add(channel)
         session.flush()
         msg = Message(
             content="Channel hello",
             sender=user,
-            channel_id=channel.id,
+            chat_id=channel.id,
             receiver_id=user.id,
             timestamp=datetime.utcnow()
         )
         session.add(msg)
         session.commit()
-        assert msg.channel_id == channel.id
+        assert msg.chat_id == channel.id
 
-    def test_message_attachment(self, session, user, user2):
+    def test_message_attachment(self, session, user, user2, personal_chat):
         msg = Message(
             content="Check this file",
             sender=user,
             receiver=user2,
+            chat_id=personal_chat.id,
             timestamp=datetime.utcnow(),
             has_attachment=True,
             file_type="image",
@@ -148,8 +155,8 @@ class TestMessageModel:
         assert msg.file_type == "image"
         assert msg.file_size == 1024
 
-    def test_mark_as_read(self, session, user, user2):
-        msg = Message(content="Unread", sender_id=user2.id, receiver_id=user.id, timestamp=datetime.utcnow())
+    def test_mark_as_read(self, session, user, user2, personal_chat):
+        msg = Message(content="Unread", sender_id=user2.id, receiver_id=user.id, chat_id=personal_chat.id, timestamp=datetime.utcnow())
         session.add(msg)
         session.commit()
         assert msg.is_read is False
@@ -158,8 +165,8 @@ class TestMessageModel:
         session.commit()
         assert msg.is_read is True
 
-    def test_edit_message(self, session, user, user2):
-        msg = Message(content="Original", sender=user, receiver=user2, timestamp=datetime.utcnow())
+    def test_edit_message(self, session, user, user2, personal_chat):
+        msg = Message(content="Original", sender=user, receiver=user2, chat_id=personal_chat.id, timestamp=datetime.utcnow())
         session.add(msg)
         session.commit()
         msg.content = "Edited"
@@ -168,8 +175,8 @@ class TestMessageModel:
         assert msg.content == "Edited"
         assert msg.edited_at is not None
 
-    def test_soft_delete_message(self, session, user, user2):
-        msg = Message(content="Delete me", sender=user, receiver=user2, timestamp=datetime.utcnow())
+    def test_soft_delete_message(self, session, user, user2, personal_chat):
+        msg = Message(content="Delete me", sender=user, receiver=user2, chat_id=personal_chat.id, timestamp=datetime.utcnow())
         session.add(msg)
         session.commit()
         msg.is_deleted = True
@@ -178,11 +185,11 @@ class TestMessageModel:
         assert msg.is_deleted is True
         assert msg.deleted_for_all is True
 
-    def test_reply(self, session, user, user2):
-        original = Message(content="Original", sender=user, receiver=user2, timestamp=datetime.utcnow())
+    def test_reply(self, session, user, user2, personal_chat):
+        original = Message(content="Original", sender=user, receiver=user2, chat_id=personal_chat.id, timestamp=datetime.utcnow())
         session.add(original)
         session.flush()
-        reply_msg = Message(content="Reply", sender=user2, receiver=user, timestamp=datetime.utcnow())
+        reply_msg = Message(content="Reply", sender=user2, receiver=user, chat_id=personal_chat.id, timestamp=datetime.utcnow())
         session.add(reply_msg)
         session.flush()
         reply = Reply(original_message_id=original.id, reply_message_id=reply_msg.id)
@@ -190,8 +197,8 @@ class TestMessageModel:
         session.commit()
         assert reply.id is not None
 
-    def test_forward(self, session, user, user2):
-        original = Message(content="Forward me", sender=user, receiver=user2, timestamp=datetime.utcnow())
+    def test_forward(self, session, user, user2, personal_chat):
+        original = Message(content="Forward me", sender=user, receiver=user2, chat_id=personal_chat.id, timestamp=datetime.utcnow())
         session.add(original)
         session.flush()
         fwd = Forward(
@@ -209,7 +216,7 @@ class TestMessageModel:
 class TestGroupModel:
     def test_create_group(self, session, user):
         import secrets
-        group = Group(name="Gamers", owner_id=user.id, description="For gamers", is_public=True, invite_link=secrets.token_urlsafe(16))
+        group = Chat(chat_type='group', name="Gamers", owner_id=user.id, description="For gamers", is_public=True, invite_link=secrets.token_urlsafe(16))
         session.add(group)
         session.commit()
         assert group.id is not None
@@ -218,12 +225,12 @@ class TestGroupModel:
 
     def test_add_member(self, session, user, user2):
         import secrets
-        group = Group(name="Group", owner_id=user.id, invite_link=secrets.token_urlsafe(16))
+        group = Chat(chat_type='group', name="Group", owner_id=user.id, invite_link=secrets.token_urlsafe(16))
         session.add(group)
         session.flush()
-        gm = GroupMember(user=user, group=group, role="owner")
+        gm = ChatMember(user=user, chat=group, role="owner")
         session.add(gm)
-        gm2 = GroupMember(user=user2, group=group, role="member")
+        gm2 = ChatMember(user=user2, chat=group, role="member")
         session.add(gm2)
         session.commit()
         assert group.members[0].user == user
@@ -231,23 +238,23 @@ class TestGroupModel:
         assert len(group.members.all()) == 2
 
     def test_duplicate_membership(self, session, user):
-        group = Group(name="G", owner_id=user.id)
+        group = Chat(chat_type='group', name="G", owner_id=user.id)
         session.add(group)
         session.flush()
-        session.add(GroupMember(user=user, group=group, role="owner"))
+        session.add(ChatMember(user=user, chat=group, role="owner"))
         session.commit()
-        dup = GroupMember(user=user, group=group, role="member")
+        dup = ChatMember(user=user, chat=group, role="member")
         session.add(dup)
         with pytest.raises(Exception):
             session.commit()
         session.rollback()
 
     def test_group_permissions(self, session, user):
-        group = Group(name="PermGroup", owner_id=user.id)
+        group = Chat(chat_type='group', name="PermGroup", owner_id=user.id)
         session.add(group)
         session.flush()
         perms = GroupPermission(
-            group_id=group.id, role="member",
+            chat_id=group.id, role="member",
             can_send_messages=True, can_send_media=False,
         )
         session.add(perms)
@@ -259,28 +266,28 @@ class TestGroupModel:
 class TestChannelModel:
     def test_create_channel(self, session, user):
         import secrets
-        channel = Channel(name="News Channel", owner_id=user.id, description="Daily news", invite_link=secrets.token_urlsafe(16))
+        channel = Chat(chat_type='channel', name="News Channel", owner_id=user.id, description="Daily news", invite_link=secrets.token_urlsafe(16))
         session.add(channel)
         session.commit()
         assert channel.id is not None
         assert channel.invite_link is not None
 
     def test_subscribe(self, session, user, user2):
-        channel = Channel(name="C", owner_id=user.id)
+        channel = Chat(chat_type='channel', name="C", owner_id=user.id)
         session.add(channel)
         session.flush()
-        sub = ChannelSubscriber(user=user2, channel=channel)
+        sub = ChatSubscriber(user=user2, chat=channel)
         session.add(sub)
         session.commit()
         assert sub.id is not None
         assert channel.subscribers[0].user_id == user2.id
 
     def test_channel_admin(self, session, user, user2):
-        channel = Channel(name="AdminChan", owner_id=user.id)
+        channel = Chat(chat_type='channel', name="AdminChan", owner_id=user.id)
         session.add(channel)
         session.flush()
         admin = ChannelAdmin(
-            channel_id=channel.id, user_id=user2.id,
+            chat_id=channel.id, user_id=user2.id,
             can_post=True, can_edit=True, can_delete=False,
         )
         session.add(admin)

@@ -331,7 +331,7 @@
         row.innerHTML = `
             <div class="story-item locked" onclick="showPremiumModal('stories')">
                 <div class="story-avatar add-story locked">
-                    <div class="add-story-btn">🔒</div>
+                    <div class="add-story-btn"><i class="fas fa-lock"></i></div>
                 </div>
                 <span class="story-username">Premium</span>
             </div>
@@ -346,11 +346,9 @@
         m.innerHTML = `
             <div class="modal-container" style="max-width:450px">
                 <div class="modal-header" style="background:linear-gradient(135deg,#fb6340,#2dce89);color:white">
-                    <h3>✨ Kiselgram Premium</h3>
-                    <button class="modal-close" onclick="this.closest('.modal-overlay').remove()" style="color:white">✕</button>
-                </div>
-                <div class="modal-body" style="text-align:center;padding:24px">
-                    <div style="font-size:48px;margin-bottom:16px">👑</div>
+                    <h3><i class="fas fa-crown"></i> Kiselgram Premium</h3>
+                    <p>Unlock Stories, Premium Fonts, Wallpapers, and more!</p>
+                    <div style="font-size:48px;margin-bottom:16px"><i class="fas fa-crown"></i></div>
                     <p>${msgs[feature]||'Unlock all premium features!'}</p>
                     <button class="modal-btn modal-btn-primary" onclick="location.href='/premium'" style="margin-top:20px;background:linear-gradient(135deg,#fb6340,#2dce89)">Upgrade Now</button>
                 </div>
@@ -384,9 +382,9 @@
                 avatarHtml = chat.avatar || '?';
             }
             let preview = chat.last_message || '';
-            if (chat.last_message_type === 'image') preview = '📷 Photo';
+            if (chat.last_message_type === 'image') preview = '<i class="fas fa-camera"></i> Photo';
             else if (chat.last_message_type === 'video') preview = '🎬 Video';
-            else if (chat.last_message_type === 'audio' || chat.last_message_type === 'voice') preview = '🎤 Voice message';
+            else if (chat.last_message_type === 'audio' || chat.last_message_type === 'voice') preview = '<i class="fas fa-microphone"></i> Voice message';
             else if (chat.last_message_type === 'file') preview = '📎 Document';
             const muted = chat.is_muted;
             return `<div class="chat-item ${active?'active':''}" data-chat-type="${chat.type}" data-chat-id="${chat.id}" onclick="openChat('${chat.type}',${chat.id})">
@@ -455,9 +453,34 @@
 
         let att = '';
         if (m.has_attachment) {
-            if (m.file_type === 'image') att = `<img src="${m.file_url}" class="message-image" onclick="openImageViewer('${m.file_url}')">`;
-            else if (m.file_type === 'audio' || m.file_type === 'voice') att = `<audio src="${m.file_url}" controls style="max-width:220px;height:40px;border-radius:8px;display:block;margin-bottom:4px"></audio>`;
-            else att = `<div class="file-attachment"><span>📎</span><a href="${m.file_url}" target="_blank">${m.file_name || 'File'}</a></div>`;
+            const ps = m.preview_size || 'medium';
+            const ext = (m.file_name || '').split('.').pop().toLowerCase();
+            const imgExts = ['jpg','jpeg','png','gif','webp','bmp','svg'];
+            const vidExts = ['mp4','webm','avi','mov','mkv','flv','m4v'];
+            const isImg = m.file_type === 'image' || imgExts.includes(ext);
+            const isVid = m.file_type === 'video' || vidExts.includes(ext);
+            if (ps === 'none') {
+                let icon = 'fa-file';
+                if (ext === 'pdf') icon = 'fa-file-pdf';
+                else if (['doc','docx'].includes(ext)) icon = 'fa-file-word';
+                else if (['xls','xlsx'].includes(ext)) icon = 'fa-file-excel';
+                else if (['zip','rar','7z'].includes(ext)) icon = 'fa-file-archive';
+                else if (ext === 'txt' || ext === 'text') icon = 'fa-file-alt';
+                else if (m.file_type === 'image') icon = 'fa-file-image';
+                else if (m.file_type === 'video') icon = 'fa-file-video';
+                else if (m.file_type === 'audio' || m.file_type === 'voice') icon = 'fa-file-audio';
+                const size = m.formatted_size || (m.file_size ? formatFileSize(m.file_size) : '');
+                att = `<div class="file-attachment"><i class="fas ${icon}"></i><div class="file-attach-info"><a href="${m.file_url}" target="_blank" class="file-link">${escapeHtml(m.file_name || 'File')}</a>${size ? `<span class="file-size">${size}</span>` : ''}</div></div>`;
+            } else if (isImg) {
+                const cls = ps === 'big' ? 'message-image big-preview' : 'message-image';
+                att = `<img src="${m.file_url}" class="${cls}" onclick="openImageViewer('${m.file_url}')">`;
+            } else if (isVid) {
+                att = `<video src="${m.file_url}" controls preload="metadata" style="max-width:100%;max-height:300px;border-radius:12px;margin-bottom:4px"></video>`;
+            } else if (m.file_type === 'audio' || m.file_type === 'voice') {
+                att = `<audio src="${m.file_url}" controls style="max-width:220px;height:40px;border-radius:8px;display:block;margin-bottom:4px"></audio>`;
+            } else {
+                att = `<div class="file-attachment"><i class="fas fa-file"></i><a href="${m.file_url}" target="_blank">${escapeHtml(m.file_name || 'File')}</a></div>`;
+            }
         }
         let reply = '';
         if (m.reply_to_id) reply = `<div class="reply-indicator"><span>↩️ Reply</span><div style="font-size:11px">${escapeHtml(m.reply_to_content||'')}</div></div>`;
@@ -542,7 +565,7 @@
             if (d.success && d.group) {
                 if (DOM.chatHeaderName) DOM.chatHeaderName.textContent = d.group.name;
                 if (DOM.chatHeaderStatus) DOM.chatHeaderStatus.textContent = `${d.group.member_count || 0} participants`;
-                if (DOM.chatHeaderAvatar) { DOM.chatHeaderAvatar.innerHTML = d.group.avatar_url ? `<img src="${d.group.avatar_url}">` : '👥'; DOM.chatHeaderAvatar.className = 'chat-header-avatar group'; }
+                if (DOM.chatHeaderAvatar) { DOM.chatHeaderAvatar.innerHTML = d.group.avatar_url ? `<img src="${d.group.avatar_url}">` : '<i class="fas fa-users"></i>'; DOM.chatHeaderAvatar.className = 'chat-header-avatar group'; }
                 activeChat.last_seen = null;
             }
         } else if (type === 'channel') {
@@ -550,7 +573,7 @@
             if (d.success && d.channel) {
                 if (DOM.chatHeaderName) DOM.chatHeaderName.textContent = d.channel.name;
                 if (DOM.chatHeaderStatus) DOM.chatHeaderStatus.textContent = `${d.channel.subscriber_count || 0} subscribers`;
-                if (DOM.chatHeaderAvatar) { DOM.chatHeaderAvatar.innerHTML = d.channel.avatar_url ? `<img src="${d.channel.avatar_url}">` : '📢'; DOM.chatHeaderAvatar.className = 'chat-header-avatar channel'; }
+                if (DOM.chatHeaderAvatar) { DOM.chatHeaderAvatar.innerHTML = d.channel.avatar_url ? `<img src="${d.channel.avatar_url}">` : '<i class="fas fa-bullhorn"></i>'; DOM.chatHeaderAvatar.className = 'chat-header-avatar channel'; }
                 activeChat.last_seen = null;
             }
         }
@@ -811,7 +834,7 @@
     async function loadContacts() { const c = getEl('contactsList'); if (!c) return; try { const r = await fetch('/api/contacts'); const d = await r.json(); if (d.success) { c.innerHTML = d.contacts.map(u => `<div class="contact-item" onclick="openChat('personal',${u.id})"><div class="contact-avatar">${u.username[0].toUpperCase()}</div><div class="contact-info"><div class="contact-name">${escapeHtml(u.display_name)}</div><div class="contact-username">@${escapeHtml(u.username)}</div></div></div>`).join('') || '<div class="empty-state"><p>No contacts</p></div>'; } } catch (e) {} }
 
     // Global Search
-    async function handleGlobalSearch() { const q = DOM.globalSearchInput?.value.trim(); const r = DOM.searchResults; if (!r) return; if (!q||q.length<2) { r.innerHTML = ''; r.classList.remove('active'); return; } try { const res = await fetch(`/api/search/global?q=${encodeURIComponent(q)}`); const d = await res.json(); if (d.success) { let h = ''; if (d.results.users?.length) { h += '<div class="search-result-section">Users</div>'; d.results.users.forEach(u => { h += `<div class="search-result-item" onclick="openChat('personal',${u.id});closeSearchResults()"><div class="search-result-avatar">${u.username[0].toUpperCase()}</div><div class="search-result-info"><div class="search-result-name">${escapeHtml(u.display_name)}</div><div class="search-result-type">@${escapeHtml(u.username)}</div></div></div>`; }); } if (d.results.groups?.length) { h += '<div class="search-result-section">Groups</div>'; d.results.groups.forEach(g => { h += `<div class="search-result-item" onclick="openChat('group',${g.id});closeSearchResults()"><div class="search-result-avatar">👥</div><div class="search-result-info"><div class="search-result-name">${escapeHtml(g.name)}</div><div class="search-result-type">Group</div></div></div>`; }); } r.innerHTML = h || '<div class="search-result-item">No results</div>'; r.classList.add('active'); } } catch (e) {} }
+    async function handleGlobalSearch() { const q = DOM.globalSearchInput?.value.trim(); const r = DOM.searchResults; if (!r) return; if (!q||q.length<2) { r.innerHTML = ''; r.classList.remove('active'); return; } try { const res = await fetch(`/api/search/global?q=${encodeURIComponent(q)}`); const d = await res.json(); if (d.success) { let h = ''; if (d.results.users?.length) { h += '<div class="search-result-section">Users</div>'; d.results.users.forEach(u => { h += `<div class="search-result-item" onclick="openChat('personal',${u.id});closeSearchResults()"><div class="search-result-avatar">${u.username[0].toUpperCase()}</div><div class="search-result-info"><div class="search-result-name">${escapeHtml(u.display_name)}</div><div class="search-result-type">@${escapeHtml(u.username)}</div></div></div>`; }); } if (d.results.groups?.length) { h += '<div class="search-result-section">Groups</div>'; d.results.groups.forEach(g => { h += `<div class="search-result-item" onclick="openChat('group',${g.id});closeSearchResults()"><div class="search-result-avatar"><i class="fas fa-users"></i></div><div class="search-result-info"><div class="search-result-name">${escapeHtml(g.name)}</div><div class="search-result-type">Group</div></div></div>`; }); } r.innerHTML = h || '<div class="search-result-item">No results</div>'; r.classList.add('active'); } } catch (e) {} }
     window.closeSearchResults = () => { DOM.searchResults?.classList.remove('active'); if (DOM.globalSearchInput) DOM.globalSearchInput.value = ''; };
 
     // Create Group / Channel (with member search)
@@ -864,11 +887,102 @@
     window.triggerAvatarUpload = () => getEl('avatarInput')?.click();
     window.uploadAvatar = async (i) => { /* ... */ };
 
-    // File Upload
-    window.triggerFileUpload = () => getEl('fileInput')?.click();
-    window.handleFileSelect = (i) => { const f = i.files; if (!f?.length) return; const fn = getEl('uploadFileName'); const ua = getEl('uploadArea'); if (fn) fn.textContent = f.length===1 ? f[0].name : `${f.length} files`; if (ua) ua.classList.add('active'); };
-    window.uploadFile = async () => { const i = getEl('fileInput'); const f = i?.files; if (!f?.length || !activeChat) { window.cancelUpload(); return; } for (const file of f) { const fd = new FormData(); fd.append('file', file); if (activeChat.type==='personal') fd.append('receiver_id', activeChat.id); else fd.append('group_id', activeChat.id); try { const r = await fetch('/files/upload_file', { method:'POST', body:fd }); const d = await r.json(); if (d.success && DOM.messagesContainer) { if (DOM.messagesContainer.querySelector('.empty-state')) DOM.messagesContainer.innerHTML = ''; DOM.messagesContainer.insertAdjacentHTML('beforeend', renderMessage(d.message)); DOM.messagesContainer.scrollTop = DOM.messagesContainer.scrollHeight; loadChatList(); } } catch (e) {} } window.cancelUpload(); };
-    window.cancelUpload = () => { const ua = getEl('uploadArea'); const fi = getEl('fileInput'); if (ua) ua.classList.remove('active'); if (fi) fi.value = ''; };
+    // File preview dialog
+    const imageFormats = ['jpg','jpeg','png','gif','webp','bmp','ico','svg'];
+    const videoFormats = ['mp4','webm','avi','mov','mkv','flv','wmv','m4v'];
+    const audioFormats = ['mp3','wav','ogg','m4a','flac','aac'];
+    let pendingFiles = [];
+
+    function getFileType(file) {
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (imageFormats.includes(ext)) return 'image';
+        if (videoFormats.includes(ext)) return 'video';
+        if (audioFormats.includes(ext)) return 'audio';
+        return 'file';
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / 1048576).toFixed(1) + ' MB';
+    }
+
+    function showFilePreview(files) {
+        if (!files.length) return;
+        let html = '';
+        let totalSize = 0;
+        for (const file of files) {
+            const ft = getFileType(file);
+            totalSize += file.size;
+            if (ft === 'image') {
+                html += `<div class="preview-item"><img src="${URL.createObjectURL(file)}" style="max-width:100%;max-height:300px;border-radius:12px"><div class="preview-info"><span><i class="fas fa-image"></i> ${escapeHtml(file.name)}</span><span>${formatFileSize(file.size)}</span></div></div>`;
+            } else if (ft === 'video') {
+                html += `<div class="preview-item"><video src="${URL.createObjectURL(file)}" controls style="max-width:100%;max-height:300px;border-radius:12px"></video><div class="preview-info"><span><i class="fas fa-video"></i> ${escapeHtml(file.name)}</span><span>${formatFileSize(file.size)}</span></div></div>`;
+            } else if (ft === 'audio') {
+                html += `<div class="preview-item"><div style="padding:20px;background:var(--bg-surface);border-radius:12px"><i class="fas fa-music" style="font-size:48px;color:var(--accent-blue)"></i><audio src="${URL.createObjectURL(file)}" controls style="width:100%;margin-top:10px"></audio></div><div class="preview-info"><span><i class="fas fa-file-audio"></i> ${escapeHtml(file.name)}</span><span>${formatFileSize(file.size)}</span></div></div>`;
+            } else {
+                html += `<div class="preview-item"><div style="padding:20px;background:var(--bg-surface);border-radius:12px;text-align:center"><i class="fas fa-file" style="font-size:48px;color:var(--text-muted)"></i><div style="margin-top:10px"><strong>${escapeHtml(file.name)}</strong><div>${file.name.split('.').pop().toUpperCase()}</div></div></div><div class="preview-info"><span><i class="fas fa-file"></i> ${escapeHtml(file.name)}</span><span>${formatFileSize(file.size)}</span></div></div>`;
+            }
+        }
+        html += `<div class="preview-summary"><div>${files.length} file${files.length>1?'s':''}</div><div>Total: ${formatFileSize(totalSize)}</div></div>`;
+        html += `<div style="margin-top:12px"><label style="font-size:13px;color:var(--text-muted)">Caption (optional)</label><textarea id="previewCaption" class="modal-input" rows="2" placeholder="Add a caption..." style="margin-top:4px"></textarea></div>`;
+        html += `<div style="display:flex;gap:8px;margin-top:12px"><button class="modal-btn modal-btn-secondary" onclick="addMoreFiles()"><i class="fas fa-plus"></i> Add more</button></div>`;
+        const body = getEl('previewBody');
+        const title = getEl('previewTitle');
+        if (body) body.innerHTML = html;
+        if (title) title.textContent = `Preview (${files.length} file${files.length>1?'s':''})`;
+        const modal = getEl('filePreviewModal');
+        if (modal) modal.style.display = 'flex';
+    }
+
+    window.addMoreFiles = () => {
+        const modal = getEl('filePreviewModal');
+        if (modal) modal.style.display = 'none';
+        getEl('fileInput')?.click();
+    };
+
+    window.sendFilesWithPreview = async () => {
+        if (!pendingFiles.length || !activeChat) return;
+        const caption = getEl('previewCaption')?.value || '';
+        const modal = getEl('filePreviewModal');
+        if (modal) modal.style.display = 'none';
+        for (const file of pendingFiles) {
+            const fd = new FormData();
+            fd.append('file', file);
+            fd.append('message', caption);
+            if (activeChat.type === 'personal') fd.append('receiver_id', activeChat.id);
+            else fd.append('group_id', activeChat.id);
+            try {
+                const r = await fetch('/files/upload_file', { method: 'POST', body: fd });
+                const d = await r.json();
+                if (d.success && DOM.messagesContainer) {
+                    if (DOM.messagesContainer.querySelector('.empty-state')) DOM.messagesContainer.innerHTML = '';
+                    DOM.messagesContainer.insertAdjacentHTML('beforeend', renderMessage(d.message));
+                    DOM.messagesContainer.scrollTop = DOM.messagesContainer.scrollHeight;
+                    loadChatList();
+                }
+            } catch (e) {}
+        }
+        pendingFiles = [];
+        const fi = getEl('fileInput');
+        if (fi) fi.value = '';
+    };
+
+    window.triggerFileUpload = () => {
+        const fi = getEl('fileInput');
+        if (fi) fi.value = '';
+        fi?.click();
+    };
+
+    // Wire file input change to preview dialog
+    document.addEventListener('change', function(e) {
+        if (e.target && e.target.id === 'fileInput') {
+            const newFiles = Array.from(e.target.files || []);
+            pendingFiles = pendingFiles.concat(newFiles);
+            e.target.value = '';
+            showFilePreview(pendingFiles);
+        }
+    }, true);
 
     // Chat Menu
     window.showChatInfo = () => showToast('Chat info', 'info');

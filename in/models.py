@@ -150,6 +150,7 @@ class Chat(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # For personal chats: the two participants are stored in ChatMember with role='participant'
+    # We also store a direct reference for convenience (optional)
     user1_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     user2_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
 
@@ -234,16 +235,12 @@ class Message(db.Model):
     is_from_telegram = db.Column(db.Boolean, default=False)
     delivered_at = db.Column(db.DateTime, nullable=True)
     read_at = db.Column(db.DateTime, nullable=True)
-
-    # if has file, use File model: see below
-
     has_attachment = db.Column(db.Boolean, default=False)
     file_type = db.Column(db.String(20), nullable=True)
     file_name = db.Column(db.String(255), nullable=True)
     file_path = db.Column(db.String(500), nullable=True)
     file_size = db.Column(db.Integer, nullable=True)
     thumbnail_path = db.Column(db.String(500), nullable=True)
-
     is_encrypted = db.Column(db.Boolean, default=False)
     encrypted_content = db.Column(db.Text)
     encryption_key_id = db.Column(db.Integer)
@@ -256,27 +253,11 @@ class Message(db.Model):
     edited_at = db.Column(db.DateTime, nullable=True)
 
     # Relationships
-    file_id = db.Column(db.Integer, db.ForeignKey('files.id'), nullable=True)
-    file = db.relationship('File', backref=db.backref('messages', lazy='dynamic'), lazy=True)
-
     reactions = db.relationship('Reaction', backref='message', lazy=True, cascade='all, delete-orphan')
     replies_to = db.relationship('Reply', foreign_keys='Reply.original_message_id', backref='original_message', lazy=True)
     reply_to = db.relationship('Reply', foreign_keys='Reply.reply_message_id', backref='reply_message', uselist=False, lazy=True)
     forwards_from = db.relationship('Forward', foreign_keys='Forward.original_message_id', backref='original_message', lazy=True)
     forwards_to = db.relationship('Forward', foreign_keys='Forward.forwarded_message_id', backref='forwarded_message', uselist=False, lazy=True)
-
-
-class File(db.Model):
-    __tablename__ = 'files'
-    id = db.Column(db.Integer, primary_key=True)
-    file_type = db.Column(db.String(20), nullable=True)
-    file_name = db.Column(db.String(255), nullable=True)
-    file_path = db.Column(db.String(500), nullable=True)
-    file_size = db.Column(db.Integer, nullable=True)
-    thumbnail_path = db.Column(db.String(500), nullable=True)
-    preview_size = db.Column(db.String(10), default='medium')
-    uploader_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
 class Reaction(db.Model):
@@ -392,48 +373,6 @@ class Contact(db.Model):
     __table_args__ = (db.UniqueConstraint('user_id', 'contact_id', name='unique_contact'),)
 
 
-# ============ CALL MODELS ============
-
-class Call(db.Model):
-    __tablename__ = 'calls'
-
-    id = db.Column(db.Integer, primary_key=True)
-    caller_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    receiver_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    call_type = db.Column(db.String(10), default='audio')  # 'audio' or 'video'
-    status = db.Column(db.String(20), default='ringing')   # ringing, answered, ended
-    duration = db.Column(db.Integer, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-
-class VideoCall(db.Model):
-    """Persistent record of a video room session"""
-    __tablename__ = 'video_calls'
-
-    id = db.Column(db.Integer, primary_key=True)
-    room_id = db.Column(db.String(50), unique=True, nullable=False)
-    creator_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    call_type = db.Column(db.String(10), default='video')
-    status = db.Column(db.String(20), default='active')
-    started_at = db.Column(db.DateTime, default=datetime.utcnow)
-    ended_at = db.Column(db.DateTime, nullable=True)
-    duration = db.Column(db.Integer, default=0)
-    participant_count = db.Column(db.Integer, default=1)
-
-
-class VideoCallParticipant(db.Model):
-    """Participants in a video call"""
-    __tablename__ = 'video_call_participants'
-
-    id = db.Column(db.Integer, primary_key=True)
-    call_id = db.Column(db.Integer, db.ForeignKey('video_calls.id'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    joined_at = db.Column(db.DateTime, default=datetime.utcnow)
-    left_at = db.Column(db.DateTime, nullable=True)
-    audio_only = db.Column(db.Boolean, default=False)
-    screensharing = db.Column(db.Boolean, default=False)
-
-
 # ============ OTHER MODELS (USER PROPERTIES) ============
 
 class BlockedUser(db.Model):
@@ -517,16 +456,14 @@ class PreloadedAvatar(db.Model):
 
 
 class PinnedChat(db.Model):
-    """Pinned chats for a user"""
     __tablename__ = 'pinned_chats'
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    chat_type = db.Column(db.String(20), nullable=False)   # 'personal', 'group', 'channel'
-    chat_id = db.Column(db.Integer, nullable=False)
+    chat_id = db.Column(db.Integer, db.ForeignKey('chats.id'), nullable=False)
     pinned_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    __table_args__ = (db.UniqueConstraint('user_id', 'chat_type', 'chat_id', name='unique_pin'),)
+    __table_args__ = (db.UniqueConstraint('user_id', 'chat_id', name='unique_pin'),)
 
 
 class EmailVerification(db.Model):

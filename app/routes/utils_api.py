@@ -67,7 +67,8 @@ def health_check():
         # Check database connection
         try:
             from app import db
-            db.session.execute('SELECT 1')
+            from sqlalchemy import text
+            db.session.execute(text('SELECT 1'))
             health_data['database'] = 'connected'
         except Exception as e:
             health_data['database'] = 'error'
@@ -163,12 +164,12 @@ def detailed_health():
 
         # Count database records if models exist
         try:
-            from app.models import User, Message, Group, Channel
+            from app.models import User, Message, Chat
             db_stats = {
                 'users': User.query.count(),
                 'messages': Message.query.count(),
-                'groups': Group.query.count(),
-                'channels': Channel.query.count()
+                'groups': Chat.query.filter(Chat.chat_type == 'group').count(),
+                'channels': Chat.query.filter(Chat.chat_type == 'channel').count()
             }
             app_info['database_stats'] = db_stats
         except:
@@ -325,22 +326,22 @@ def get_stats():
 
         # Database stats
         try:
-            from app.models import User, Message, Group, Channel
+            from app.models import User, Message, Chat
             from app import db
             from sqlalchemy import func
 
             stats['database'] = {
                 'users': User.query.count(),
                 'messages': Message.query.count(),
-                'groups': Group.query.count(),
-                'channels': Channel.query.count()
+                'groups': Chat.query.filter(Chat.chat_type == 'group').count(),
+                'channels': Chat.query.filter(Chat.chat_type == 'channel').count()
             }
 
             # Get latest activity
             try:
-                latest_message = Message.query.order_by(Message.created_at.desc()).first()
+                latest_message = Message.query.order_by(Message.timestamp.desc()).first()
                 if latest_message:
-                    stats['database']['latest_activity'] = latest_message.created_at.isoformat()
+                    stats['database']['latest_activity'] = latest_message.timestamp.isoformat()
             except:
                 pass
 
