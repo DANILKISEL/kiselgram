@@ -18,9 +18,8 @@ def get_sessions():
         result.append({
             'id': s.id,
             'session_token': s.session_token,
-            'device': getattr(s, 'device', 'Unknown'),
+            'device': s.device or 'Unknown',
             'ip': s.ip_address,
-            'location': getattr(s, 'location', ''),
             'created_at': s.created_at.isoformat() if s.created_at else None,
             'last_activity': s.last_activity.isoformat() if s.last_activity else None
         })

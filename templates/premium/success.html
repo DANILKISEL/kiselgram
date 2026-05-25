@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Premium Activated!</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/desktop.css') }}">
     <style>
         .success-container {
@@ -65,14 +66,14 @@
 <body>
     <div class="success-container">
         <div class="success-card">
-            <div class="success-icon">🍊👑🍋</div>
+            <div class="success-icon"><i class="fas fa-crown" style="color: #f59e0b;"></i></div>
             <h1 class="success-title">Welcome to Premium!</h1>
             <p class="success-message">
                 Your Kiselgram Premium is now active.<br>
                 Enjoy exclusive fonts, stories, wallpapers, and more!
             </p>
             <a href="{{ url_for('chats.chat_list') }}" class="btn">
-                Start Exploring →
+                Start Exploring <i class="fas fa-arrow-right"></i>
             </a>
         </div>
     </div>

@@ -1,0 +1,98 @@
+#!/bin/bash
+
+# ── Colors (tput, works in any terminal) ───────────────────
+BOLD="$(tput bold)"
+GREEN="$(tput setaf 2)"
+RED="$(tput setaf 1)"
+YELLOW="$(tput setaf 3)"
+CYAN="$(tput setaf 6)"
+WHITE="$(tput setaf 7)"
+ORANGE="$(tput setaf 208 2>/dev/null || tput setaf 3)"  # fallback to yellow if 208 not available
+RESET="$(tput sgr0)"
+
+# ── Helper to draw a horizontal line ──────────────────────
+draw_line() {
+    printf "╰"
+    for i in $(seq 1 $1); do printf "─"; done
+    printf "╯\n"
+}
+
+# ── 1. ASCII logo ────────────────────────────────────────
+echo ""
+echo -e "${ORANGE}"
+cat << "LOGO"
+  ____      __ __ _________ ________    __________  ___    __  ___   ____
+ / / /     / //_//  _/ ___// ____/ /   / ____/ __ \/   |  /  |/  /   \ \ \
+/ / /     / ,<   / / \__ \/ __/ / /   / / __/ /_/ / /| | / /|_/ /     \ \ \
+\ \ \    / /| |_/ / ___/ / /___/ /___/ /_/ / _, _/ ___ |/ /  / /      / / /
+ \_\_\  /_/ |_/___//____/_____/_____/\____/_/ |_/_/  |_/_/  /_/      /_/_/
+LOGO
+echo -e "${RESET}"
+
+# ── 2. Welcome box ────────────────────────────────────────
+printf "\n${CYAN}            ╭─────────────────────────────────────────────╮${RESET}\n"
+printf "${CYAN}            │${RESET} ${BOLD}Welcome to the kiselgram production server!${RESET} ${CYAN}│${RESET}\n"
+printf "${CYAN}            ╰─────────────────────────────────────────────╯${RESET}\n"
+
+# ── 3. Collect system info ────────────────────────────────
+DISK_LINE=$(df -h / | tail -1 | awk '{print $3 " / " $2 " (" $5 ")"}')
+
+if systemctl is-active --quiet nginx; then
+    NGINX_STATUS="${GREEN}✓${RESET}"
+else
+    NGINX_STATUS="${RED}✗${RESET}"
+fi
+
+if sudo supervisorctl status kiselgram_group:kiselgram 2>/dev/null | grep -q RUNNING; then
+    GUNICORN_STATUS="${GREEN}✓${RESET}"
+else
+    GUNICORN_STATUS="${RED}✗${RESET}"
+fi
+
+UPTIME_STR=$(uptime -p | sed 's/^up //')
+
+MAINT_LINE=""
+if [ -f /var/www/kiselgram/MAINTENANCE ]; then
+    MAINT_LINE="${YELLOW}│ Maintenance: ACTIVE${RESET}                          ${CYAN}│${RESET}\n"
+fi
+
+# ── 4. Quick status box ──────────────────────────────────
+printf "\n${CYAN}                ╭──────────────────────────────────────╮${RESET}\n"
+printf "${CYAN}                │${RESET} ${BOLD}QUICK STATUS${RESET}                          ${CYAN}│${RESET}\n"
+printf "${CYAN}                │${RESET}                   ${CYAN}│${RESET}\n"
+printf "${CYAN}                │${RESET}  Disk: %-24s      ${CYAN}│${RESET}\n" "$DISK_LINE"
+printf "${CYAN}                │${RESET}  Nginx: %-25s     ${CYAN}│${RESET}\n" "$NGINX_STATUS"
+printf "${CYAN}                │${RESET}  Gunicorn: %-22s  ${CYAN}│${RESET}\n" "$GUNICORN_STATUS"
+printf "${CYAN}                │${RESET}  Uptime: %-22s    ${CYAN}│${RESET}\n" "$UPTIME_STR"
+
+# Maintenance warning if active
+if [ -f /var/www/kiselgram/MAINTENANCE ]; then
+    printf "${CYAN}                │${RESET} ${YELLOW} Maintenance: ACTIVE${RESET}                 ${CYAN}│${RESET}\n"
+fi
+
+printf "${CYAN}                ╰──────────────────────────────────────╯${RESET}\n"
+
+
+
+
+################
+# ── 5. Available commands box ────────────────────────────
+printf "\n${CYAN}               ╭──────────────────────────────────────────────────────╮${RESET}\n"
+printf "${CYAN}               │${RESET}  ${BOLD}Available Kiselgram Commands${RESET}                        ${CYAN}│${RESET}\n"
+printf "${CYAN}               │${RESET}  ${WHITE}status${RESET}       Show server health dashboard           ${CYAN}│${RESET}\n"
+printf "${CYAN}               │${RESET}  ${WHITE}restart${RESET}      Restart Gunicorn + Nginx               ${CYAN}│${RESET}\n"
+printf "${CYAN}               │${RESET}  ${WHITE}logs${RESET}         Tail Gunicorn error log                ${CYAN}│${RESET}\n"
+printf "${CYAN}               │${RESET}  ${WHITE}db${RESET}           PostgreSQL database manager            ${CYAN}│${RESET}\n"
+printf "${CYAN}               │${RESET}  ${WHITE}promo${RESET}        Promo code manager                     ${CYAN}│${RESET}\n"
+printf "${CYAN}               │${RESET}  ${WHITE}clean${RESET}        Disk cleanup utility                   ${CYAN}│${RESET}\n"
+printf "${CYAN}               │${RESET}  ${WHITE}maint${RESET}        Toggle maintenance mode                ${CYAN}│${RESET}\n"
+printf "${CYAN}               │${RESET}  ${WHITE}route${RESET}        Manage API routes (Java migration)     ${CYAN}│${RESET}\n"
+printf "${CYAN}               │${RESET}  ${WHITE}deploy${RESET}       Deploy from local machine              ${CYAN}│${RESET}\n"
+printf "${CYAN}               ╰──────────────────────────────────────────────────────╯${RESET}\n"
+
+echo ""
+
+
+
+
+──────────────────────────────────────

@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from sqlalchemy import or_
 
 from app import db
-from app.models import User, Group, GroupMember, Channel, ChannelSubscriber, Message, RecentSearch
+from app.models import User, Chat, ChatMember, ChatSubscriber, Message, RecentSearch
 from app.utils.helpers import get_current_user_id
 
 spa_search_bp = Blueprint('spa_search', __name__, url_prefix='/api')
@@ -25,14 +25,15 @@ def global_search():
     ).limit(20).all()
 
     # Groups (public only, or ones user is member of)
-    user_group_ids = [gm.group_id for gm in GroupMember.query.filter_by(user_id=user_id).all()]
-    groups = Group.query.filter(
-        db.or_(Group.is_public == True, Group.id.in_(user_group_ids)),
-        Group.name.ilike(f'%{query}%')
+    user_group_ids = [gm.chat_id for gm in ChatMember.query.filter_by(user_id=user_id).all()]
+    groups = Chat.query.filter(
+        Chat.chat_type == 'group',
+        db.or_(Chat.is_public == True, Chat.id.in_(user_group_ids)),
+        Chat.name.ilike(f'%{query}%')
     ).limit(20).all()
 
     # Channels (public)
-    channels = Channel.query.filter(Channel.is_public == True, Channel.name.ilike(f'%{query}%')).limit(20).all()
+    channels = Chat.query.filter(Chat.chat_type == 'channel', Chat.is_public == True, Chat.name.ilike(f'%{query}%')).limit(20).all()
 
     # Save recent search
     recent = RecentSearch(user_id=user_id, search_query=query, search_type='all')
@@ -44,9 +45,9 @@ def global_search():
         'results': {
             'users': [{'id': u.id, 'username': u.username, 'display_name': u.display_name or u.username,
                         'avatar_url': u.avatar_url, 'is_online': u.is_online} for u in users],
-            'groups': [{'id': g.id, 'name': g.name, 'description': g.description, 'member_count': GroupMember.query.filter_by(group_id=g.id).count(),
+            'groups': [{'id': g.id, 'name': g.name, 'description': g.description, 'member_count': ChatMember.query.filter_by(chat_id=g.id).count(),
                          'is_public': g.is_public, 'invite_link': g.invite_link} for g in groups],
-            'channels': [{'id': c.id, 'name': c.name, 'description': c.description, 'subscriber_count': ChannelSubscriber.query.filter_by(channel_id=c.id).count(),
+            'channels': [{'id': c.id, 'name': c.name, 'description': c.description, 'subscriber_count': ChatSubscriber.query.filter_by(chat_id=c.id).count(),
                           'is_public': c.is_public, 'invite_link': c.invite_link} for c in channels]
         }
     })
@@ -81,15 +82,9 @@ def search_in_chat():
     if not chat_id or len(query) < 2:
         return jsonify({'success': True, 'messages': []})
 
-    if chat_type == 'group':
+    if chat_type in ('group', 'channel'):
         messages = Message.query.filter(
-            Message.group_id == chat_id,
-            Message.content.ilike(f'%{query}%'),
-            Message.is_deleted == False
-        ).order_by(Message.timestamp.desc()).limit(100).all()
-    elif chat_type == 'channel':
-        messages = Message.query.filter(
-            Message.channel_id == chat_id,
+            Message.chat_id == chat_id,
             Message.content.ilike(f'%{query}%'),
             Message.is_deleted == False
         ).order_by(Message.timestamp.desc()).limit(100).all()

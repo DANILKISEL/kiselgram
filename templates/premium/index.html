@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kiselgram Premium</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/desktop.css') }}">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -148,8 +149,8 @@
             text-align: center;
         }
 
-        .check { color: #2dce89; font-weight: 700; }
-        .x-mark { color: var(--text-muted); }
+        .feature-icon.check i { color: #2dce89; }
+        .feature-icon.x-mark i { color: var(--text-muted); }
 
         .btn-plan {
             width: 100%;
@@ -487,7 +488,7 @@
 <body>
     <div class="premium-container">
         <div class="premium-header">
-            <h1>✨ Kiselgram Premium</h1>
+            <h1><i class="fas fa-crown"></i> Kiselgram Premium</h1>
             <p>Unlock the full experience with exclusive features</p>
         </div>
 
@@ -499,13 +500,13 @@
                 <div class="plan-price">$0</div>
                 <div class="plan-period">Forever</div>
                 <ul class="plan-features">
-                    <li><span class="feature-icon check">✓</span> Unlimited messaging</li>
-                    <li><span class="feature-icon check">✓</span> Groups & Channels</li>
-                    <li><span class="feature-icon check">✓</span> 2 Basic Fonts</li>
-                    <li><span class="feature-icon check">✓</span> 100MB File uploads</li>
-                    <li><span class="feature-icon x-mark">✗</span> Stories</li>
-                    <li><span class="feature-icon x-mark">✗</span> Premium Fonts</li>
-                    <li><span class="feature-icon x-mark">✗</span> Bot API</li>
+                    <li><span class="feature-icon check"><i class="fas fa-check"></i></span> Unlimited messaging</li>
+                    <li><span class="feature-icon check"><i class="fas fa-check"></i></span> Groups & Channels</li>
+                    <li><span class="feature-icon check"><i class="fas fa-check"></i></span> 2 Basic Fonts</li>
+                    <li><span class="feature-icon check"><i class="fas fa-check"></i></span> 100MB File uploads</li>
+                    <li><span class="feature-icon x-mark"><i class="fas fa-times"></i></span> Stories</li>
+                    <li><span class="feature-icon x-mark"><i class="fas fa-times"></i></span> Premium Fonts</li>
+                    <li><span class="feature-icon x-mark"><i class="fas fa-times"></i></span> Bot API</li>
                 </ul>
                 <button class="btn-plan btn-outline" onclick="location.href='{{ url_for("chats.chat_list") }}'">
                     Current Plan
@@ -518,13 +519,13 @@
                 <div class="plan-price">$3.99</div>
                 <div class="plan-period">per month</div>
                 <ul class="plan-features">
-                    <li><span class="feature-icon check">✓</span> Everything in Free</li>
-                    <li><span class="feature-icon check">✓</span> 11 Premium Fonts</li>
-                    <li><span class="feature-icon check">✓</span> Stories Feature</li>
-                    <li><span class="feature-icon check">✓</span> Custom Wallpapers</li>
-                    <li><span class="feature-icon check">✓</span> Animated Stickers</li>
-                    <li><span class="feature-icon check">✓</span> Video Avatars</li>
-                    <li><span class="feature-icon check">✓</span> Bot API Access</li>
+                    <li><span class="feature-icon check"><i class="fas fa-check"></i></span> Everything in Free</li>
+                    <li><span class="feature-icon check"><i class="fas fa-check"></i></span> 11 Premium Fonts</li>
+                    <li><span class="feature-icon check"><i class="fas fa-check"></i></span> Stories Feature</li>
+                    <li><span class="feature-icon check"><i class="fas fa-check"></i></span> Custom Wallpapers</li>
+                    <li><span class="feature-icon check"><i class="fas fa-check"></i></span> Animated Stickers</li>
+                    <li><span class="feature-icon check"><i class="fas fa-check"></i></span> Video Avatars</li>
+                    <li><span class="feature-icon check"><i class="fas fa-check"></i></span> Bot API Access</li>
                 </ul>
                 <button class="btn-plan btn-premium" onclick="activatePremium('monthly')">
                     Get Premium Monthly
@@ -539,10 +540,10 @@
                     <span class="save-tag">SAVE 16%</span>
                 </div>
                 <ul class="plan-features">
-                    <li><span class="feature-icon check">✓</span> Everything in Monthly</li>
-                    <li><span class="feature-icon check">✓</span> 2 Months Free</li>
-                    <li><span class="feature-icon check">✓</span> Annual Badge</li>
-                    <li><span class="feature-icon check">✓</span> Priority Support</li>
+                    <li><span class="feature-icon check"><i class="fas fa-check"></i></span> Everything in Monthly</li>
+                    <li><span class="feature-icon check"><i class="fas fa-check"></i></span> 2 Months Free</li>
+                    <li><span class="feature-icon check"><i class="fas fa-check"></i></span> Annual Badge</li>
+                    <li><span class="feature-icon check"><i class="fas fa-check"></i></span> Priority Support</li>
                 </ul>
                 <button class="btn-plan btn-premium" onclick="activatePremium('yearly')">
                     Get Premium Yearly
@@ -553,29 +554,29 @@
 
         <!-- Feature Grid -->
         <div class="feature-grid">
-            <div class="feature-card"><div class="icon">🎨</div><h4>11 Premium Fonts</h4><p>Satoshi, DM Sans, Poppins</p></div>
-            <div class="feature-card"><div class="icon">📸</div><h4>Stories</h4><p>Share moments, 24h expiry</p></div>
-            <div class="feature-card"><div class="icon">🖼️</div><h4>Custom Wallpapers</h4><p>Personalize chats</p></div>
-            <div class="feature-card"><div class="icon">✨</div><h4>Animated Stickers</h4><p>Premium sticker packs</p></div>
-            <div class="feature-card"><div class="icon">🎥</div><h4>Video Avatars</h4><p>Video profile pictures</p></div>
-            <div class="feature-card"><div class="icon">📊</div><h4>Chat Statistics</h4><p>Detailed analytics</p></div>
-            <div class="feature-card"><div class="icon">🔔</div><h4>Custom Notifications</h4><p>Personalized sounds</p></div>
-            <div class="feature-card"><div class="icon">🗂️</div><h4>500MB Uploads</h4><p>Send larger files</p></div>
-            <div class="feature-card"><div class="icon">🤖</div><h4>Bot API</h4><p>Create custom bots</p></div>
-            <div class="feature-card"><div class="icon">💬</div><h4>Priority Support</h4><p>Get help faster</p></div>
+            <div class="feature-card"><div class="icon"><i class="fas fa-palette"></i></div><h4>11 Premium Fonts</h4><p>Satoshi, DM Sans, Poppins</p></div>
+            <div class="feature-card"><div class="icon"><i class="fas fa-camera"></i></div><h4>Stories</h4><p>Share moments, 24h expiry</p></div>
+            <div class="feature-card"><div class="icon"><i class="fas fa-image"></i></div><h4>Custom Wallpapers</h4><p>Personalize chats</p></div>
+            <div class="feature-card"><div class="icon"><i class="fas fa-sparkles"></i></div><h4>Animated Stickers</h4><p>Premium sticker packs</p></div>
+            <div class="feature-card"><div class="icon"><i class="fas fa-video"></i></div><h4>Video Avatars</h4><p>Video profile pictures</p></div>
+            <div class="feature-card"><div class="icon"><i class="fas fa-chart-bar"></i></div><h4>Chat Statistics</h4><p>Detailed analytics</p></div>
+            <div class="feature-card"><div class="icon"><i class="fas fa-bell"></i></div><h4>Custom Notifications</h4><p>Personalized sounds</p></div>
+            <div class="feature-card"><div class="icon"><i class="fas fa-folder-open"></i></div><h4>500MB Uploads</h4><p>Send larger files</p></div>
+            <div class="feature-card"><div class="icon"><i class="fas fa-robot"></i></div><h4>Bot API</h4><p>Create custom bots</p></div>
+            <div class="feature-card"><div class="icon"><i class="fas fa-comment"></i></div><h4>Priority Support</h4><p>Get help faster</p></div>
         </div>
 
         {% if is_premium %}
         <!-- Bot API Section - Only visible to premium users -->
         <div class="bot-api-section">
             <h3>
-                <span>🤖</span> Bot API
+                <i class="fas fa-robot"></i> Bot API
                 <span style="font-size: 14px; background: #2dce89; padding: 4px 12px; border-radius: 20px;">Premium Active</span>
             </h3>
 
             <!-- Create Bot Form -->
             <div class="create-bot-form">
-                <h4>➕ Create New Bot</h4>
+                <h4><i class="fas fa-plus"></i> Create New Bot</h4>
                 <div class="form-row">
                     <input type="text" id="botName" placeholder="Bot Name (e.g., Echo Bot)" maxlength="50">
                     <input type="text" id="botUsername" placeholder="Username (e.g., echo_bot)" maxlength="30" style="text-transform: lowercase;">
@@ -603,12 +604,12 @@
         </div>
 
         <div style="text-align: center;">
-            <a href="{{ url_for('chats.chat_list') }}" class="back-link">← Back to Chats</a>
+            <a href="{{ url_for('chats.chat_list') }}" class="back-link"><i class="fas fa-arrow-left"></i> Back to Chats</a>
         </div>
 
         <div class="footer-note">
             {% if is_premium %}
-                ✨ You are a Premium member! Enjoy all exclusive features.
+                <i class="fas fa-crown"></i> You are a Premium member! Enjoy all exclusive features.
             {% else %}
                 All plans include a 7-day free trial. Cancel anytime.
             {% endif %}
@@ -618,8 +619,8 @@
     <div id="tokenModal" class="modal-overlay" style="display: none;">
         <div class="modal-container" style="max-width: 500px;">
             <div class="modal-header" style="background: linear-gradient(135deg, #fb6340, #2dce89); color: white;">
-                <h3>🤖 Bot Token</h3>
-                <button class="modal-close" onclick="closeTokenModal()" style="color: white;">✕</button>
+                <h3><i class="fas fa-robot"></i> Bot Token</h3>
+                <button class="modal-close" onclick="closeTokenModal()" style="color: white;"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal-body" style="padding: 24px;">
                 <p style="margin-bottom: 16px; color: var(--text-primary);">Save this token! You won't be able to see it again.</p>
@@ -764,7 +765,7 @@
                         html += `
                             <div class="bot-item">
                                 <div class="bot-info">
-                                    <div class="bot-avatar">🤖</div>
+                                    <div class="bot-avatar"><i class="fas fa-robot"></i></div>
                                     <div class="bot-details">
                                         <h5>${escapeHtml(bot.name)}</h5>
                                         <p>@${escapeHtml(bot.username)}</p>
@@ -774,8 +775,8 @@
                                     Token: ${escapeHtml(bot.token || '••••••••')}
                                 </div>
                                 <div class="bot-actions">
-                                    <button class="btn-small" onclick="regenerateToken(${bot.id})">🔄 Regenerate</button>
-                                    <button class="btn-small btn-danger" onclick="deleteBot(${bot.id})">🗑️ Delete</button>
+                                    <button class="btn-small" onclick="regenerateToken(${bot.id})"><i class="fas fa-sync"></i> Regenerate</button>
+                                    <button class="btn-small btn-danger" onclick="deleteBot(${bot.id})"><i class="fas fa-trash"></i> Delete</button>
                                 </div>
                             </div>
                         `;

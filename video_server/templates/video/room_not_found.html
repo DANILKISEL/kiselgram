@@ -62,12 +62,9 @@
         margin-bottom: 20px;
     }
 
-    .error-icon svg {
-        width: 70px;
-        height: 70px;
-        stroke: #dc3545;
-        stroke-width: 1.5;
-        fill: none;
+    .error-icon i {
+        font-size: 70px;
+        color: #dc3545;
     }
 
     h2 {
@@ -113,8 +110,7 @@
         gap: 8px;
     }
 
-    .info-title:before {
-        content: 'ℹ️';
+    .info-title i {
         font-size: 18px;
     }
 
@@ -239,10 +235,7 @@
 
     <!-- 404 Icon -->
     <div class="error-icon">
-        <svg viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="10"/>
-            <path d="M9 9l6 6M15 9l-6 6" stroke-linecap="round"/>
-        </svg>
+        <i class="fas fa-times-circle"></i>
     </div>
 
     <!-- Error Message -->
@@ -260,7 +253,7 @@
 
     <!-- Possible Reasons -->
     <div class="info-box">
-        <div class="info-title">Possible reasons:</div>
+        <div class="info-title"><i class="fas fa-info-circle"></i> Possible reasons:</div>
         <ul class="reason-list">
             <li class="reason-item">
                 <span class="reason-bullet"></span>
@@ -283,17 +276,17 @@
 
     <!-- Quick Actions -->
     <div class="action-buttons">
-        <a href="{{ url_for('video_int.video_index') }}" class="btn btn-primary">
-            ← Back to Video
+        <a href="{{ url_for('index') }}" class="btn btn-primary">
+            <i class="fas fa-arrow-left"></i> Back to Video
         </a>
         <button onclick="window.location.reload()" class="btn btn-secondary">
-            ⟳ Retry
+            <i class="fas fa-sync-alt"></i> Retry
         </button>
     </div>
 
     <!-- Create New Room Button -->
-    <button class="create-new-btn" onclick="createNewRoom()">
-        ✨ Create New Video Room
+    <button class="create-new-btn" onclick="createNewRoom(event)">
+        <i class="fas fa-plus-circle"></i> Create New Video Room
     </button>
 
     <!-- Help Text -->
@@ -303,7 +296,7 @@
 </div>
 
 <script>
-    function createNewRoom() {
+    function createNewRoom(event) {
         // Show loading state
         const btn = event.target;
         const originalText = btn.textContent;

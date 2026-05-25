@@ -3123,3 +3123,21 @@ mark.search-highlight {
     color: var(--text-muted); font-size: 14px;
 }
 .attachment-preview .preview-close:hover { background: var(--active-bg); }
+
+/* File preview dialog items */
+.preview-item {
+    background: var(--bg-secondary); border-radius: 16px; padding: 12px;
+    margin-bottom: 12px; border: 1px solid var(--border-color);
+}
+.preview-info {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 8px; font-size: 13px; color: var(--text-secondary);
+}
+.preview-info span:first-child {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; margin-right: 12px;
+}
+.preview-summary {
+    display: flex; justify-content: space-between; padding: 12px 0;
+    font-size: 14px; font-weight: 600; color: var(--text-primary);
+    border-top: 1px solid var(--border-color); margin-top: 4px;
+}

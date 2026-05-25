@@ -2,7 +2,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify, current_app, flash
 import requests
 from app import db, oauth, mail
-from app.models import User, Message, Channel, ChannelSubscriber, Group, GroupMember, BlockedUser, UserSession, Report, EmailVerification
+from app.models import User, Message, Chat, ChatMember, ChatSubscriber, BlockedUser, UserSession, Report, EmailVerification
 from app.utils.helpers import hash_password, get_current_user, get_current_user_id
 import re
 from datetime import datetime, timedelta
@@ -376,30 +376,30 @@ def api_delete_account():
         return jsonify({'error': 'User not found'}), 404
     try:
         Message.query.filter((Message.sender_id == current_user_id) | (Message.receiver_id == current_user_id)).delete()
-        GroupMember.query.filter_by(user_id=current_user_id).delete()
-        ChannelSubscriber.query.filter_by(user_id=current_user_id).delete()
+        ChatMember.query.filter_by(user_id=current_user_id).delete()
+        ChatSubscriber.query.filter_by(user_id=current_user_id).delete()
         BlockedUser.query.filter(
             (BlockedUser.user_id == current_user_id) | (BlockedUser.blocked_user_id == current_user_id)).delete()
         UserSession.query.filter_by(user_id=current_user_id).delete()
         Report.query.filter(
             (Report.reporter_id == current_user_id) | (Report.reported_user_id == current_user_id)).delete()
 
-        owned_groups = Group.query.filter_by(owner_id=current_user_id).all()
+        owned_groups = Chat.query.filter_by(chat_type='group', owner_id=current_user_id).all()
         for group in owned_groups:
-            other = GroupMember.query.filter(GroupMember.group_id == group.id,
-                                             GroupMember.user_id != current_user_id).first()
+            other = ChatMember.query.filter(ChatMember.chat_id == group.id,
+                                             ChatMember.user_id != current_user_id).first()
             if other:
                 group.owner_id = other.user_id
                 other.role = 'admin'
             else:
-                Message.query.filter_by(group_id=group.id).delete()
-                GroupMember.query.filter_by(group_id=group.id).delete()
+                Message.query.filter_by(chat_id=group.id).delete()
+                ChatMember.query.filter_by(chat_id=group.id).delete()
                 db.session.delete(group)
 
-        owned_channels = Channel.query.filter_by(owner_id=current_user_id).all()
+        owned_channels = Chat.query.filter_by(chat_type='channel', owner_id=current_user_id).all()
         for channel in owned_channels:
-            Message.query.filter_by(channel_id=channel.id).delete()
-            ChannelSubscriber.query.filter_by(channel_id=channel.id).delete()
+            Message.query.filter_by(chat_id=channel.id).delete()
+            ChatSubscriber.query.filter_by(chat_id=channel.id).delete()
             db.session.delete(channel)
 
         db.session.delete(user)
@@ -435,16 +435,16 @@ def api_export_data():
             'file_name': msg.file_name, 'file_type': msg.file_type
         })
 
-    memberships = GroupMember.query.filter_by(user_id=current_user_id).all()
+    memberships = ChatMember.query.filter_by(user_id=current_user_id).all()
     for membership in memberships:
-        group = membership.group
+        chat = Chat.query.get(membership.chat_id)
         data['groups'].append(
-            {'id': group.id, 'name': group.name, 'description': group.description, 'role': membership.role})
+            {'id': chat.id, 'name': chat.name, 'description': chat.description, 'role': membership.role})
 
-    subscriptions = ChannelSubscriber.query.filter_by(user_id=current_user_id).all()
+    subscriptions = ChatSubscriber.query.filter_by(user_id=current_user_id).all()
     for subscription in subscriptions:
-        channel = subscription.channel
-        data['channels'].append({'id': channel.id, 'name': channel.name, 'description': channel.description})
+        chat = Chat.query.get(subscription.chat_id)
+        data['channels'].append({'id': chat.id, 'name': chat.name, 'description': chat.description})
 
     from flask import Response
     import json

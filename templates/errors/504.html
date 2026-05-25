@@ -83,7 +83,7 @@ font-weight: 500; transition: 0.2s; }
 <div id="networkModal" class="modal-overlay">
     <div class="modal-container">
         <h3><i class="fas fa-globe"></i> Ping Test · kiselgram.ru</h3>
-        <div class="network-status" id="netStatusMsg">🔄 Initializing ping tests...</div>
+        <div class="network-status" id="netStatusMsg"><i class="fas fa-sync-alt"></i> Initializing ping tests...</div>
         <div class="modal-buttons">
             <button class="btn-sm close-modal" id="closeModalBtn">Close</button>
         </div>
@@ -111,13 +111,13 @@ font-weight: 500; transition: 0.2s; }
 
     async function runPingTest() {
         const statusDiv = document.getElementById('netStatusMsg');
-        statusDiv.innerHTML = "🏓 Pinging <strong>kiselgram.ru</strong> & <strong>web.kiselgram.ru</strong>...<br>⏳ Please wait (up to 6 seconds).";
+        statusDiv.innerHTML = '<i class="fas fa-wifi"></i> Pinging <strong>kiselgram.ru</strong> & <strong>web.kiselgram.ru</strong>...<br><i class="fas fa-hourglass-half"></i> Please wait (up to 6 seconds).';
         const results = await Promise.all(['kiselgram.ru', 'web.kiselgram.ru'].map(h => pingHost(h, 5500)));
-        let html = `<div style="font-family: monospace;">📡 Ping results<br><br>`;
+        let html = `<div style="font-family: monospace;"><i class="fas fa-satellite"></i> Ping results<br><br>`;
         for (const r of results) {
-            html += `<div><strong>${r.success ? '🌐' : '⚠️'} ${r.host}</strong><br>${r.message}</div><br>`;
+            html += `<div><strong>${r.success ? '<i class="fas fa-globe"></i>' : '<i class="fas fa-exclamation-triangle"></i>'} ${r.host}</strong><br>${r.message}</div><br>`;
         }
-        html += results.some(r => r.success) ? "<span style='color:#16a34a;'>✔️ At least one host responded.</span>" : "<span style='color:#dc2626;'>⚠️ No response from any host.</span>";
+        html += results.some(r => r.success) ? "<span style='color:#16a34a;'><i class='fas fa-check'></i> At least one host responded.</span>" : "<span style='color:#dc2626;'><i class='fas fa-exclamation-triangle'></i> No response from any host.</span>";
         html += `</div>`;
         statusDiv.innerHTML = html;
     }

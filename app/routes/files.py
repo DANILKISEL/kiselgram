@@ -5,7 +5,7 @@ import mimetypes
 from datetime import datetime
 
 from app import db
-from app.models import User, Message, Group, Channel, GroupMember, ChannelSubscriber
+from app.models import User, Message, Chat, ChatMember, ChatSubscriber, File
 from app.utils.logging_utils import log_main
 
 files_bp = Blueprint('files', __name__)
@@ -217,18 +217,18 @@ def upload_file():
                 return jsonify({'success': False, 'error': 'You are blocked by this user'}), 403
 
         elif group_id:
-            group = Group.query.get(group_id)
-            if not group:
+            chat = Chat.query.get(group_id)
+            if not chat:
                 return jsonify({'success': False, 'error': 'Group not found'}), 404
-            membership = GroupMember.query.filter_by(user_id=user_id, group_id=group_id).first()
+            membership = ChatMember.query.filter_by(user_id=user_id, chat_id=group_id).first()
             if not membership:
                 return jsonify({'success': False, 'error': 'You are not a member of this group'}), 403
 
         elif channel_id:
-            channel = Channel.query.get(channel_id)
-            if not channel:
+            chat = Chat.query.get(channel_id)
+            if not chat:
                 return jsonify({'success': False, 'error': 'Channel not found'}), 404
-            if channel.owner_id != user_id:
+            if chat.owner_id != user_id:
                 return jsonify({'success': False, 'error': 'Only channel owner can post'}), 403
 
         file_ext = file.filename.rsplit('.', 1)[1].lower()
@@ -254,6 +254,17 @@ def upload_file():
         file_size = os.path.getsize(full_save_path)
         file_url = url_for('files.serve_file', filename=file_path_with_dir, _external=False)
 
+        new_file = File(
+            file_type=file_type,
+            file_name=file.filename,
+            file_path=file_path_with_dir,
+            file_size=file_size,
+            preview_size='big' if file_type == 'image' else 'medium' if file_type in ('video',) else 'none',
+            uploader_id=user_id,
+        )
+        db.session.add(new_file)
+        db.session.flush()
+
         new_message = Message(
             sender_id=current_user.id,
             content=message_text,
@@ -262,17 +273,25 @@ def upload_file():
             file_path=file_path_with_dir,
             file_type=file_type,
             file_size=file_size,
+            file_id=new_file.id,
             timestamp=datetime.utcnow(),
             is_read=False
         )
 
         if receiver_id:
             new_message.receiver_id = int(receiver_id)
+            a, b = sorted([user_id, int(receiver_id)])
+            chat = Chat.query.filter_by(chat_type='personal', user1_id=a, user2_id=b).first()
+            if not chat:
+                chat = Chat(chat_type='personal', user1_id=a, user2_id=b)
+                db.session.add(chat)
+                db.session.flush()
+            new_message.chat_id = chat.id
         elif group_id:
-            new_message.group_id = int(group_id)
+            new_message.chat_id = int(group_id)
             new_message.receiver_id = current_user.id
         elif channel_id:
-            new_message.channel_id = int(channel_id)
+            new_message.chat_id = int(channel_id)
             new_message.receiver_id = current_user.id
 
         db.session.add(new_message)
@@ -297,6 +316,7 @@ def upload_file():
                 'file_type': file_type,
                 'file_size': file_size,
                 'formatted_size': format_file_size(file_size),
+                'preview_size': new_file.preview_size,
             }
         })
 

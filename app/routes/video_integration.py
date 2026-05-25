@@ -11,8 +11,6 @@ logger = logging.getLogger(__name__)
 
 video_int_bp = Blueprint('video', __name__, url_prefix='/video')
 
-"""
-
 dotenv.load_dotenv()
 
 # Configuration
@@ -202,5 +200,3 @@ def leave_room(room_id):
         # Even if video server doesn't respond, we consider the user left
         return jsonify({'success': True})
     
-    
-    """
