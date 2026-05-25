@@ -4,7 +4,7 @@
 from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for
 from datetime import datetime
 from app import db
-from app.models import User, Message, TelegramBot, GroupMember, ChannelSubscriber, Group, Channel, PinnedChat, BlockedUser
+from app.models import User, Message, Chat, ChatMember, ChatSubscriber, PinnedChat, BlockedUser
 from app.utils.helpers import get_current_user, get_current_user_id, get_blocked_user_ids, has_active_story, message_to_dict
 
 spa_chat_bp = Blueprint('chats', __name__)
@@ -18,7 +18,7 @@ def chat_list():
 
     current_user = get_current_user()
     current_user_id = current_user.id
-    is_premium = getattr(current_user, 'is_premium', False)
+    is_premium = current_user.premium.is_premium if current_user.premium else False
 
     chats_data = []
 
@@ -80,11 +80,11 @@ def chat_list():
             })
 
     # 2. Get groups the user is member of
-    user_groups = GroupMember.query.filter_by(user_id=current_user_id).all()
+    user_groups = ChatMember.query.filter_by(user_id=current_user_id).all()
     for membership in user_groups:
-        group = membership.group
-        if group:
-            last_message = Message.query.filter_by(group_id=group.id).order_by(Message.timestamp.desc()).first()
+        chat = Chat.query.get(membership.chat_id)
+        if chat:
+            last_message = Message.query.filter_by(chat_id=chat.id).order_by(Message.timestamp.desc()).first()
 
             timestamp = ''
             last_message_data = None
@@ -105,18 +105,18 @@ def chat_list():
                     'sender': {'username': last_message.sender.username}
                 }
 
-            member_count = GroupMember.query.filter_by(group_id=group.id).count()
+            member_count = ChatMember.query.filter_by(chat_id=chat.id).count()
 
             pinned = PinnedChat.query.filter_by(
-                user_id=current_user_id, chat_type='group', chat_id=group.id
+                user_id=current_user_id, chat_type='group', chat_id=chat.id
             ).first() is not None
 
             chats_data.append({
                 'type': 'group',
-                'id': group.id,
-                'name': group.name,
+                'id': chat.id,
+                'name': chat.name,
                 'avatar': '👥',
-                'avatar_url': getattr(group, 'avatar_url', None),
+                'avatar_url': getattr(chat, 'avatar_url', None),
                 'last_message': last_message_data,
                 'unread_count': 0,
                 'timestamp': timestamp,
@@ -126,11 +126,11 @@ def chat_list():
             })
 
     # 3. Get channels the user is subscribed to
-    user_channels = ChannelSubscriber.query.filter_by(user_id=current_user_id).all()
+    user_channels = ChatSubscriber.query.filter_by(user_id=current_user_id).all()
     for subscription in user_channels:
-        channel = subscription.channel
-        if channel:
-            last_message = Message.query.filter_by(channel_id=channel.id).order_by(Message.timestamp.desc()).first()
+        chat = Chat.query.get(subscription.chat_id)
+        if chat:
+            last_message = Message.query.filter_by(chat_id=chat.id).order_by(Message.timestamp.desc()).first()
 
             timestamp = ''
             last_message_data = None
@@ -151,23 +151,23 @@ def chat_list():
                     'sender': {'username': last_message.sender.username}
                 }
 
-            subscriber_count = ChannelSubscriber.query.filter_by(channel_id=channel.id).count()
+            subscriber_count = ChatSubscriber.query.filter_by(chat_id=chat.id).count()
 
             pinned = PinnedChat.query.filter_by(
-                user_id=current_user_id, chat_type='channel', chat_id=channel.id
+                user_id=current_user_id, chat_type='channel', chat_id=chat.id
             ).first() is not None
 
             chats_data.append({
                 'type': 'channel',
-                'id': channel.id,
-                'name': channel.name,
+                'id': chat.id,
+                'name': chat.name,
                 'avatar': '📢',
-                'avatar_url': getattr(channel, 'avatar_url', None),
+                'avatar_url': getattr(chat, 'avatar_url', None),
                 'last_message': last_message_data,
                 'unread_count': 0,
                 'timestamp': timestamp,
                 'subscriber_count': subscriber_count,
-                'is_owner': channel.owner_id == current_user_id,
+                'is_owner': chat.owner_id == current_user_id,
                 'is_pinned': pinned
             })
 
@@ -207,7 +207,7 @@ def mobile():
         return redirect('/')
 
     current_user = get_current_user()
-    is_premium = getattr(current_user, 'is_premium', False)
+    is_premium = current_user.premium.is_premium if current_user.premium else False
     return render_template('mobile.html', is_premium=is_premium)
 
 
@@ -218,7 +218,7 @@ def kis_info():
     return render_template(
         'kis_info.html',
         current_user=current_user,
-        is_premium=getattr(current_user, 'is_premium', False) if current_user else False
+        is_premium=current_user.premium.is_premium if current_user and current_user.premium else False
     )
 
 
@@ -232,7 +232,7 @@ def premium_page():
     return render_template(
         'premium/index.html',
         current_user=current_user,
-        is_premium=getattr(current_user, 'is_premium', False)
+        is_premium=current_user.premium.is_premium if current_user.premium else False
     )
 
 
@@ -274,7 +274,7 @@ def user_profile(username):
         return render_template('errors/404.html'), 404
 
     current_user = get_current_user()
-    is_premium = getattr(current_user, 'is_premium', False) if current_user else False
+    is_premium = current_user.premium.is_premium if current_user and current_user.premium else False
 
     return render_template(
         'profile/public.html',
@@ -345,12 +345,12 @@ def chat_list_api():
 
         # Groups
         try:
-            memberships = GroupMember.query.filter_by(user_id=current_user_id).all()
+            memberships = ChatMember.query.filter_by(user_id=current_user_id).all()
             for membership in memberships:
-                group = membership.group
-                if group:
-                    last = Message.query.filter_by(group_id=group.id).order_by(Message.timestamp.desc()).first()
-                    unread = Message.query.filter_by(group_id=group.id, is_read=False).filter(Message.sender_id != current_user_id).count()
+                chat = Chat.query.get(membership.chat_id)
+                if chat:
+                    last = Message.query.filter_by(chat_id=chat.id).order_by(Message.timestamp.desc()).first()
+                    unread = Message.query.filter_by(chat_id=chat.id, is_read=False).filter(Message.sender_id != current_user_id).count()
                     timestamp = ''
                     if last and last.timestamp:
                         time_diff = datetime.utcnow() - last.timestamp
@@ -360,13 +360,13 @@ def chat_list_api():
                             timestamp = 'Yesterday'
                         else:
                             timestamp = last.timestamp.strftime('%d.%m.%Y')
-                    member_count = GroupMember.query.filter_by(group_id=group.id).count()
+                    member_count = ChatMember.query.filter_by(chat_id=chat.id).count()
                     chats.append({
                         'type': 'group',
-                        'id': group.id,
-                        'name': group.name,
+                        'id': chat.id,
+                        'name': chat.name,
                         'avatar': '👥',
-                        'avatar_url': getattr(group, 'avatar_url', None),
+                        'avatar_url': getattr(chat, 'avatar_url', None),
                         'last_message': (last.content[:50] + '...') if last and last.content and len(last.content) > 50 else (last.content if last else 'No messages yet'),
                         'timestamp': timestamp,
                         'unread_count': unread,
@@ -379,11 +379,11 @@ def chat_list_api():
 
         # Channels
         try:
-            subscriptions = ChannelSubscriber.query.filter_by(user_id=current_user_id).all()
+            subscriptions = ChatSubscriber.query.filter_by(user_id=current_user_id).all()
             for subscription in subscriptions:
-                channel = subscription.channel
-                if channel:
-                    last = Message.query.filter_by(channel_id=channel.id).order_by(Message.timestamp.desc()).first()
+                chat = Chat.query.get(subscription.chat_id)
+                if chat:
+                    last = Message.query.filter_by(chat_id=chat.id).order_by(Message.timestamp.desc()).first()
                     timestamp = ''
                     if last and last.timestamp:
                         time_diff = datetime.utcnow() - last.timestamp
@@ -393,18 +393,18 @@ def chat_list_api():
                             timestamp = 'Yesterday'
                         else:
                             timestamp = last.timestamp.strftime('%d.%m.%Y')
-                    subscriber_count = ChannelSubscriber.query.filter_by(channel_id=channel.id).count()
+                    subscriber_count = ChatSubscriber.query.filter_by(chat_id=chat.id).count()
                     chats.append({
                         'type': 'channel',
-                        'id': channel.id,
-                        'name': channel.name,
+                        'id': chat.id,
+                        'name': chat.name,
                         'avatar': '📢',
-                        'avatar_url': getattr(channel, 'avatar_url', None),
+                        'avatar_url': getattr(chat, 'avatar_url', None),
                         'last_message': (last.content[:50] + '...') if last and last.content and len(last.content) > 50 else (last.content if last else 'No posts yet'),
                         'timestamp': timestamp,
                         'unread_count': 0,
                         'subscriber_count': subscriber_count,
-                        'is_owner': channel.owner_id == current_user_id,
+                        'is_owner': chat.owner_id == current_user_id,
                         'is_pinned': False
                     })
         except Exception as e:
@@ -459,6 +459,8 @@ def mark_messages_read(user_id):
     db.session.commit()
     return jsonify({'success': True})
 
+
+
 # ============ CONTEXT PROCESSOR ============
 
 @spa_chat_bp.app_context_processor
@@ -466,5 +468,5 @@ def inject_premium_status():
     """Inject premium status into all templates"""
     current_user = get_current_user()
     return {
-        'user_is_premium': getattr(current_user, 'is_premium', False) if current_user else False
+        'user_is_premium': current_user.premium.is_premium if current_user and current_user.premium else False
     }

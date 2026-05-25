@@ -10,9 +10,8 @@
     <meta name="theme-color" content="#0088cc">
     <meta name="format-detection" content="telephone=no">
     <meta name="msapplication-tap-highlight" content="no">
-    <link rel="manifest" href="/static/manifest.json">
-    <link rel="stylesheet" href="/static/css/mobile.css">
-    <link rel="stylesheet" href="/static/css/animations.css">
+    <link rel="stylesheet" href="/static/css/video.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
     {% block styles %}{% endblock %}
 </head>
@@ -41,12 +40,7 @@
             deferredPrompt = e;
         });
 
-        // Service Worker registration
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/static/sw.js')
-                .then(() => console.log('SW registered'))
-                .catch(err => console.log('SW registration failed'));
-        }
+
 
         // Ripple effect
         document.addEventListener('touchstart', function(e) {

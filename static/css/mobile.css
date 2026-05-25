@@ -1,6 +1,6 @@
-/* static/css/chats.css */
+/* static/css/mobile.css */
 
-/* Chat specific styles that extend desktop.css */
+/* Chat & mobile extras that extend desktop.css */
 
 /* Avatar upload for groups/channels */
 .avatar-upload-section {
@@ -47,7 +47,9 @@
 
 /* Pinned chat indicator */
 .chat-item.pinned::before {
-    content: '📌';
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    content: '\f08d';
     position: absolute;
     top: 4px;
     right: 8px;
