@@ -747,12 +747,33 @@
 
         let att = '';
         if (m.has_attachment) {
-            if (m.file_type === 'image') {
-                att = `<img src="${m.file_url}" class="message-image" onclick="openImageViewer('${m.file_url}')">`;
+            const ps = m.preview_size || 'medium';
+            const ext = (m.file_name || '').split('.').pop().toLowerCase();
+            const imgExts = ['jpg','jpeg','png','gif','webp','bmp','svg'];
+            const vidExts = ['mp4','webm','avi','mov','mkv','flv','m4v'];
+            const isImg = m.file_type === 'image' || imgExts.includes(ext);
+            const isVid = m.file_type === 'video' || vidExts.includes(ext);
+            if (ps === 'none') {
+                let icon = 'fa-file';
+                if (ext === 'pdf') icon = 'fa-file-pdf';
+                else if (['doc','docx'].includes(ext)) icon = 'fa-file-word';
+                else if (['xls','xlsx'].includes(ext)) icon = 'fa-file-excel';
+                else if (['zip','rar','7z'].includes(ext)) icon = 'fa-file-archive';
+                else if (ext === 'txt' || ext === 'text') icon = 'fa-file-alt';
+                else if (m.file_type === 'image') icon = 'fa-file-image';
+                else if (m.file_type === 'video') icon = 'fa-file-video';
+                else if (m.file_type === 'audio' || m.file_type === 'voice') icon = 'fa-file-audio';
+                const size = m.formatted_size || (m.file_size ? formatFileSize(m.file_size) : '');
+                att = `<div class="file-attachment"><i class="fas ${icon}"></i><div class="file-attach-info"><a href="${m.file_url}" target="_blank" class="file-link">${escapeHtml(m.file_name || 'File')}</a>${size ? `<span class="file-size">${size}</span>` : ''}</div></div>`;
+            } else if (isImg) {
+                const cls = ps === 'big' ? 'message-image big-preview' : 'message-image';
+                att = `<img src="${m.file_url}" class="${cls}" onclick="openImageViewer('${m.file_url}')">`;
+            } else if (isVid) {
+                att = `<video src="${m.file_url}" controls preload="metadata" style="max-width:100%;max-height:300px;border-radius:12px;margin-bottom:4px"></video>`;
             } else if (m.file_type === 'audio' || m.file_type === 'voice') {
                 att = `<audio src="${m.file_url}" controls style="max-width:220px;height:40px;border-radius:8px;display:block;margin-bottom:4px"></audio>`;
             } else {
-                att = `<div class="file-attachment"><span>📎</span><a href="${m.file_url}" target="_blank">${m.file_name || 'File'}</a></div>`;
+                att = `<div class="file-attachment"><i class="fas fa-file"></i><a href="${m.file_url}" target="_blank">${escapeHtml(m.file_name || 'File')}</a></div>`;
             }
         }
         let reply = '';
