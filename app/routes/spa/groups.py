@@ -5,7 +5,7 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify, session
 
 from app import db
-from app.models import User, Group, GroupMember, GroupPermission, Message, BlockedUser
+from app.models import User, Group, GroupMember, GroupPermission, Message, BlockedUser, File
 from app.utils.helpers import get_current_user_id, get_current_user, format_file_size, message_to_dict
 
 spa_groups_bp = Blueprint('spa_groups', __name__, url_prefix='/api')
@@ -291,11 +291,24 @@ def send_group_message():
             file_path = os.path.join(upload_dir, unique_name)
             file.save(file_path)
             file_size = os.path.getsize(file_path)
+
+            new_file = File(
+                file_type=file_type,
+                file_name=file.filename,
+                file_path=os.path.relpath(file_path, 'uploads'),
+                file_size=file_size,
+                preview_size='big' if file_type == 'image' else 'medium' if file_type in ('video',) else 'none',
+                uploader_id=current_user_id,
+            )
+            db.session.add(new_file)
+            db.session.flush()
+
             new_message.has_attachment = True
             new_message.file_type = file_type
             new_message.file_path = os.path.relpath(file_path, 'uploads')
             new_message.file_name = file.filename
             new_message.file_size = file_size
+            new_message.file_id = new_file.id
             break  # only one file per message? For simplicity, use the first file.
 
     db.session.add(new_message)
