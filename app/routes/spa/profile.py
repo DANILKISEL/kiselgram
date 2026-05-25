@@ -32,7 +32,7 @@ def get_my_profile():
             'bio': user.bio or '',
             'avatar_url': user.avatar_url,
             'email': getattr(user, 'email', ''),
-            'is_premium': user.premium.is_premium if user.premium else False,
+            'is_premium': getattr(user, 'is_premium', False),
             'is_admin': getattr(user, 'is_admin', False),
             'created_at': user.created_at.isoformat() if user.created_at else None,
             'last_seen': user.last_seen.isoformat() if user.last_seen else None,
@@ -107,11 +107,11 @@ def upload_avatar():
     file.save(file_path)
 
     user = User.query.get(user_id)
+    # Delete old avatar if it exists
     if user.avatar_url and 'uploads/' in user.avatar_url:
-        old_path = os.path.normpath(user.avatar_url.lstrip('/'))
-        if os.path.commonpath([os.path.abspath(old_path), os.path.abspath('uploads')]) == os.path.abspath('uploads'):
-            if os.path.exists(old_path):
-                os.remove(old_path)
+        old_path = os.path.join(user.avatar_url.replace('/uploads/', 'uploads/'))
+        if os.path.exists(old_path):
+            os.remove(old_path)
 
     user.avatar_url = f"/uploads/avatars/{filename}"
     db.session.commit()

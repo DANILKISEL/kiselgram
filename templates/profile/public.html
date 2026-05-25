@@ -11,7 +11,6 @@
     <meta property="og:url" content="{{ request.url }}">
     <meta name="twitter:card" content="summary">
 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/desktop.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/animations.css') }}">
@@ -278,18 +277,18 @@
             <div class="profile-actions">
                 {% if current_user and current_user.id == profile_user.id %}
                     <a href="{{ url_for('chats.chat_list') }}" class="btn btn-primary">
-                        <i class="fas fa-comment"></i> Open Kiselgram
+                        <span>💬</span> Open Kiselgram
                     </a>
                     <a href="{{ url_for('chats.chat_list') }}#profile" class="btn btn-secondary">
-                        <i class="fas fa-cog"></i> Edit Profile
+                        <span>⚙️</span> Edit Profile
                     </a>
                 {% elif current_user %}
                     <a href="{{ url_for('chats.chat_list') }}?chat={{ profile_user.id }}" class="btn btn-primary btn-block">
-                        <i class="fas fa-comment"></i> Send Message
+                        <span>💬</span> Send Message
                     </a>
                 {% else %}
                     <a href="{{ url_for('auth.login') }}?next=/@{{ profile_user.username }}" class="btn btn-primary btn-block">
-                        <i class="fas fa-lock"></i> Login to Message
+                        <span>🔐</span> Login to Message
                     </a>
                 {% endif %}
             </div>

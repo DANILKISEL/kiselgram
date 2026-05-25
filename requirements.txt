@@ -7,6 +7,3 @@ pyfiglet
 tomli
 pywebpush
 Flask-Mail
-flask-login
-flask-migrate
-authlib

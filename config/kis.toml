@@ -64,15 +64,7 @@ video_streaming = true
 file_sharing = true
 reactions = true
 
-[mail]
-server="mail.kiselgram.ru"
-port=587
-username="auth@mail.kiselgram.ru"
-password="$uper$ecurePassWo_D"
-sender_name="Kiselgram - Auth"
-sender_email="auth@mail.kiselgram.ru"
-
 
 [google]
 client_id = "GOOGLE_OAUTH_CLIENT_ID_PLACEHOLDER"
-client_secret = "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"
+client_secret = "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"

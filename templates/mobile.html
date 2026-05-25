@@ -5,16 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Kiselgram Mobile</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-touch-fullscreen" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#fb6340">
-    <meta name="msapplication-tap-highlight" content="no">
-    <link rel="apple-touch-icon" sizes="192x192" href="{{ url_for('static', filename='favicon.ico') }}">
     <link rel="manifest" href="/static/manifest.json">
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
-
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
     <!-- Core CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/desktop.css') }}">
@@ -23,249 +17,132 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/animations.css') }}">
 
     <style>
-        *, *::before, *::after { box-sizing: border-box; }
-
+        * { box-sizing: border-box; }
         html, body {
             overflow: hidden; position: fixed; width: 100%; height: 100%; margin: 0; padding: 0;
             background: var(--bg-primary); -webkit-overflow-scrolling: auto;
         }
         body { display: flex; flex-direction: column; }
 
-        .desktop-only { display: none !important; }
+        .chat-sidebar, .menu-btn, .mobile-menu-btn, .popout-menu-column, .upgrade-banner, .panel-overlay {
+            display: none !important;
+        }
 
+        .app-container {
+            display: flex; flex-direction: column; height: 100dvh; width: 100vw; overflow: hidden;
+            background: var(--bg-primary); position: relative;
+        }
         .chat-area {
             flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0; position: relative;
             background: var(--bg-primary);
         }
 
+        .mobile-header {
+            display: flex; align-items: center; justify-content: space-between; padding: 8px 16px;
+            background: var(--bg-surface); border-bottom: 1px solid var(--border-color); flex-shrink: 0;
+        }
+        .mobile-header h1 { font-size: 20px; font-weight: 700; margin: 0; color: var(--text-primary); }
+        .mobile-header-search { font-size: 22px; cursor: pointer; color: var(--accent-blue); }
+
         .global-search-container {
             display: none; padding: 8px 12px; background: var(--bg-surface); border-bottom: 1px solid var(--border-color); flex-shrink: 0;
         }
         .global-search-container.active { display: block; }
+        .global-search-input {
+            width: 100%; padding: 10px 16px 10px 40px; border-radius: 20px; background: var(--bg-secondary); border: none;
+        }
+        .search-results {
+            position: absolute; top: 100%; left: 0; right: 0; max-height: 60vh; z-index: 200; background: var(--bg-secondary);
+            overflow-y: auto; box-shadow: var(--shadow-lg);
+        }
 
         .stories-row {
             flex-shrink: 0; background: var(--bg-surface); overflow-x: auto; padding: 8px 0;
             border-bottom: 1px solid var(--border-color); white-space: nowrap;
         }
         .story-item { display: inline-flex; flex-direction: column; align-items: center; margin: 0 8px; cursor: pointer; }
+        .story-avatar {
+            width: 60px; height: 60px; border-radius: 50%; padding: 2px;
+            background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+        }
+        .story-avatar.viewed { background: var(--border-color); }
         .story-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 2px solid var(--bg-surface); }
         .story-avatar-placeholder {
             width: 100%; height: 100%; border-radius: 50%; background: linear-gradient(135deg, var(--accent-blue), var(--accent-green));
             display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 600; color: white;
             border: 2px solid var(--bg-surface);
         }
+        .story-username { font-size: 11px; color: var(--text-secondary); margin-top: 4px; max-width: 64px; overflow: hidden; text-overflow: ellipsis; }
 
-        /* ===== LAYOUT ===== */
-        .app-container {
-            display: flex; flex-direction: column; height: 100dvh; width: 100vw; overflow: hidden;
-            background: var(--bg-primary); position: relative;
-        }
+        #emptyChat { display: flex; flex-direction: column; flex: 1; overflow: hidden; background: var(--bg-primary); }
+        #emptyChat .empty-chat-icon, #emptyChat h3, #emptyChat p, #emptyChat .upgrade-banner { display: none; }
 
-        .mobile-header {
-            display: flex; align-items: center; justify-content: space-between; padding: 8px 16px;
-            padding-top: max(8px, env(safe-area-inset-top));
-            background: var(--bg-surface); border-bottom: 1px solid var(--border-color); flex-shrink: 0;
-            z-index: 10;
-        }
-        .mobile-header h1 { font-size: 20px; font-weight: 700; margin: 0; color: var(--text-primary); }
-        .mobile-header-search { font-size: 22px; cursor: pointer; color: var(--accent-blue); padding: 4px; }
-
-        .search-results {
-            position: absolute; top: 100%; left: 0; right: 0; max-height: 60vh; z-index: 200; background: var(--bg-secondary);
-            overflow-y: auto; box-shadow: var(--shadow-lg);
-            border-radius: 0 0 16px 16px;
-        }
-
-        .story-avatar {
-            width: 60px; height: 60px; border-radius: 50%; padding: 2px;
-            background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
-        }
-        .story-avatar.viewed { background: var(--border-color); }
-
-        .bottom-nav-item { position: relative; }
-        .bottom-nav-item span:first-child { font-size: 24px; margin: 0; }
-        .bottom-nav-item span:last-child { display: none; }
-
-        #mobileBackBtn {
-            background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-primary);
-            padding: 12px; margin-right: 4px; margin-left: -8px;
-        }
-
-        /* ===== MODALS ===== */
-        .modal-overlay {
-            z-index: 2000 !important; align-items: flex-end !important;
-            padding-bottom: env(safe-area-inset-bottom, 0);
-        }
-        .modal-container {
-            width: 100% !important; max-width: 100% !important; margin: 0 !important;
-            border-radius: 20px 20px 0 0 !important; max-height: 80vh !important;
-        }
-
-        /* ===== TOUCH ===== */
-        [data-action], button, a { touch-action: manipulation; }
-        * { -webkit-tap-highlight-color: transparent; }
-
-        /* ===== CONNECTION BAR ===== */
-        #connectionBar {
-            position: fixed; top: 0; left: 0; right: 0;
-            padding: 6px 16px; padding-top: max(6px, env(safe-area-inset-top));
-            text-align: center; font-size: 13px; font-weight: 600;
-            z-index: 9999; transform: translateY(-100%);
-            transition: transform 0.35s cubic-bezier(.4,0,.2,1);
-        }
-        #connectionBar.offline {
-            transform: translateY(0);
-            background: #ef4444; color: white;
-        }
-        #connectionBar.reconnecting {
-            transform: translateY(0);
-            background: #f59e0b; color: white;
-        }
-
-        /* ===== PULL-TO-REFRESH ===== */
-        #pullToRefresh {
-            position: absolute; top: -60px; left: 0; right: 0;
-            height: 60px; display: flex; align-items: center; justify-content: center;
-            color: var(--text-muted); font-size: 14px; gap: 8px;
-            transition: none;
-        }
-        #pullToRefresh .ptr-spinner {
-            width: 24px; height: 24px; border-radius: 50%;
-            border: 3px solid var(--border-color);
-            border-top-color: var(--accent-blue);
-            animation: ptr-spin 0.6s linear infinite;
-            display: none;
-        }
-        #pullToRefresh.loading .ptr-spinner { display: block; }
-        #pullToRefresh.loading .ptr-text { display: none; }
-        @keyframes ptr-spin { to { transform: rotate(360deg); } }
-
-        /* ===== VIEW TRANSITIONS ===== */
-        .panel-view {
-            transition: transform 0.3s cubic-bezier(.4,0,.2,1), opacity 0.25s ease;
-        }
-        .panel-view.slide-in {
-            transform: translateX(0); opacity: 1;
-        }
-        .panel-view.slide-out {
-            transform: translateX(30px); opacity: 0;
-        }
-
-        /* ===== SKELETON LOADING ===== */
-        .skeleton {
-            background: linear-gradient(90deg, var(--bg-surface) 25%, var(--border-color) 50%, var(--bg-surface) 75%);
-            background-size: 200% 100%;
-            animation: skeleton-shimmer 1.5s ease-in-out infinite;
-            border-radius: 8px;
-        }
-        @keyframes skeleton-shimmer {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
-        }
-        .skeleton-avatar {
-            width: 52px; height: 52px; border-radius: 50%; flex-shrink: 0;
-        }
-        .skeleton-line {
-            height: 14px; border-radius: 6px; width: 100%;
-        }
-        .skeleton-line:not(:last-child) { margin-bottom: 8px; }
-        .skeleton-line.short { width: 60%; }
-
-        /* ===== SWIPE ACTIONS ===== */
+        .mobile-chat-list-container { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .chat-list { width: 100%; padding: 0; }
         .chat-item {
-            position: relative; overflow: hidden;
-            transition: transform 0.2s ease;
+            width: 100%; padding: 12px 16px; display: flex; align-items: center; gap: 12px;
+            border-bottom: 1px solid var(--border-color); cursor: pointer; background: var(--bg-surface);
         }
-        .chat-item .swipe-actions {
-            position: absolute; top: 0; right: 0; bottom: 0;
-            display: flex; align-items: stretch;
-            transform: translateX(100%); transition: transform 0.25s ease;
+        .chat-avatar {
+            width: 52px; height: 52px; border-radius: 50%; flex-shrink: 0;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-green));
+            display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 20px;
+            overflow: hidden;
         }
-        .chat-item.swiping .swipe-actions { transform: translateX(0); }
-        .swipe-action-btn {
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            gap: 4px; padding: 0 20px; border: none; color: white; font-size: 12px; font-weight: 600;
-            min-width: 72px;
+        .chat-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .chat-info { flex: 1; min-width: 0; }
+        .chat-name-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+        .chat-name { font-weight: 600; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-primary); }
+        .chat-time { font-size: 12px; color: var(--text-muted); flex-shrink: 0; }
+        .chat-preview { font-size: 14px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .unread-badge { background: var(--accent-blue); color: white; border-radius: 12px; padding: 2px 8px; font-size: 11px; font-weight: 600; margin-left: 8px; }
+
+        #chatView {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--bg-surface); z-index: 1000; display: none; flex-direction: column; overflow: hidden;
         }
-        .swipe-action-btn i { font-size: 20px; }
-        .swipe-action-btn.pin { background: var(--accent-blue); }
-        .swipe-action-btn.delete { background: var(--accent-red); }
-        .swipe-action-btn.mute { background: var(--accent-orange); }
-
-        /* ===== CHAT ITEM LONG-PRESS CONTEXT ===== */
-        .chat-item.pressed { background: var(--active-bg); transform: scale(0.97); }
-
-        /* ===== SCROLLBAR ===== */
-        .messages-container::-webkit-scrollbar,
-        .mobile-chat-list-container::-webkit-scrollbar { width: 0; height: 0; }
-
-        /* ===== KEYBOARD AWARE ===== */
-        .keyboard-open .chat-input-area {
+        #chatView .chat-header { flex-shrink: 0; padding: 8px 16px; border-bottom: 1px solid var(--border-color); }
+        #chatView .messages-container { flex: 1; overflow-y: auto; min-height: 0; padding: 16px; -webkit-overflow-scrolling: touch; }
+        #chatView .chat-input-area {
+            flex-shrink: 0; padding: 8px 16px; border-top: 1px solid var(--border-color); background: var(--bg-surface);
             padding-bottom: max(8px, env(safe-area-inset-bottom));
         }
 
-        /* ===== BOTTOM SHEET ===== */
-        .message-action-sheet {
-            will-change: transform;
+        .mobile-bottom-nav {
+            display: flex; justify-content: space-around; align-items: center;
+            background: var(--bg-secondary); border-top: 1px solid var(--border-color);
+            padding: 8px 0 env(safe-area-inset-bottom, 0); flex-shrink: 0; width: 100%; z-index: 90; min-height: 60px;
+            margin-bottom: 60px;
         }
-        .action-sheet-btn {
-            display: flex; align-items: center; gap: 16px; padding: 14px 8px;
-            background: none; border: none; font-size: 16px; color: var(--text-primary);
-            cursor: pointer; border-radius: 12px; width: 100%;
+        .bottom-nav-item {
+            display: flex; flex-direction: column; align-items: center; justify-content: center; text-decoration: none;
+            color: var(--text-muted); font-size: 0; padding: 8px 16px; border-radius: 30px; transition: all 0.2s;
         }
-        .action-sheet-btn:active { background: var(--active-bg); }
-        .action-sheet-btn i { width: 24px; text-align: center; font-size: 18px; color: var(--accent-blue); }
+        .bottom-nav-item.active { color: var(--accent-blue); background: var(--active-bg); }
+        .bottom-nav-item span:first-child { font-size: 24px; margin: 0; }
+        .bottom-nav-item span:last-child { display: none; }
 
-        /* ===== TOAST ===== */
-        .mobile-toast {
-            position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
-            background: var(--text-primary); color: var(--bg-primary);
-            padding: 12px 24px; border-radius: 30px; font-size: 14px; font-weight: 500;
-            z-index: 9999; white-space: nowrap;
-            animation: toast-in 0.3s ease;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-        }
-        .mobile-toast.hiding {
-            animation: toast-out 0.25s ease forwards;
-        }
-        @keyframes toast-in {
-            from { opacity: 0; transform: translateX(-50%) translateY(20px); }
-            to { opacity: 1; transform: translateX(-50%) translateY(0); }
-        }
-        @keyframes toast-out {
-            from { opacity: 1; transform: translateX(-50%) translateY(0); }
-            to { opacity: 0; transform: translateX(-50%) translateY(20px); }
-        }
+        #mobileBackBtn { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-primary); padding: 8px; margin-right: 8px; }
 
-        /* ===== CHAT VIEW ENHANCEMENTS ===== */
-        #chatView {
-            z-index: 100;
-        }
-        .chat-header-avatar {
-            transition: transform 0.2s ease;
-        }
-        .chat-header-avatar:active { transform: scale(0.92); }
-        .chat-header-name { font-weight: 600; font-size: 16px; }
-        .chat-header-status { font-size: 12px; }
+        .modal-overlay { z-index: 2000 !important; align-items: flex-end !important; padding-bottom: env(safe-area-inset-bottom, 0); }
+        .modal-container { width: 100% !important; max-width: 100% !important; margin: 0 !important; border-radius: 20px 20px 0 0 !important; max-height: 80vh !important; }
 
-        .send-btn {
-            transition: transform 0.15s ease;
-        }
-        .send-btn:active { transform: scale(0.85); }
-        .send-btn:disabled { opacity: 0.4; transform: none; }
+        .story-viewer-modal { /* same as premium */ }
+        .story-viewer { /* kept for desktop, but mobile will use modal viewer */ }
+        /* We use the same story viewer HTML as premium but inserted dynamically by JS; minimal styles here */
     </style>
 </head>
 <body>
     <!-- Header -->
     <div class="mobile-header">
         <h1>Kiselgram {% if is_premium %}<span class="premium-badge">PREMIUM</span>{% endif %}</h1>
-        <span class="mobile-header-search" id="mobileSearchIcon"><i class="fas fa-search"></i></span>
+        <span class="mobile-header-search" id="mobileSearchIcon">🔍</span>
     </div>
 
     <!-- Search bar -->
     <div class="global-search-container">
         <div class="global-search">
-            <i class="fas fa-search global-search-icon"></i>
+            <span class="global-search-icon">🔍</span>
             <input type="text" class="global-search-input" id="globalSearchInput" placeholder="Search..." autocomplete="off">
             <div class="search-results" id="searchResults"></div>
         </div>
@@ -295,9 +172,9 @@
                         </div>
                     </div>
                     <div class="chat-header-actions">
-                        <button class="header-action-btn" id="chatCustomizeBtn"><i class="fas fa-palette"></i></button>
-                        <button class="header-action-btn" onclick="showChatInfo()"><i class="fas fa-info-circle"></i></button>
-                        <button class="header-action-btn" onclick="showChatMenu()"><i class="fas fa-ellipsis-v"></i></button>
+                        <button class="header-action-btn" id="chatCustomizeBtn">🎨</button>
+                        <button class="header-action-btn" onclick="showChatInfo()">ℹ️</button>
+                        <button class="header-action-btn" onclick="showChatMenu()">⋮</button>
                     </div>
                 </div>
                 <div class="messages-container" id="messagesContainer"><div class="loading-spinner"></div></div>
@@ -307,12 +184,12 @@
                             <div class="reply-preview-name"></div>
                             <div class="reply-preview-text"></div>
                         </div>
-                        <button class="cancel-reply-btn" onclick="cancelReply()"><i class="fas fa-times"></i></button>
+                        <button class="cancel-reply-btn" onclick="cancelReply()">✕</button>
                     </div>
                     <div class="input-wrapper">
-                        <button class="attachment-btn" onclick="triggerFileUpload()"><i class="fas fa-paperclip"></i></button>
+                        <button class="attachment-btn" onclick="triggerFileUpload()">📎</button>
                         <textarea class="message-input" id="messageInput" placeholder="Type a message..." rows="1"></textarea>
-                        <button class="send-btn" id="sendBtn" disabled><i class="fas fa-paper-plane"></i></button>
+                        <button class="send-btn" id="sendBtn" disabled>➤</button>
                     </div>
                 </div>
             </div>
@@ -320,9 +197,9 @@
             <!-- Contacts view -->
             <div id="contactsView" class="panel-view">
                 <div class="panel-header">
-                    <button class="back-btn" id="contactsBackBtn"><i class="fas fa-arrow-left"></i></button>
+                    <button class="back-btn" id="contactsBackBtn">←</button>
                     <h2>Contacts</h2>
-                    <button class="header-action-btn" onclick="showAddContactModal()"><i class="fas fa-plus"></i></button>
+                    <button class="header-action-btn" onclick="showAddContactModal()">➕</button>
                 </div>
                 <div class="contacts-search">
                     <input type="text" class="search-input" id="contactSearchInput" placeholder="Search contacts...">
@@ -333,14 +210,14 @@
             <!-- Create Group view -->
             <div id="createGroupView" class="panel-view">
                 <div class="panel-header">
-                    <button class="back-btn" id="createGroupBackBtn"><i class="fas fa-arrow-left"></i></button>
+                    <button class="back-btn" id="createGroupBackBtn">←</button>
                     <h2>Create Group</h2>
                     <div></div>
                 </div>
                 <div class="create-form-content">
                     <div class="avatar-upload-section">
                         <div class="group-avatar-upload" onclick="triggerGroupAvatarUpload()">
-                            <div class="group-avatar-preview" id="groupAvatarPreview"><i class="fas fa-users"></i></div>
+                            <div class="group-avatar-preview" id="groupAvatarPreview">👥</div>
                             <input type="file" id="groupAvatarInput" accept="image/*" style="display:none" onchange="previewGroupAvatar(this)">
                         </div>
                     </div>
@@ -367,14 +244,14 @@
             <!-- Create Channel view -->
             <div id="createChannelView" class="panel-view">
                 <div class="panel-header">
-                    <button class="back-btn" id="createChannelBackBtn"><i class="fas fa-arrow-left"></i></button>
+                    <button class="back-btn" id="createChannelBackBtn">←</button>
                     <h2>Create Channel</h2>
                     <div></div>
                 </div>
                 <div class="create-form-content">
                     <div class="avatar-upload-section">
                         <div class="channel-avatar-upload" onclick="triggerChannelAvatarUpload()">
-                            <div class="channel-avatar-preview" id="channelAvatarPreview"><i class="fas fa-bullhorn"></i></div>
+                            <div class="channel-avatar-preview" id="channelAvatarPreview">📢</div>
                             <input type="file" id="channelAvatarInput" accept="image/*" style="display:none" onchange="previewChannelAvatar(this)">
                         </div>
                     </div>
@@ -395,10 +272,10 @@
 
         <!-- Bottom navigation -->
         <nav class="mobile-bottom-nav">
-            <a href="#" class="bottom-nav-item" data-view="contacts"><span><i class="fas fa-address-book"></i></span><span>Contacts</span></a>
-            <a href="#" class="bottom-nav-item active" data-view="chats"><span><i class="fas fa-comment"></i></span><span>Chats</span></a>
-            <a href="#" class="bottom-nav-item" data-view="search"><span><i class="fas fa-search"></i></span><span>Search</span></a>
-            <a href="#" class="bottom-nav-item" data-view="settings"><span><i class="fas fa-cog"></i></span><span>Settings</span></a>
+            <a href="#" class="bottom-nav-item" data-view="contacts"><span>👥</span><span>Contacts</span></a>
+            <a href="#" class="bottom-nav-item active" data-view="chats"><span>💬</span><span>Chats</span></a>
+            <a href="#" class="bottom-nav-item" data-view="search"><span>🔍</span><span>Search</span></a>
+            <a href="#" class="bottom-nav-item" data-view="settings"><span>⚙️</span><span>Settings</span></a>
         </nav>
     </div>
 
@@ -412,13 +289,13 @@
         <div class="modal-container profile-modal">
             <div class="modal-header">
                 <h3>Profile {% if is_premium %}<span class="premium-badge">PREMIUM</span>{% endif %}</h3>
-                <button class="modal-close" onclick="closeProfileModal()"><i class="fas fa-times"></i></button>
+                <button class="modal-close" onclick="closeProfileModal()">✕</button>
             </div>
             <div class="modal-body" style="padding:0;max-height:70vh;overflow-y:auto">
                 <div class="profile-header">
                     <div class="profile-avatar-container">
                         <div id="profileAvatar"></div>
-                        <button class="avatar-upload-btn" onclick="triggerAvatarUpload()"><span><i class="fas fa-camera"></i></span></button>
+                        <button class="avatar-upload-btn" onclick="triggerAvatarUpload()"><span>📷</span></button>
                         <input type="file" id="avatarInput" accept="image/*" style="display:none" onchange="uploadAvatar(this)">
                     </div>
                     <div class="profile-name" id="profileDisplayName"></div>
@@ -431,11 +308,11 @@
                 </div>
                 <div class="profile-section"><div class="profile-section-title">About</div><div class="profile-bio" id="profileBio">No bio yet</div></div>
                 <div class="profile-actions">
-                    <button class="profile-action-btn" onclick="closeProfileModal();openSettingsPanel()"><i class="fas fa-cog"></i><span>Settings</span></button>
+                    <button class="profile-action-btn" onclick="closeProfileModal();openSettingsPanel()"><span>⚙️</span><span>Settings</span></button>
                     {% if not is_premium %}
-                    <button class="profile-action-btn" onclick="window.location.href='{{ url_for('chats.premium_page') }}'"><span><i class="fas fa-crown"></i></span><span>Upgrade to Premium</span></button>
+                    <button class="profile-action-btn" onclick="window.location.href='/premium'"><span>👑</span><span>Upgrade to Premium</span></button>
                     {% endif %}
-                    <button class="profile-action-btn danger" onclick="logout()"><span><i class="fas fa-sign-out-alt"></i></span><span>Sign Out</span></button>
+                    <button class="profile-action-btn danger" onclick="logout()"><span>🚪</span><span>Sign Out</span></button>
                 </div>
             </div>
         </div>
@@ -444,7 +321,7 @@
     <!-- Edit Profile Modal -->
     <div id="editProfileModal" class="modal-overlay" style="display:none">
         <div class="modal-container">
-            <div class="modal-header"><h3>Edit Profile</h3><button class="modal-close" onclick="closeEditProfileModal()"><i class="fas fa-times"></i></button></div>
+            <div class="modal-header"><h3>Edit Profile</h3><button class="modal-close" onclick="closeEditProfileModal()">✕</button></div>
             <div class="modal-body">
                 <label class="modal-label">Display Name</label>
                 <input type="text" id="editDisplayName" class="modal-input" placeholder="Display name" maxlength="80">
@@ -464,14 +341,14 @@
 
     <!-- Settings Panel -->
     <div class="settings-panel" id="settingsPanel">
-        <div class="settings-header"><h2>Settings</h2><button class="settings-close" onclick="closeSettingsPanel()"><i class="fas fa-times"></i></button></div>
+        <div class="settings-header"><h2>Settings</h2><button class="settings-close" onclick="closeSettingsPanel()">✕</button></div>
         <div class="settings-content">
             <div class="settings-section">
                 <h3>Appearance</h3>
                 <div class="theme-options">
-                    <div class="theme-option active" onclick="setTheme('light')"><i class="fas fa-sun"></i><span>Light</span></div>
-                    <div class="theme-option" onclick="setTheme('dark')"><i class="fas fa-moon"></i><span>Dark</span></div>
-                    <div class="theme-option" onclick="setTheme('auto')"><i class="fas fa-sync"></i><span>Auto</span></div>
+                    <div class="theme-option active" onclick="setTheme('light')"><span>☀️</span>Light</div>
+                    <div class="theme-option" onclick="setTheme('dark')"><span>🌙</span>Dark</div>
+                    <div class="theme-option" onclick="setTheme('auto')"><span>🔄</span>Auto</div>
                 </div>
             </div>
             <div class="settings-section">
@@ -505,7 +382,7 @@
             {% if not is_premium %}
             <div class="settings-section">
                 <h3>Premium</h3>
-                <button class="upgrade-banner" style="width:100%" onclick="window.location.href='{{ url_for('chats.premium_page') }}'"><i class="fas fa-crown"></i> Upgrade to Premium <i class="fas fa-crown"></i></button>
+                <button class="upgrade-banner" style="width:100%" onclick="window.location.href='/premium'">👑 Upgrade to Premium 👑</button>
             </div>
             {% endif %}
         </div>
@@ -513,36 +390,315 @@
 
     <!-- Privacy Panel -->
     <div class="privacy-panel" id="privacyPanel">
-        <div class="privacy-header"><h2>Privacy</h2><button class="privacy-close" onclick="closePrivacyPanel()"><i class="fas fa-times"></i></button></div>
+        <div class="privacy-header"><h2>Privacy</h2><button class="privacy-close" onclick="closePrivacyPanel()">✕</button></div>
         <div class="privacy-content">
             <div class="settings-section"><h3>Profile Visibility</h3><select class="modal-input" id="profileVisibility"><option value="everyone">Everyone</option><option value="contacts">Contacts Only</option><option value="nobody">Nobody</option></select></div>
             <div class="modal-footer"><button class="modal-btn modal-btn-primary" onclick="savePrivacySettings()">Save</button></div>
         </div>
     </div>
 
-    <div id="modalRoot"></div>
-    <input type="file" id="fileInput" style="display:none" multiple>
-
-    <!-- File preview modal -->
-    <div class="modal-overlay" id="filePreviewModal" style="display:none">
-        <div class="modal-container" style="max-width: 600px;">
-            <div class="modal-header"><h3 id="previewTitle">File Preview</h3><button class="modal-close" onclick="this.closest('.modal-overlay').style.display='none'"><i class="fas fa-times"></i></button></div>
-            <div class="modal-body" id="previewBody"></div>
-            <div class="modal-footer">
-                <button class="modal-btn modal-btn-secondary" onclick="this.closest('.modal-overlay').style.display='none'">Cancel</button>
-                <button class="modal-btn modal-btn-primary" onclick="sendFilesWithPreview()">Send</button>
-            </div>
+    <!-- Upload Area -->
+    <div class="upload-area" id="uploadArea">
+        <div id="uploadFileName">No file selected</div>
+        <div class="upload-actions">
+            <button class="upload-btn" onclick="uploadFile()">Upload</button>
+            <button class="upload-btn cancel" onclick="cancelUpload()">Cancel</button>
         </div>
     </div>
+    <div id="modalRoot"></div>
+    <input type="file" id="fileInput" style="display:none" multiple onchange="handleFileSelect(this)">
 
-    <!-- Core JS -->
+    <!-- Core JS (prem.js or free.js, depending on user status) -->
     {% if is_premium %}
     <script src="{{ url_for('static', filename='js/prem.js') }}"></script>
     {% else %}
     <script src="{{ url_for('static', filename='js/free.js') }}"></script>
     {% endif %}
 
-    <!-- Mobile-specific initialization -->
-    <script src="{{ url_for('static', filename='js/mobile-spec.js') }}"></script>
+    <!-- Mobile-specific initialization (overrides desktop behaviors) -->
+    <script>
+        (function() {
+            console.log('📱 Mobile interface active');
+
+            var isChatOpen = false;
+
+            function adjustPanels() {
+                var navHeight = 60;
+                ['contactsView','createGroupView','createChannelView'].forEach(id => {
+                    var el = document.getElementById(id);
+                    if (el) el.style.bottom = navHeight + 'px';
+                });
+                var sp = document.getElementById('settingsPanel');
+                if (sp) sp.style.bottom = navHeight + 'px';
+                var pp = document.getElementById('privacyPanel');
+                if (pp) pp.style.bottom = navHeight + 'px';
+            }
+
+            function positionStories() {
+                var stories = document.getElementById('storiesRow');
+                var search = document.querySelector('.global-search-container');
+                if (stories && search) {
+                    search.insertAdjacentElement('afterend', stories);
+                }
+            }
+
+            var navItems = document.querySelectorAll('.bottom-nav-item');
+            window.setActiveTab = function(viewId) {
+                if (isChatOpen && viewId === 'chats') { return; }
+
+                navItems.forEach(item => item.classList.toggle('active', item.dataset.view === viewId));
+                ['contactsView','createGroupView','createChannelView','chatView'].forEach(id => {
+                    var el = document.getElementById(id);
+                    if (el) el.style.display = 'none';
+                });
+                var emptyChat = document.getElementById('emptyChat');
+                var contactsView = document.getElementById('contactsView');
+                var searchCont = document.querySelector('.global-search-container');
+                var storiesRow = document.getElementById('storiesRow');
+
+                if (viewId === 'contacts') {
+                    isChatOpen = false;
+                    if (contactsView) contactsView.style.display = 'flex';
+                    if (emptyChat) emptyChat.style.display = 'none';
+                    if (searchCont) searchCont.style.display = 'none';
+                    if (storiesRow) storiesRow.style.display = 'none';
+                } else if (viewId === 'chats') {
+                    isChatOpen = false;
+                    if (emptyChat) emptyChat.style.display = 'flex';
+                    if (contactsView) contactsView.style.display = 'none';
+                    if (searchCont) { searchCont.style.display = 'block'; searchCont.classList.remove('active'); }
+                    if (storiesRow) storiesRow.style.display = 'flex';
+                    if (typeof window.loadChatList === 'function') window.loadChatList();
+                } else if (viewId === 'settings') {
+                    if (typeof window.openSettingsPanel === 'function') window.openSettingsPanel();
+                } else if (viewId === 'search') {
+                    isChatOpen = false;
+                    if (emptyChat) emptyChat.style.display = 'flex';
+                    if (contactsView) contactsView.style.display = 'none';
+                    if (searchCont) { searchCont.style.display = 'block'; searchCont.classList.add('active'); }
+                    if (storiesRow) storiesRow.style.display = 'flex';
+                    document.getElementById('globalSearchInput')?.focus();
+                }
+                adjustPanels();
+            };
+
+            navItems.forEach(item => item.addEventListener('click', function(e) { e.preventDefault(); setActiveTab(this.dataset.view); }));
+            document.getElementById('mobileSearchIcon').addEventListener('click', function() {
+                var sc = document.querySelector('.global-search-container');
+                sc.classList.toggle('active');
+                if (sc.classList.contains('active')) document.getElementById('globalSearchInput').focus();
+            });
+            document.getElementById('contactsBackBtn').addEventListener('click', () => setActiveTab('chats'));
+            document.getElementById('createGroupBackBtn')?.addEventListener('click', () => setActiveTab('contacts'));
+            document.getElementById('createChannelBackBtn')?.addEventListener('click', () => setActiveTab('contacts'));
+
+            // Message action sheet (bottom sheet for reply/forward/react/delete)
+            var actionSheet = document.createElement('div');
+            actionSheet.id = 'messageActionSheet';
+            actionSheet.className = 'message-action-sheet';
+            actionSheet.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:var(--bg-surface);border-radius:20px 20px 0 0;padding:20px;z-index:3000;transform:translateY(100%);transition:transform 0.3s;box-shadow:0 -4px 12px rgba(0,0,0,0.1);';
+            actionSheet.innerHTML = `
+                <div style="display:flex;flex-direction:column;gap:16px;">
+                    <button class="action-sheet-btn" data-action="reply"><span>↩️</span> Reply</button>
+                    <button class="action-sheet-btn" data-action="forward"><span>↗️</span> Forward</button>
+                    <button class="action-sheet-btn" data-action="react"><span>😊</span> React</button>
+                    <button class="action-sheet-btn" data-action="copy"><span>📋</span> Copy</button>
+                    <button class="action-sheet-btn" data-action="delete" style="color:var(--accent-red);"><span>🗑️</span> Delete</button>
+                    <button class="action-sheet-btn" data-action="cancel" style="margin-top:8px;">Cancel</button>
+                </div>
+            `;
+            document.body.appendChild(actionSheet);
+            var actionSheetOverlay = document.createElement('div');
+            actionSheetOverlay.className = 'action-sheet-overlay';
+            actionSheetOverlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:2999;display:none;';
+            document.body.appendChild(actionSheetOverlay);
+
+            var currentMessageId = null;
+            var currentMessageContent = '';
+
+            function showActionSheet(messageId, content, isOwn) {
+                currentMessageId = messageId;
+                currentMessageContent = content;
+                var deleteBtn = actionSheet.querySelector('[data-action="delete"]');
+                deleteBtn.style.display = isOwn ? 'block' : 'none';
+                var reactBtn = actionSheet.querySelector('[data-action="react"]');
+                reactBtn.style.display = window.isPremium ? 'block' : 'none';
+                actionSheetOverlay.style.display = 'block';
+                actionSheet.style.transform = 'translateY(0)';
+            }
+
+            function hideActionSheet() {
+                actionSheet.style.transform = 'translateY(100%)';
+                actionSheetOverlay.style.display = 'none';
+                currentMessageId = null;
+            }
+
+            actionSheetOverlay.addEventListener('click', hideActionSheet);
+            actionSheet.addEventListener('click', function(e) {
+                var btn = e.target.closest('[data-action]');
+                if (!btn) return;
+                var action = btn.dataset.action;
+                if (action === 'cancel') { hideActionSheet(); return; }
+                if (!currentMessageId) return;
+                switch(action) {
+                    case 'reply': if (typeof window.setReply === 'function') window.setReply(currentMessageId); break;
+                    case 'forward': if (typeof window.showForwardModal === 'function') window.showForwardModal(currentMessageId); else alert('Forward not available'); break;
+                    case 'react': if (typeof window.showReactionPicker === 'function') window.showReactionPicker(currentMessageId); else alert('Reactions require Premium'); break;
+                    case 'copy': navigator.clipboard?.writeText(currentMessageContent).then(() => window.showToast?.('Copied!', 'success')); break;
+                    case 'delete': if (confirm('Delete message?') && typeof window.deleteMessage === 'function') window.deleteMessage(currentMessageId); break;
+                }
+                hideActionSheet();
+            });
+
+            function attachMessageMenu() {
+                var container = document.getElementById('messagesContainer');
+                if (!container) return;
+                container.addEventListener('contextmenu', e => e.preventDefault());
+                container.addEventListener('click', function(e) {
+                    var bubble = e.target.closest('.message-bubble');
+                    if (!bubble) return;
+                    var wrapper = bubble.closest('.message-wrapper');
+                    if (!wrapper) return;
+                    var msgId = wrapper.id.replace('msg-', '');
+                    var textEl = bubble.querySelector('.message-text');
+                    var content = textEl ? textEl.innerText : '';
+                    var isOwn = wrapper.classList.contains('outgoing');
+                    showActionSheet(msgId, content, isOwn);
+                });
+            }
+
+            // Override the original loadMessages to attach menu
+            var originalLoadMessages = window.loadMessages;
+            if (originalLoadMessages) {
+                window.loadMessages = async function(type, id) {
+                    try {
+                        await originalLoadMessages.call(this, type, id);
+                        attachMessageMenu();
+                    } catch (e) {
+                        console.error('Failed to load messages:', e);
+                        var container = document.getElementById('messagesContainer');
+                        if (container) {
+                            container.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><p>Failed to load messages</p><button class="modal-btn modal-btn-primary" onclick="window.loadMessages(\'' + type + '\',' + id + ')">Retry</button></div>';
+                        }
+                    }
+                };
+            }
+
+            var originalOpenChat = window.openChat;
+            window.openChat = async function(type, id) {
+                if (originalOpenChat) {
+                    try { await originalOpenChat.call(this, type, id); } catch (e) { console.error('openChat error:', e); }
+                }
+                document.getElementById('emptyChat').style.display = 'none';
+                document.getElementById('contactsView').style.display = 'none';
+                document.querySelector('.global-search-container').style.display = 'none';
+                document.getElementById('storiesRow').style.display = 'none';
+                document.getElementById('chatView').style.display = 'flex';
+                addBackButton();
+                attachMessageMenu();
+                isChatOpen = true;
+                navItems.forEach(item => item.classList.toggle('active', item.dataset.view === 'chats'));
+                adjustPanels();
+            };
+
+            var originalShowChats = window.showChatsView;
+            window.showChatsView = function() {
+                if (isChatOpen) { document.getElementById('chatView').style.display = 'none'; isChatOpen = false; }
+                if (originalShowChats) originalShowChats.call(this);
+                setActiveTab('chats');
+            };
+
+            var originalHideContacts = window.hideContactsView;
+            window.hideContactsView = function() {
+                if (originalHideContacts) originalHideContacts.call(this);
+                setActiveTab('chats');
+            };
+
+            function addBackButton() {
+                var left = document.querySelector('#chatView .chat-header-left');
+                if (left && !document.getElementById('mobileBackBtn')) {
+                    var btn = document.createElement('button');
+                    btn.id = 'mobileBackBtn';
+                    btn.innerHTML = '←';
+                    btn.onclick = function() { document.getElementById('chatView').style.display = 'none'; isChatOpen = false; setActiveTab('chats'); };
+                    left.prepend(btn);
+                }
+            }
+
+            function syncChatList() {
+                var real = document.getElementById('chatList');
+                var mobile = document.getElementById('mobileChatList');
+                if (real && mobile) {
+                    mobile.innerHTML = real.innerHTML;
+                    mobile.querySelectorAll('.chat-item').forEach(function(item) {
+                        var type = item.dataset.chatType;
+                        var id = item.dataset.chatId;
+                        if (type && id) item.onclick = () => window.openChat(type, parseInt(id));
+                    });
+                }
+            }
+
+            var origLoadChatList = window.loadChatList;
+            if (origLoadChatList) {
+                window.loadChatList = async function() {
+                    await origLoadChatList.apply(this, arguments);
+                    syncChatList();
+                };
+            }
+
+            var customizeBtn = document.getElementById('chatCustomizeBtn');
+            if (customizeBtn) {
+                customizeBtn.onclick = typeof window.openChatCustomization === 'function' ? window.openChatCustomization : () => window.showPremiumModal?.('wallpapers');
+            }
+
+            function addProfileButton() {
+                var content = document.querySelector('.settings-content');
+                if (content && !document.getElementById('mobileProfileBtn')) {
+                    var section = document.createElement('div');
+                    section.className = 'settings-section';
+                    section.innerHTML = '<h3>Account</h3><button id="mobileProfileBtn" class="profile-action-btn" style="width:100%;justify-content:center;"><span>👤</span><span>View / Edit Profile</span></button>';
+                    content.appendChild(section);
+                    document.getElementById('mobileProfileBtn').onclick = () => { window.openProfileModal?.(); window.closeSettingsPanel?.(); };
+                }
+            }
+
+            function addCreateButtons() {
+                var header = document.querySelector('#contactsView .panel-header');
+                if (header && !document.getElementById('mobileCreateGroupBtn')) {
+                    var div = document.createElement('div');
+                    div.style.display = 'flex'; div.style.gap = '8px';
+                    div.innerHTML = '<button id="mobileCreateGroupBtn" class="header-action-btn" title="Create Group">👥+</button><button id="mobileCreateChannelBtn" class="header-action-btn" title="Create Channel">📢+</button>';
+                    var existing = header.querySelector('.header-action-btn');
+                    if (existing) existing.insertAdjacentElement('afterend', div); else header.appendChild(div);
+                    document.getElementById('mobileCreateGroupBtn').onclick = () => window.showCreateGroupView?.();
+                    document.getElementById('mobileCreateChannelBtn').onclick = () => window.showCreateChannelView?.();
+                }
+            }
+
+            if (typeof window.openStoryViewer === 'function') {
+                var origOpen = window.openStoryViewer;
+                window.openStoryViewer = function(uid) {
+                    origOpen.call(this, uid);
+                    document.body.classList.add('story-viewer-open');
+                    document.querySelector('.mobile-bottom-nav').style.display = 'none';
+                };
+                var origClose = window.closeStoryViewer;
+                window.closeStoryViewer = function() {
+                    origClose.call(this);
+                    document.body.classList.remove('story-viewer-open');
+                    document.querySelector('.mobile-bottom-nav').style.display = 'flex';
+                };
+            }
+
+            positionStories(); adjustPanels(); addProfileButton(); addCreateButtons(); setActiveTab('chats');
+            setTimeout(syncChatList, 500); setTimeout(syncChatList, 1000); setTimeout(syncChatList, 2000);
+
+            new MutationObserver(function() {
+                if (document.getElementById('chatView')?.style.display === 'flex') { addBackButton(); attachMessageMenu(); }
+            }).observe(document.body, { childList: true, subtree: true });
+
+            window.togglePopoutMenu = window.closePopout = function() {};
+        })();
+    </script>
 </body>
 </html>

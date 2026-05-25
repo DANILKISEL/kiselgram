@@ -5,7 +5,7 @@
     </div>
     <div class="chat-avatar {{ chat.type }}">
         {% if chat.avatar_url %}
-            <img src="{{ chat.avatar_url }}" alt="{{ chat.name }}">
+            <img src="{{ chat.avatar_url }}" alt="">
         {% else %}
             <i class="fas {% if chat.type == 'personal' %}fa-user{% elif chat.type == 'group' %}fa-users{% else %}fa-bullhorn{% endif %}"></i>
         {% endif %}

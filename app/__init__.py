@@ -88,17 +88,15 @@ def create_app():
 
     # Register blueprints
     from app.routes import spa, premium, files
-    from app.routes.utils_api import utils_api_bp
     spa.register_spa_blueprints(app)
     app.register_blueprint(premium.premium_bp)
     app.register_blueprint(files.files_bp)
-    app.register_blueprint(utils_api_bp)
 
     # Register video blueprint if enabled
     if app.config.get('VIDEO_ENABLED', False):
         try:
-            from app.routes.video_integration import video_int_bp
-            app.register_blueprint(video_int_bp)
+            from app.routes import video
+            app.register_blueprint(video.video_bp)
         except ImportError:
             pass
 

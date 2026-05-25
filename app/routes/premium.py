@@ -7,7 +7,7 @@ import secrets
 from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for
 from app import db
-from app.models import User, UserPremium
+from app.models import User
 from app.utils.helpers import get_current_user_id, get_current_user
 import re
 import time
@@ -97,7 +97,7 @@ def generate_promo_code(duration_days=30, max_uses=1, created_by=None):
 def has_premium_feature(user_id, feature):
     """Check if user has access to a premium feature"""
     user = User.query.get(user_id)
-    if not user or not (user.premium.is_premium if user.premium else False):
+    if not user or not getattr(user, 'is_premium', False):
         return False
     return PREMIUM_FEATURES.get(feature, False)
 
@@ -118,8 +118,8 @@ def premium_page():
     if not user:
         return redirect(url_for('auth.login'))
 
-    is_premium = user.premium.is_premium if user.premium else False
-    premium_expires = user.premium.premium_expires_at if user.premium else None
+    is_premium = getattr(user, 'is_premium', False)
+    premium_expires = getattr(user, 'premium_expires_at', None)
 
     return render_template('premium/index.html',
                            user=user,
@@ -149,12 +149,12 @@ def api_check_premium(user_id):
         if not user:
             return jsonify({'success': False, 'error': 'User not found'}), 404
 
-        is_premium = user.premium.is_premium if user.premium else False
-        expires_at = user.premium.premium_expires_at if user.premium else None
+        is_premium = getattr(user, 'is_premium', False)
+        expires_at = getattr(user, 'premium_expires_at', None)
 
         # Check if premium has expired
         if is_premium and expires_at and datetime.utcnow() > expires_at:
-            user.premium.is_premium = False
+            user.is_premium = False
             db.session.commit()
             is_premium = False
             expires_at = None
@@ -177,7 +177,7 @@ def api_get_features():
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
 
     user = User.query.get(user_id)
-    is_premium = user.premium.is_premium if user.premium else False
+    is_premium = getattr(user, 'is_premium', False)
 
     return jsonify({
         'success': True,
@@ -253,26 +253,16 @@ def api_activate_premium():
                     save_premium_config(config)
 
         now = datetime.utcnow()
-        if not user.premium:
-            up = UserPremium(user_id=user.id, is_premium=True,
-                             premium_since=now,
-                             premium_expires_at=now + timedelta(days=duration_days),
-                             premium_plan=plan)
-            db.session.add(up)
-            db.session.flush()
-            premium = up
-        else:
-            user.premium.is_premium = True
-            user.premium.premium_since = now if not user.premium.premium_since else user.premium.premium_since
-            user.premium.premium_expires_at = now + timedelta(days=duration_days)
-            user.premium.premium_plan = plan
-            premium = user.premium
+        user.is_premium = True
+        user.premium_since = now if not user.premium_since else user.premium_since
+        user.premium_expires_at = now + timedelta(days=duration_days)
+        user.premium_plan = plan
         db.session.commit()
 
         return jsonify({
             'success': True,
             'message': f'Premium activated for {duration_days} days!',
-            'expires_at': premium.premium_expires_at.isoformat(),
+            'expires_at': user.premium_expires_at.isoformat(),
             'features': PREMIUM_FEATURES
         })
     except Exception as e:
@@ -292,8 +282,7 @@ def api_cancel_premium():
         if not user:
             return jsonify({'success': False, 'error': 'User not found'}), 404
 
-        if user.premium:
-            user.premium.premium_auto_renew = False
+        user.premium_auto_renew = False
         db.session.commit()
 
         return jsonify({'success': True, 'message': 'Premium auto-renewal cancelled'})
@@ -700,13 +689,6 @@ def api_delete_bot(bot_id):
     if not bot:
         return jsonify({'success': False, 'error': 'Bot not found'}), 404
 
-    # Remove bot from chat memberships first
-    from app.models import ChatMember, Message
-    ChatMember.query.filter_by(user_id=bot.id).delete()
-    Message.query.filter(
-        db.or_(Message.sender_id == bot.id, Message.receiver_id == bot.id)
-    ).delete()
-
     db.session.delete(bot)
     db.session.commit()
 
@@ -762,34 +744,17 @@ def bot_send_message(token):
         return jsonify({'success': False, 'error': 'Bot owner no longer has premium'}), 403
 
     data = request.get_json()
-    receiver_id = data.get('chat_id')
+    chat_id = data.get('chat_id')
     content = data.get('content', '').strip()
 
-    if not receiver_id or not content:
+    if not chat_id or not content:
         return jsonify({'success': False, 'error': 'chat_id and content required'}), 400
 
-    from app.models import Chat, ChatMember, Message
-
-    bot_chats = set(m.chat_id for m in ChatMember.query.filter_by(user_id=bot.id).all())
-    user_chats = set(m.chat_id for m in ChatMember.query.filter_by(user_id=receiver_id).all())
-    shared = bot_chats & user_chats
-    chat = Chat.query.filter(
-        Chat.id.in_(shared),
-        Chat.chat_type == 'personal'
-    ).first() if shared else None
-
-    if not chat:
-        chat = Chat(chat_type='personal')
-        db.session.add(chat)
-        db.session.flush()
-        db.session.add(ChatMember(chat_id=chat.id, user_id=bot.id, role='participant'))
-        db.session.add(ChatMember(chat_id=chat.id, user_id=receiver_id, role='participant'))
-        db.session.flush()
-
+    # Create message
+    from app.models import Message
     message = Message(
         sender_id=bot.id,
-        receiver_id=receiver_id,
-        chat_id=chat.id,
+        receiver_id=chat_id,
         content=content,
         timestamp=datetime.utcnow()
     )

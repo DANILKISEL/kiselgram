@@ -1,7 +1,7 @@
 import json, io
 from datetime import datetime
 from app import db
-from app.models import Message, Story, StoryView, StoryLike, StoryReaction, Contact, BlockedUser, User, Chat, ChatMember
+from app.models import Message, Story, StoryView, StoryLike, StoryReaction, Contact, BlockedUser, User, Group, GroupMember
 
 
 
@@ -126,11 +126,11 @@ class TestMessaging:
         assert len(data["messages"]) == 2
 
     def test_search_in_chat_group(self, logged_in_client, user, user2):
-        g = Chat(chat_type='group', name="SearchGroup", owner_id=user.id)
+        g = Group(name="SearchGroup", owner_id=user.id)
         db.session.add(g)
         db.session.commit()
-        db.session.add(ChatMember(user=user, chat=g, role="owner"))
-        db.session.add(ChatMember(user=user2, chat=g, role="member"))
+        db.session.add(GroupMember(user=user, group=g, role="owner"))
+        db.session.add(GroupMember(user=user2, group=g, role="member"))
         db.session.add(Message(content="hello world", sender_id=user.id, group_id=g.id, receiver_id=user.id, timestamp=datetime.utcnow()))
         db.session.add(Message(content="goodbye", sender_id=user2.id, group_id=g.id, receiver_id=user2.id, timestamp=datetime.utcnow()))
         db.session.commit()
@@ -150,14 +150,14 @@ class TestMessaging:
 
 
 class TestStories:
-    """Tests for /api/stories endpoints (premium-only)"""
+    """Tests for /api/stories endpoints"""
 
-    def test_create_story(self, logged_in_premium, premium_user):
+    def test_create_story(self, logged_in_client, user):
         data = {
             "media": (io.BytesIO(b"fake-image-data"), "test.jpg"),
             "caption": "My first story",
         }
-        resp = logged_in_premium.post("/api/stories/create", data=data,
+        resp = logged_in_client.post("/api/stories/create", data=data,
                                      content_type="multipart/form-data")
         assert resp.status_code == 200
         result = resp.get_json()
@@ -165,117 +165,111 @@ class TestStories:
         assert result["story"]["media_type"] == "image"
         assert result["story"]["caption"] == "My first story"
 
-    def test_create_story_no_media(self, logged_in_premium):
-        resp = logged_in_premium.post("/api/stories/create", data={})
+    def test_create_story_no_media(self, logged_in_client):
+        resp = logged_in_client.post("/api/stories/create", data={})
         assert resp.status_code == 400
         assert "No media" in resp.get_json()["error"]
 
-    def test_create_story_invalid_type(self, logged_in_premium):
+    def test_create_story_invalid_type(self, logged_in_client):
         data = {"media": (io.BytesIO(b"data"), "test.exe")}
-        resp = logged_in_premium.post("/api/stories/create", data=data,
+        resp = logged_in_client.post("/api/stories/create", data=data,
                                      content_type="multipart/form-data")
         assert resp.status_code == 400
 
-    def test_get_stories(self, logged_in_premium, premium_user, user2):
+    def test_get_stories(self, logged_in_client, user, user2):
+        # Create a story from user2
         s = Story(user_id=user2.id, media_path="stories/test.jpg", media_type="image")
         db.session.add(s)
         db.session.commit()
-        db.session.add(Message(content="hi", sender_id=user2.id, receiver_id=premium_user.id, timestamp=datetime.utcnow()))
+        # Send a message so user2 appears in visible users
+        db.session.add(Message(content="hi", sender_id=user2.id, receiver_id=user.id, timestamp=datetime.utcnow()))
         db.session.commit()
-        resp = logged_in_premium.get("/api/stories")
+        resp = logged_in_client.get("/api/stories")
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["success"] is True
         assert len(data["stories"]) >= 1
 
-    def test_view_story(self, logged_in_premium, premium_user, user2):
+    def test_view_story(self, logged_in_client, user, user2):
         s = Story(user_id=user2.id, media_path="s/view.jpg", media_type="image")
         db.session.add(s)
         db.session.commit()
-        resp = logged_in_premium.post(f"/api/stories/{s.id}/view")
+        resp = logged_in_client.post(f"/api/stories/{s.id}/view")
         assert resp.status_code == 200
-        view = StoryView.query.filter_by(story_id=s.id, viewer_id=premium_user.id).first()
+        view = StoryView.query.filter_by(story_id=s.id, viewer_id=user.id).first()
         assert view is not None
 
-    def test_like_story(self, logged_in_premium, premium_user, user2):
+    def test_like_story(self, logged_in_client, user, user2):
         s = Story(user_id=user2.id, media_path="s/like.jpg", media_type="image")
         db.session.add(s)
         db.session.commit()
-        resp = logged_in_premium.post(f"/api/stories/{s.id}/like")
+        resp = logged_in_client.post(f"/api/stories/{s.id}/like")
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["liked"] is True
         assert data["like_count"] == 1
-        resp = logged_in_premium.post(f"/api/stories/{s.id}/like")
+        # Toggle off
+        resp = logged_in_client.post(f"/api/stories/{s.id}/like")
         assert resp.get_json()["liked"] is False
 
-    def test_story_reaction(self, logged_in_premium, premium_user, user2):
+    def test_story_reaction(self, logged_in_client, user, user2):
         s = Story(user_id=user2.id, media_path="s/react.jpg", media_type="image")
         db.session.add(s)
         db.session.commit()
-        resp = logged_in_premium.post(f"/api/stories/{s.id}/reaction", json={"reaction": "❤️"})
+        resp = logged_in_client.post(f"/api/stories/{s.id}/reaction", json={"reaction": "❤️"})
         assert resp.status_code == 200
-        reaction = StoryReaction.query.filter_by(story_id=s.id, user_id=premium_user.id).first()
+        reaction = StoryReaction.query.filter_by(story_id=s.id, user_id=user.id).first()
         assert reaction is not None
         assert reaction.reaction == "❤️"
-        resp = logged_in_premium.post(f"/api/stories/{s.id}/reaction", json={"reaction": "X"})
+        # Invalid reaction
+        resp = logged_in_client.post(f"/api/stories/{s.id}/reaction", json={"reaction": "X"})
         assert resp.status_code == 400
 
-    def test_reply_to_story(self, logged_in_premium, premium_user, user2):
+    def test_reply_to_story(self, logged_in_client, user, user2):
         s = Story(user_id=user2.id, media_path="s/reply.jpg", media_type="image")
         db.session.add(s)
         db.session.commit()
-        resp = logged_in_premium.post(f"/api/stories/{s.id}/reply", json={"reply_text": "Nice!"})
+        resp = logged_in_client.post(f"/api/stories/{s.id}/reply", json={"reply_text": "Nice!"})
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["success"] is True
         assert data["chat_id"] == user2.id
-        msg = Message.query.filter_by(sender_id=premium_user.id, receiver_id=user2.id).first()
+        # Verify a message was created
+        msg = Message.query.filter_by(sender_id=user.id, receiver_id=user2.id).first()
         assert msg is not None
         assert "Nice!" in msg.content
 
-    def test_story_stats(self, logged_in_premium, premium_user):
-        s = Story(user_id=premium_user.id, media_path="s/stats.jpg", media_type="image")
+    def test_story_stats(self, logged_in_client, user):
+        s = Story(user_id=user.id, media_path="s/stats.jpg", media_type="image")
         db.session.add(s)
         db.session.commit()
-        resp = logged_in_premium.get(f"/api/stories/{s.id}/stats")
+        resp = logged_in_client.get(f"/api/stories/{s.id}/stats")
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["success"] is True
         assert "viewers" in data
 
-    def test_story_stats_not_owner(self, logged_in_premium, premium_user, user2):
+    def test_story_stats_not_owner(self, logged_in_client, user, user2):
         s = Story(user_id=user2.id, media_path="s/stats2.jpg", media_type="image")
         db.session.add(s)
         db.session.commit()
-        resp = logged_in_premium.get(f"/api/stories/{s.id}/stats")
+        resp = logged_in_client.get(f"/api/stories/{s.id}/stats")
         assert resp.status_code == 403
 
-    def test_delete_story(self, logged_in_premium, premium_user):
-        s = Story(user_id=premium_user.id, media_path="s/del.jpg", media_type="image")
+    def test_delete_story(self, logged_in_client, user):
+        s = Story(user_id=user.id, media_path="s/del.jpg", media_type="image")
         db.session.add(s)
         db.session.commit()
         sid = s.id
-        resp = logged_in_premium.delete(f"/api/stories/{s.id}")
+        resp = logged_in_client.delete(f"/api/stories/{s.id}")
         assert resp.status_code == 200
         assert db.session.get(Story, sid) is None
 
-    def test_delete_story_not_owner(self, logged_in_premium, premium_user, user2):
+    def test_delete_story_not_owner(self, logged_in_client, user, user2):
         s = Story(user_id=user2.id, media_path="s/del2.jpg", media_type="image")
         db.session.add(s)
         db.session.commit()
-        resp = logged_in_premium.delete(f"/api/stories/{s.id}")
-        assert resp.status_code == 403
-
-    def test_free_user_blocked_from_stories(self, logged_in_client, user, user2):
-        s = Story(user_id=user2.id, media_path="s/free.jpg", media_type="image")
-        db.session.add(s)
-        db.session.commit()
-        resp = logged_in_client.get("/api/stories")
-        assert resp.status_code == 403
-        resp = logged_in_client.post(f"/api/stories/{s.id}/view")
-        assert resp.status_code == 403
-        resp = logged_in_client.post(f"/api/stories/{s.id}/like")
+        resp = logged_in_client.delete(f"/api/stories/{s.id}")
         assert resp.status_code == 403
 
 
@@ -312,8 +306,9 @@ class TestContacts:
             "contact_id": user2.id, "name": "BFF",
         })
         assert resp.status_code == 200
-        c = Contact.query.filter_by(user_id=user.id, contact_id=user2.id).first()
-        assert c.custom_name == "BFF"
+        from app.models import ContactName
+        cn = ContactName.query.filter_by(user_id=user.id, contact_id=user2.id).first()
+        assert cn.name == "BFF"
 
     def test_block_user(self, logged_in_client, user, user2):
         resp = logged_in_client.post(f"/api/block_user/{user2.id}")
