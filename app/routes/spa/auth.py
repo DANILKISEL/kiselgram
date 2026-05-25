@@ -4,12 +4,12 @@ from flask_mail import Mail
 from flask_mail import Message as MailMessage
 import requests
 from app import db, oauth
-from app.models import User, Message, Chat, ChatMember, ChatSubscriber, BlockedUser, UserSession, Report, EmailVerification, PreloadedAvatar
+from app.models import User, Message, Channel, ChannelSubscriber, Group, GroupMember, BlockedUser, UserSession, Report, EmailVerification, PreloadedAvatar
 from app.utils.helpers import hash_password, get_current_user, get_current_user_id
 import re
 from datetime import datetime, timedelta
 import secrets
-from flask import make_response
+from flask import session, make_response
 
 spa_auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 

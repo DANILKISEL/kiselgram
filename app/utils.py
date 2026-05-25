@@ -70,7 +70,7 @@ def format_file_size(size_bytes):
 
     return f"{size_bytes:.1f} {size_names[i]}"
 
-def setup_bots(db, User, hash_password, secrets):
+def setup_bots(db, User, TelegramBot, hash_password, secrets):
     """Initialize bot users"""
     bots_data = [
         {'name': 'Weather Bot', 'username': 'weather_bot', 'description': 'Get weather information'},
@@ -83,4 +83,8 @@ def setup_bots(db, User, hash_password, secrets):
         if not User.query.filter_by(username=bot_data['username']).first():
             bot_user = User(username=bot_data['username'], password_hash=hash_password(secrets.token_hex(16)) if bot_data['username'] != "kiselgram_bot" else "kiselgramsupport")
             db.session.add(bot_user)
+        if not TelegramBot.query.filter_by(username=bot_data['username']).first():
+            telegram_bot = TelegramBot(**bot_data)
+            db.session.add(telegram_bot)
+
     db.session.commit()

@@ -4,7 +4,7 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify
 
 from app import db
-from app.models import User, Chat, ChatSubscriber, ChannelAdmin, Message, BlockedUser
+from app.models import User, Channel, ChannelSubscriber, ChannelAdmin, Message, BlockedUser
 from app.utils.helpers import get_current_user_id, get_current_user, message_to_dict
 
 spa_channels_bp = Blueprint('spa_channels', __name__, url_prefix='/api')
@@ -35,8 +35,7 @@ def create_channel():
         return jsonify({'success': False, 'error': 'Channel name must be at least 3 characters'}), 400
 
     invite_link = secrets.token_urlsafe(16)
-    new_chat = Chat(
-        chat_type='channel',
+    new_channel = Channel(
         name=name,
         description=description,
         owner_id=current_user_id,
@@ -44,7 +43,7 @@ def create_channel():
         invite_link=invite_link,
         created_at=datetime.utcnow()
     )
-    db.session.add(new_chat)
+    db.session.add(new_channel)
     db.session.flush()
 
     # Handle avatar upload (if any)
@@ -54,34 +53,34 @@ def create_channel():
             try:
                 from PIL import Image
                 ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'jpg'
-                filename = f"channel_{new_chat.id}_{secrets.token_urlsafe(8)}.{ext}"
+                filename = f"channel_{new_channel.id}_{secrets.token_urlsafe(8)}.{ext}"
                 upload_dir = os.path.join('uploads', 'channels')
                 os.makedirs(upload_dir, exist_ok=True)
                 file_path = os.path.join(upload_dir, filename)
                 img = Image.open(file)
                 img.thumbnail((200, 200))
                 img.save(file_path)
-                new_chat.avatar_url = f"/uploads/channels/{filename}"
+                new_channel.avatar_url = f"/uploads/channels/{filename}"
             except:
                 ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'jpg'
-                filename = f"channel_{new_chat.id}_{secrets.token_urlsafe(8)}.{ext}"
+                filename = f"channel_{new_channel.id}_{secrets.token_urlsafe(8)}.{ext}"
                 upload_dir = os.path.join('uploads', 'channels')
                 os.makedirs(upload_dir, exist_ok=True)
                 file_path = os.path.join(upload_dir, filename)
                 file.save(file_path)
-                new_chat.avatar_url = f"/uploads/channels/{filename}"
+                new_channel.avatar_url = f"/uploads/channels/{filename}"
 
     # Creator automatically subscribes
-    db.session.add(ChatSubscriber(user_id=current_user_id, chat_id=new_chat.id))
+    db.session.add(ChannelSubscriber(user_id=current_user_id, channel_id=new_channel.id))
     db.session.commit()
 
     return jsonify({
         'success': True,
         'channel': {
-            'id': new_chat.id,
-            'name': new_chat.name,
-            'avatar_url': new_chat.avatar_url,
-            'invite_link': new_chat.invite_link
+            'id': new_channel.id,
+            'name': new_channel.name,
+            'avatar_url': new_channel.avatar_url,
+            'invite_link': new_channel.invite_link
         }
     })
 
@@ -95,29 +94,36 @@ def get_channel(channel_id):
     if not current_user_id:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
 
-    chat = Chat.query.get(channel_id)
-    if not chat or chat.chat_type != 'channel':
+    channel = Channel.query.get(channel_id)
+    if not channel:
         return jsonify({'success': False, 'error': 'Channel not found'}), 404
 
-    subscription = ChatSubscriber.query.filter_by(user_id=current_user_id, chat_id=channel_id).first()
-    subscriber_count = ChatSubscriber.query.filter_by(chat_id=channel_id).count()
-    is_owner = chat.owner_id == current_user_id
+    subscription = ChannelSubscriber.query.filter_by(user_id=current_user_id, channel_id=channel_id).first()
+    if not subscription:
+        # If channel is public, still show basic info
+        pass
+    else:
+        # Subscribed – allow full info
+        pass
+
+    subscriber_count = ChannelSubscriber.query.filter_by(channel_id=channel_id).count()
+    is_owner = channel.owner_id == current_user_id
 
     return jsonify({
         'success': True,
         'channel': {
-            'id': chat.id,
-            'name': chat.name,
-            'description': chat.description,
-            'avatar_url': chat.avatar_url,
-            'is_public': chat.is_public,
-            'invite_link': chat.invite_link,
-            'owner_id': chat.owner_id,
+            'id': channel.id,
+            'name': channel.name,
+            'description': channel.description,
+            'avatar_url': channel.avatar_url,
+            'is_public': channel.is_public,
+            'invite_link': channel.invite_link,
+            'owner_id': channel.owner_id,
             'subscriber_count': subscriber_count,
         },
         'is_subscribed': subscription is not None,
         'is_owner': is_owner,
-        'can_post': is_owner or (subscription is not None)
+        'can_post': is_owner or (subscription is not None)  # owner can always post; subscribers can post if admin (to be refined later)
     })
 
 
@@ -130,20 +136,20 @@ def get_channel_messages(channel_id):
     if not current_user_id:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
 
-    subscription = ChatSubscriber.query.filter_by(user_id=current_user_id, chat_id=channel_id).first()
-    chat = Chat.query.get(channel_id)
-    if not subscription and (not chat or chat.owner_id != current_user_id):
+    subscription = ChannelSubscriber.query.filter_by(user_id=current_user_id, channel_id=channel_id).first()
+    channel = Channel.query.get(channel_id)
+    if not subscription and (not channel or channel.owner_id != current_user_id):
         return jsonify({'success': False, 'error': 'Not subscribed'}), 403
 
     after_id = request.args.get('after', 0, type=int)
     limit = request.args.get('limit', 50, type=int)
 
-    messages = Message.query.filter_by(chat_id=channel_id) \
+    messages = Message.query.filter_by(channel_id=channel_id) \
         .filter(Message.id > after_id) \
         .order_by(Message.timestamp.asc()) \
         .limit(limit).all()
 
-    from app.utils.helpers import message_to_dict
+    from app.routes.spa.chat import message_to_dict
     result = [message_to_dict(msg, current_user_id) for msg in messages]
     return jsonify({'success': True, 'messages': result})
 
@@ -168,24 +174,25 @@ def send_channel_message():
     if not channel_id or not content:
         return jsonify({'success': False, 'error': 'channel_id and content are required'}), 400
 
-    chat = Chat.query.get(int(channel_id))
-    if not chat or chat.chat_type != 'channel':
+    channel = Channel.query.get(int(channel_id))
+    if not channel:
         return jsonify({'success': False, 'error': 'Channel not found'}), 404
 
-    if chat.owner_id != current_user_id:
+    # For now, only owner can post
+    if channel.owner_id != current_user_id:
         return jsonify({'success': False, 'error': 'Only the owner can post'}), 403
 
     new_message = Message(
         sender_id=current_user_id,
-        chat_id=chat.id,
-        receiver_id=current_user_id,
+        channel_id=channel.id,
+        receiver_id=current_user_id,  # dummy
         content=content,
         timestamp=datetime.utcnow()
     )
     db.session.add(new_message)
     db.session.commit()
 
-    from app.utils.helpers import message_to_dict
+    from app.routes.spa.chat import message_to_dict
     return jsonify({'success': True, 'message': message_to_dict(new_message, current_user_id)})
 
 
@@ -196,11 +203,11 @@ def subscribe_channel(channel_id):
     if not current_user_id:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
 
-    existing = ChatSubscriber.query.filter_by(user_id=current_user_id, chat_id=channel_id).first()
+    existing = ChannelSubscriber.query.filter_by(user_id=current_user_id, channel_id=channel_id).first()
     if existing:
         return jsonify({'success': True, 'already_subscribed': True})
 
-    db.session.add(ChatSubscriber(user_id=current_user_id, chat_id=channel_id))
+    db.session.add(ChannelSubscriber(user_id=current_user_id, channel_id=channel_id))
     db.session.commit()
     return jsonify({'success': True, 'subscribed': True})
 
@@ -212,11 +219,11 @@ def unsubscribe_channel(channel_id):
     if not current_user_id:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
 
-    chat = Chat.query.get(channel_id)
-    if chat and chat.owner_id == current_user_id:
+    channel = Channel.query.get(channel_id)
+    if channel and channel.owner_id == current_user_id:
         return jsonify({'success': False, 'error': 'Owner cannot unsubscribe'}), 400
 
-    ChatSubscriber.query.filter_by(user_id=current_user_id, chat_id=channel_id).delete()
+    ChannelSubscriber.query.filter_by(user_id=current_user_id, channel_id=channel_id).delete()
     db.session.commit()
     return jsonify({'success': True, 'subscribed': False})
 
@@ -228,17 +235,17 @@ def update_channel(channel_id):
     if not current_user_id:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
 
-    chat = Chat.query.get(channel_id)
-    if not chat or chat.owner_id != current_user_id:
+    channel = Channel.query.get(channel_id)
+    if not channel or channel.owner_id != current_user_id:
         return jsonify({'success': False, 'error': 'Insufficient permissions'}), 403
 
     data = request.get_json() or {}
     if 'name' in data:
-        chat.name = data['name']
+        channel.name = data['name']
     if 'description' in data:
-        chat.description = data['description']
+        channel.description = data['description']
     if 'is_public' in data:
-        chat.is_public = data['is_public']
+        channel.is_public = data['is_public']
 
     db.session.commit()
     return jsonify({'success': True})
@@ -253,12 +260,13 @@ def get_channel_admins(channel_id):
     if not current_user_id:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
 
-    chat = Chat.query.get(channel_id)
-    if not chat or chat.chat_type != 'channel':
+    channel = Channel.query.get(channel_id)
+    if not channel:
         return jsonify({'success': False, 'error': 'Channel not found'}), 404
 
     admins = []
-    owner = User.query.get(chat.owner_id)
+    # Owner is always an admin
+    owner = User.query.get(channel.owner_id)
     if owner:
         admins.append({
             'user_id': owner.id,
@@ -270,7 +278,8 @@ def get_channel_admins(channel_id):
             'can_delete': True,
             'can_add_admins': True
         })
-    for ca in ChannelAdmin.query.filter_by(chat_id=channel_id).all():
+    # Other channel admins
+    for ca in ChannelAdmin.query.filter_by(channel_id=channel_id).all():
         user = User.query.get(ca.user_id)
         if user:
             admins.append({
@@ -294,8 +303,8 @@ def add_channel_admin(channel_id):
     if not current_user_id:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
 
-    chat = Chat.query.get(channel_id)
-    if not chat or chat.owner_id != current_user_id:
+    channel = Channel.query.get(channel_id)
+    if not channel or channel.owner_id != current_user_id:
         return jsonify({'success': False, 'error': 'Insufficient permissions'}), 403
 
     data = request.get_json() or {}
@@ -306,13 +315,13 @@ def add_channel_admin(channel_id):
     if user_id == current_user_id:
         return jsonify({'success': False, 'error': 'Owner is already an admin'}), 400
 
-    existing = ChannelAdmin.query.filter_by(chat_id=channel_id, user_id=user_id).first()
+    existing = ChannelAdmin.query.filter_by(channel_id=channel_id, user_id=user_id).first()
     if existing:
         return jsonify({'success': True, 'already_admin': True})
 
     permissions = data.get('permissions', {})
     admin = ChannelAdmin(
-        chat_id=channel_id,
+        channel_id=channel_id,
         user_id=user_id,
         can_post=permissions.get('can_post', True),
         can_edit=permissions.get('can_edit', False),
@@ -331,14 +340,14 @@ def remove_channel_admin(channel_id, user_id):
     if not current_user_id:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
 
-    chat = Chat.query.get(channel_id)
-    if not chat or chat.owner_id != current_user_id:
+    channel = Channel.query.get(channel_id)
+    if not channel or channel.owner_id != current_user_id:
         return jsonify({'success': False, 'error': 'Insufficient permissions'}), 403
 
-    if user_id == chat.owner_id:
+    if user_id == channel.owner_id:
         return jsonify({'success': False, 'error': 'Cannot remove owner'}), 400
 
-    admin = ChannelAdmin.query.filter_by(chat_id=channel_id, user_id=user_id).first()
+    admin = ChannelAdmin.query.filter_by(channel_id=channel_id, user_id=user_id).first()
     if not admin:
         return jsonify({'success': False, 'error': 'Admin not found'}), 404
 
@@ -354,13 +363,14 @@ def delete_channel(channel_id):
     if not current_user_id:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
 
-    chat = Chat.query.get(channel_id)
-    if not chat or chat.owner_id != current_user_id:
+    channel = Channel.query.get(channel_id)
+    if not channel or channel.owner_id != current_user_id:
         return jsonify({'success': False, 'error': 'Insufficient permissions'}), 403
 
-    Message.query.filter_by(chat_id=channel_id).delete()
-    ChatSubscriber.query.filter_by(chat_id=channel_id).delete()
-    db.session.delete(chat)
+    # Delete all related data (messages, subscribers, etc.) manually or via cascade
+    Message.query.filter_by(channel_id=channel_id).delete()
+    ChannelSubscriber.query.filter_by(channel_id=channel_id).delete()
+    db.session.delete(channel)
     db.session.commit()
 
     return jsonify({'success': True})

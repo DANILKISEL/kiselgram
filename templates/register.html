@@ -446,6 +446,7 @@
         // Update progress indicator
         function updateProgress() {
             const dots = document.querySelectorAll('.step-dot');
+            const fields = ['usernameInput', null, 'passwordInput'];
             let filled = 0;
             if (document.getElementById('usernameInput').value) filled++;
             if (document.querySelector('input[name="email"]').value) filled++;
@@ -462,9 +463,9 @@
         // Submit handler
         document.getElementById('registerForm').addEventListener('submit', function(e) {
             const password = this.querySelector('input[name="password"]').value;
-            const confirmVal = this.querySelector('input[name="confirm_password"]').value;
+            const confirm = this.querySelector('input[name="confirm_password"]').value;
 
-            if (password !== confirmVal) {
+            if (password !== confirm) {
                 e.preventDefault();
                 alert('Passwords do not match');
                 return;

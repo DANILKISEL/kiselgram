@@ -5,7 +5,7 @@ from flask import Blueprint, request, jsonify, render_template, url_for, redirec
 from datetime import datetime, timedelta
 from app import db
 from app.models import (
-    User, Message, Chat, ChatMember, ChatSubscriber,
+    User, Message, GroupMember, ChannelSubscriber,
 )
 from app.utils.helpers import get_current_user, get_current_user_id, format_file_size
 from app.utils.helpers import get_blocked_user_ids
@@ -21,7 +21,7 @@ def chat_list():
 
     current_user = get_current_user()
     current_user_id = current_user.id
-    is_premium = current_user.premium.is_premium if current_user.premium else False
+    is_premium = getattr(current_user, 'is_premium', False)
 
     chats_data = []
 
@@ -77,11 +77,11 @@ def chat_list():
             })
 
     # 2. Get groups the user is member of
-    user_groups = ChatMember.query.filter_by(user_id=current_user_id).all()
+    user_groups = GroupMember.query.filter_by(user_id=current_user_id).all()
     for membership in user_groups:
-        chat = Chat.query.get(membership.chat_id)
-        if chat:
-            last_message = Message.query.filter_by(chat_id=chat.id).order_by(Message.timestamp.desc()).first()
+        group = membership.group
+        if group:
+            last_message = Message.query.filter_by(group_id=group.id).order_by(Message.timestamp.desc()).first()
 
             timestamp = ''
             last_message_data = None
@@ -102,14 +102,14 @@ def chat_list():
                     'sender': {'username': last_message.sender.username}
                 }
 
-            member_count = ChatMember.query.filter_by(chat_id=chat.id).count()
+            member_count = GroupMember.query.filter_by(group_id=group.id).count()
 
             chats_data.append({
                 'type': 'group',
-                'id': chat.id,
-                'name': chat.name,
+                'id': group.id,
+                'name': group.name,
                 'avatar': '👥',
-                'avatar_url': getattr(chat, 'avatar_url', None),
+                'avatar_url': getattr(group, 'avatar_url', None),
                 'last_message': last_message_data,
                 'unread_count': 0,
                 'timestamp': timestamp,
@@ -118,11 +118,11 @@ def chat_list():
             })
 
     # 3. Get channels the user is subscribed to
-    user_channels = ChatSubscriber.query.filter_by(user_id=current_user_id).all()
+    user_channels = ChannelSubscriber.query.filter_by(user_id=current_user_id).all()
     for subscription in user_channels:
-        chat = Chat.query.get(subscription.chat_id)
-        if chat:
-            last_message = Message.query.filter_by(chat_id=chat.id).order_by(Message.timestamp.desc()).first()
+        channel = subscription.channel
+        if channel:
+            last_message = Message.query.filter_by(channel_id=channel.id).order_by(Message.timestamp.desc()).first()
 
             timestamp = ''
             last_message_data = None
@@ -143,19 +143,19 @@ def chat_list():
                     'sender': {'username': last_message.sender.username}
                 }
 
-            subscriber_count = ChatSubscriber.query.filter_by(chat_id=chat.id).count()
+            subscriber_count = ChannelSubscriber.query.filter_by(channel_id=channel.id).count()
 
             chats_data.append({
                 'type': 'channel',
-                'id': chat.id,
-                'name': chat.name,
+                'id': channel.id,
+                'name': channel.name,
                 'avatar': '📢',
-                'avatar_url': getattr(chat, 'avatar_url', None),
+                'avatar_url': getattr(channel, 'avatar_url', None),
                 'last_message': last_message_data,
                 'unread_count': 0,
                 'timestamp': timestamp,
                 'subscriber_count': subscriber_count,
-                'is_owner': chat.owner_id == current_user_id
+                'is_owner': channel.owner_id == current_user_id
             })
 
     # Sort by most recent message
@@ -195,7 +195,7 @@ def mobile():
             return redirect('/')
 
         current_user = get_current_user()
-        is_premium = current_user.premium.is_premium if current_user.premium else False
+        is_premium = getattr(current_user, 'is_premium', False)
         return render_template('mobile.html', is_premium=is_premium)
 
 
@@ -206,7 +206,7 @@ def kis_info():
     return render_template(
         'kis_info.html',
         current_user=current_user,
-        is_premium=current_user.premium.is_premium if current_user and current_user.premium else False
+        is_premium=getattr(current_user, 'is_premium', False) if current_user else False
     )
 
 
@@ -220,7 +220,7 @@ def premium_page():
     return render_template(
         'premium/index.html',
         current_user=current_user,
-        is_premium=current_user.premium.is_premium if current_user.premium else False
+        is_premium=getattr(current_user, 'is_premium', False)
     )
 
 
@@ -264,7 +264,7 @@ def user_profile(username):
         return render_template('errors/404.html'), 404
 
     current_user = get_current_user()
-    is_premium = current_user.premium.is_premium if current_user and current_user.premium else False
+    is_premium = getattr(current_user, 'is_premium', False) if current_user else False
 
     return render_template(
         'profile/public.html',
@@ -281,5 +281,5 @@ def inject_premium_status():
     """Inject premium status into all templates"""
     current_user = get_current_user()
     return {
-        'user_is_premium': current_user.premium.is_premium if current_user and current_user.premium else False
+        'user_is_premium': getattr(current_user, 'is_premium', False) if current_user else False
     }

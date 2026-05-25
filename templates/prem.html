@@ -15,8 +15,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz@14..32&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-
     <!-- Core CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/desktop.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile.css') }}">
@@ -223,28 +221,28 @@
                 <div class="menu-user-name" id="menuUserName">{{ current_user.display_name or current_user.username if current_user else 'Guest' }}</div>
                 <div class="menu-user-username" id="menuUserUsername">@{{ current_user.username if current_user else 'guest' }}</div>
             </div>
-            <div class="menu-user-arrow"><i class="fas fa-chevron-right"></i></div>
+            <div class="menu-user-arrow">›</div>
         </div>
 
         <div class="nav-list">
-            <a href="{{ url_for('chats.chat_list') }}" class="nav-item"><span><i class="fas fa-comment"></i></span><span>Chats</span></a>
-            <a href="#" class="nav-item" onclick="showContactsView(); return false;"><span><i class="fas fa-address-book"></i></span><span>Contacts</span></a>
-            <a href="#" class="nav-item" onclick="showCreateGroupView(); return false;"><span><i class="fas fa-user-plus"></i></span><span>Create Group</span></a>
-            <a href="#" class="nav-item" onclick="showCreateChannelView(); return false;"><span><i class="fas fa-bullhorn"></i></span><span>Create Channel</span></a>
+            <a href="{{ url_for('chats.chat_list') }}" class="nav-item"><span>💬</span><span>Chats</span></a>
+            <a href="#" class="nav-item" onclick="showContactsView(); return false;"><span>👥</span><span>Contacts</span></a>
+            <a href="#" class="nav-item" onclick="showCreateGroupView(); return false;"><span>👥</span><span>Create Group</span></a>
+            <a href="#" class="nav-item" onclick="showCreateChannelView(); return false;"><span>📢</span><span>Create Channel</span></a>
         </div>
 
         <div class="menu-divider"></div>
 
         <div class="nav-list">
-            <a href="#" class="nav-item" onclick="openSettingsPanel(); return false;"><i class="fas fa-cog"></i><span>Settings</span></a>
-            <a href="#" class="nav-item" onclick="openPrivacyPanel(); return false;"><span><i class="fas fa-lock"></i></span><span>Privacy</span></a>
-            <a href="#" class="nav-item" onclick="openChatCustomization(); return false;"><span><i class="fas fa-palette"></i></span><span>Chat Style</span></a>
-            <a href="{{ url_for('chats.kis_info') }}" class="nav-item"><i class="fas fa-info-circle"></i><span>About</span></a>
+            <a href="#" class="nav-item" onclick="openSettingsPanel(); return false;"><span>⚙️</span><span>Settings</span></a>
+            <a href="#" class="nav-item" onclick="openPrivacyPanel(); return false;"><span>🔒</span><span>Privacy</span></a>
+            <a href="#" class="nav-item" onclick="openChatCustomization(); return false;"><span>🎨</span><span>Chat Style</span></a>
+            <a href="{{ url_for('chats.kis_info') }}" class="nav-item"><span>ℹ️</span><span>About</span></a>
         </div>
 
         <div class="menu-footer-section">
-            <button class="logout-btn-sidebar" onclick="logout()"><span><i class="fas fa-sign-out-alt"></i></span><span>Sign Out</span></button>
-            <span><i class="fas fa-crown"></i> Kiselgram Premium v4.2.1</span>
+            <button class="logout-btn-sidebar" onclick="logout()"><span>🚪</span><span>Sign Out</span></button>
+            <span>✨ Kiselgram Premium v4.2.1</span>
         </div>
     </aside>
 
@@ -253,14 +251,14 @@
 
     <!-- Settings Panel -->
     <div class="settings-panel" id="settingsPanel">
-        <div class="settings-header"><h2>Settings</h2><button class="settings-close" onclick="closeSettingsPanel()"><i class="fas fa-times"></i></button></div>
+        <div class="settings-header"><h2>Settings</h2><button class="settings-close" onclick="closeSettingsPanel()">✕</button></div>
         <div class="settings-content">
             <div class="settings-section">
                 <h3>Appearance</h3>
                 <div class="theme-options">
-                    <div class="theme-option active" onclick="setTheme('light')"><i class="fas fa-sun"></i><span>Light</span></div>
-                    <div class="theme-option" onclick="setTheme('dark')"><i class="fas fa-moon"></i><span>Dark</span></div>
-                    <div class="theme-option" onclick="setTheme('auto')"><i class="fas fa-sync"></i><span>Auto</span></div>
+                    <div class="theme-option active" onclick="setTheme('light')"><span>☀️</span>Light</div>
+                    <div class="theme-option" onclick="setTheme('dark')"><span>🌙</span>Dark</div>
+                    <div class="theme-option" onclick="setTheme('auto')"><span>🔄</span>Auto</div>
                 </div>
             </div>
             <div class="settings-section">
@@ -284,7 +282,7 @@
 
     <!-- Privacy Panel -->
     <div class="privacy-panel" id="privacyPanel">
-        <div class="privacy-header"><h2>Privacy</h2><button class="privacy-close" onclick="closePrivacyPanel()"><i class="fas fa-times"></i></button></div>
+        <div class="privacy-header"><h2>Privacy</h2><button class="privacy-close" onclick="closePrivacyPanel()">✕</button></div>
         <div class="privacy-content">
             <div class="settings-section"><h3>Profile Visibility</h3><select class="modal-input" id="profileVisibility"><option value="everyone">Everyone</option><option value="contacts">Contacts Only</option><option value="nobody">Nobody</option></select></div>
             <div class="modal-footer"><button class="modal-btn modal-btn-primary" onclick="savePrivacySettings()">Save</button></div>
@@ -294,12 +292,12 @@
     <!-- Profile Modal -->
     <div id="profileModal" class="modal-overlay" style="display:none">
         <div class="modal-container profile-modal">
-            <div class="modal-header"><h3>Profile</h3><button class="modal-close" onclick="closeProfileModal()"><i class="fas fa-times"></i></button></div>
+            <div class="modal-header"><h3>Profile</h3><button class="modal-close" onclick="closeProfileModal()">✕</button></div>
             <div class="modal-body" style="padding:0;max-height:70vh;overflow-y:auto">
                 <div class="profile-header">
                     <div class="profile-avatar-container {% if current_user.is_premium %}premium-glow{% endif %}">
                         <div id="profileAvatar"></div>
-                        <button class="avatar-upload-btn" onclick="triggerAvatarUpload()"><span><i class="fas fa-camera"></i></span></button>
+                        <button class="avatar-upload-btn" onclick="triggerAvatarUpload()"><span>📷</span></button>
                         <input type="file" id="avatarInput" accept="image/*{% if current_user.is_premium %},video/*{% endif %}" style="display:none" onchange="uploadAvatar(this)">
                     </div>
                     <div class="profile-name" id="profileDisplayName"></div>
@@ -318,9 +316,9 @@
                     <div class="profile-info-item" onclick="openEditProfileModal()"><span class="profile-info-icon">📝</span><div class="profile-info-content"><div class="profile-info-label">Bio</div><div class="profile-info-value" id="profileBioValue"></div></div></div>
                 </div>
                 <div class="profile-actions">
-                    <button class="profile-action-btn" onclick="closeProfileModal(); openSettingsPanel();"><i class="fas fa-cog"></i><span>Settings</span></button>
-                    <button class="profile-action-btn" onclick="window.location.href='{{ url_for('chats.premium_page') }}'"><span><i class="fas fa-crown"></i></span><span>Premium Hub</span></button>
-                    <button class="profile-action-btn danger" onclick="logout()"><span><i class="fas fa-sign-out-alt"></i></span><span>Sign Out</span></button>
+                    <button class="profile-action-btn" onclick="closeProfileModal(); openSettingsPanel();"><span>⚙️</span><span>Settings</span></button>
+                    <button class="profile-action-btn" onclick="window.location.href='/premium'"><span>👑</span><span>Premium Hub</span></button>
+                    <button class="profile-action-btn danger" onclick="logout()"><span>🚪</span><span>Sign Out</span></button>
                 </div>
             </div>
         </div>
@@ -329,7 +327,7 @@
     <!-- Edit Profile Modal -->
     <div id="editProfileModal" class="modal-overlay" style="display:none">
         <div class="modal-container">
-            <div class="modal-header"><h3>Edit Profile</h3><button class="modal-close" onclick="closeEditProfileModal()"><i class="fas fa-times"></i></button></div>
+            <div class="modal-header"><h3>Edit Profile</h3><button class="modal-close" onclick="closeEditProfileModal()">✕</button></div>
             <div class="modal-body">
                 <label class="modal-label">Display Name</label>
                 <input type="text" id="editDisplayName" class="modal-input" placeholder="Display name" maxlength="80">
@@ -356,7 +354,7 @@
             </div>
             <div class="global-search-container">
                 <div class="global-search">
-                    <i class="fas fa-search global-search-icon"></i>
+                    <span class="global-search-icon">🔍</span>
                     <input type="text" class="global-search-input" id="globalSearchInput" placeholder="Search..." autocomplete="off">
                     <div class="search-results" id="searchResults"></div>
                 </div>
@@ -367,7 +365,7 @@
 
         <div class="chat-area" id="chatArea">
             <div class="empty-chat" id="emptyChat">
-                <div class="empty-chat-icon"><i class="fas fa-comment"></i></div>
+                <div class="empty-chat-icon">✨</div>
                 <h3>Welcome to Premium</h3>
                 <p>Select a chat</p>
                 <div class="mobile-chat-list-container mobile-only">
@@ -382,10 +380,10 @@
                         <div class="chat-header-info"><div class="chat-header-name" id="chatHeaderName"></div><div class="chat-header-status" id="chatHeaderStatus"></div></div>
                     </div>
                     <div class="chat-header-actions">
-                        <button class="header-action-btn" onclick="toggleChatSearch()" title="Search in chat"><i class="fas fa-search"></i></button>
-                        <button class="header-action-btn" onclick="openChatCustomization()"><i class="fas fa-palette"></i></button>
-                        <button class="header-action-btn" onclick="showChatInfo()"><i class="fas fa-info-circle"></i></button>
-                        <button class="header-action-btn" onclick="showChatMenu()"><i class="fas fa-ellipsis-v"></i></button>
+                        <button class="header-action-btn" onclick="toggleChatSearch()" title="Search in chat">🔍</button>
+                        <button class="header-action-btn" onclick="openChatCustomization()">🎨</button>
+                        <button class="header-action-btn" onclick="showChatInfo()">ℹ️</button>
+                        <button class="header-action-btn" onclick="showChatMenu()">⋮</button>
                     </div>
                 </div>
                 <!-- Chat search bar (Feature 9) -->
@@ -393,16 +391,16 @@
                     <input type="text" class="chat-search-input" placeholder="Search messages..." oninput="handleChatSearchInput()">
                     <span class="chat-search-count"></span>
                     <div class="chat-search-nav">
-                        <button onclick="chatSearchPrev()"><i class="fas fa-chevron-up"></i></button>
-                        <button onclick="chatSearchNext()"><i class="fas fa-chevron-down"></i></button>
+                        <button onclick="chatSearchPrev()">▲</button>
+                        <button onclick="chatSearchNext()">▼</button>
                     </div>
-                    <button class="chat-search-close" onclick="toggleChatSearch()"><i class="fas fa-times"></i></button>
+                    <button class="chat-search-close" onclick="toggleChatSearch()">✕</button>
                 </div>
                 <!-- Messages container with drag-drop overlay (Feature 8) -->
                 <div class="messages-container" id="messagesContainer" style="position:relative">
                     <div class="drop-overlay" id="dropOverlay">
                         <div class="drop-overlay-content">
-                            <i class="fas fa-folder-open"></i>
+                            <span>📁</span>
                             <p>Drop files here</p>
                         </div>
                     </div>
@@ -413,34 +411,34 @@
                     <span class="recording-indicator"></span>
                     <span class="voice-timer">0:00</span>
                     <div class="voice-waveform"></div>
-                    <button class="voice-cancel-btn" onclick="cancelRecording()"><i class="fas fa-times"></i></button>
-                    <button class="voice-send-btn" onclick="sendVoiceMessage()"><i class="fas fa-paper-plane"></i></button>
+                    <button class="voice-cancel-btn" onclick="cancelRecording()">✕</button>
+                    <button class="voice-send-btn" onclick="sendVoiceMessage()">➤</button>
                 </div>
                 <div class="chat-input-area">
-                    <div id="replyPreview" class="reply-preview" style="display:none"><div class="reply-preview-content"><div class="reply-preview-name"></div><div class="reply-preview-text"></div></div><button class="cancel-reply-btn" onclick="cancelReply()"><i class="fas fa-times"></i></button></div>
+                    <div id="replyPreview" class="reply-preview" style="display:none"><div class="reply-preview-content"><div class="reply-preview-name"></div><div class="reply-preview-text"></div></div><button class="cancel-reply-btn" onclick="cancelReply()">✕</button></div>
                     <div class="input-wrapper" style="position:relative">
                         <!-- Emoji picker (Feature 4) -->
                         <div class="emoji-picker"></div>
-                        <button class="attachment-btn" onclick="toggleEmojiPicker()" title="Emoji"><i class="fas fa-smile"></i></button>
-                        <button class="attachment-btn" onclick="toggleVoiceRecorder()" title="Voice"><i class="fas fa-microphone"></i></button>
-                        <button class="attachment-btn" onclick="triggerFileUpload()"><i class="fas fa-paperclip"></i></button>
+                        <button class="attachment-btn" onclick="toggleEmojiPicker()" title="Emoji">😊</button>
+                        <button class="attachment-btn" onclick="toggleVoiceRecorder()" title="Voice">🎤</button>
+                        <button class="attachment-btn" onclick="triggerFileUpload()">📎</button>
                         <textarea class="message-input" id="messageInput" placeholder="Type a message..." rows="1"></textarea>
-                        <button class="send-btn" id="sendBtn" disabled><i class="fas fa-paper-plane"></i></button>
+                        <button class="send-btn" id="sendBtn" disabled>➤</button>
                     </div>
                 </div>
             </div>
 
             <div id="contactsView" class="panel-view" style="display:none">
-                <div class="panel-header"><button class="back-btn" onclick="hideContactsView()"><i class="fas fa-arrow-left"></i></button><h2>Contacts</h2><button class="header-action-btn" onclick="showAddContactModal()"><i class="fas fa-plus"></i></button></div>
+                <div class="panel-header"><button class="back-btn" onclick="hideContactsView()">←</button><h2>Contacts</h2><button class="header-action-btn" onclick="showAddContactModal()">➕</button></div>
                 <div class="contacts-search"><input type="text" class="search-input" id="contactSearchInput" placeholder="Search contacts..."></div>
                 <div class="contacts-list" id="contactsList"></div>
             </div>
 
             <div id="createGroupView" class="panel-view" style="display:none">
-                <div class="panel-header"><button class="back-btn" onclick="hideCreateGroupView()"><i class="fas fa-arrow-left"></i></button><h2>Create Group</h2><div></div></div>
+                <div class="panel-header"><button class="back-btn" onclick="hideCreateGroupView()">←</button><h2>Create Group</h2><div></div></div>
                 <div class="create-form-content">
                     <div class="avatar-upload-section">
-                        <div class="group-avatar-upload" onclick="triggerGroupAvatarUpload()">                        <div class="group-avatar-preview" id="groupAvatarPreview"><i class="fas fa-users"></i></div><input type="file" id="groupAvatarInput" accept="image/*" style="display:none" onchange="previewGroupAvatar(this)"></div>
+                        <div class="group-avatar-upload" onclick="triggerGroupAvatarUpload()"><div class="group-avatar-preview" id="groupAvatarPreview">👥</div><input type="file" id="groupAvatarInput" accept="image/*" style="display:none" onchange="previewGroupAvatar(this)"></div>
                     </div>
                     <div class="form-group"><label>Group Name</label><input type="text" id="groupName" class="form-input" placeholder="Group name"></div>
                     <div class="form-group"><label>Description</label><textarea id="groupDescription" class="form-input" placeholder="Description" rows="3"></textarea></div>
@@ -450,10 +448,10 @@
             </div>
 
             <div id="createChannelView" class="panel-view" style="display:none">
-                <div class="panel-header"><button class="back-btn" onclick="hideCreateChannelView()"><i class="fas fa-arrow-left"></i></button><h2>Create Channel</h2><div></div></div>
+                <div class="panel-header"><button class="back-btn" onclick="hideCreateChannelView()">←</button><h2>Create Channel</h2><div></div></div>
                 <div class="create-form-content">
                     <div class="avatar-upload-section">
-                        <div class="channel-avatar-upload" onclick="triggerChannelAvatarUpload()">                        <div class="channel-avatar-preview" id="channelAvatarPreview"><i class="fas fa-bullhorn"></i></div><input type="file" id="channelAvatarInput" accept="image/*" style="display:none" onchange="previewChannelAvatar(this)"></div>
+                        <div class="channel-avatar-upload" onclick="triggerChannelAvatarUpload()"><div class="channel-avatar-preview" id="channelAvatarPreview">📢</div><input type="file" id="channelAvatarInput" accept="image/*" style="display:none" onchange="previewChannelAvatar(this)"></div>
                     </div>
                     <div class="form-group"><label>Channel Name</label><input type="text" id="channelName" class="form-input" placeholder="Channel name"></div>
                     <div class="form-group"><label>Description</label><textarea id="channelDescription" class="form-input" placeholder="Description" rows="3"></textarea></div>
@@ -475,20 +473,28 @@
 
     <!-- Mobile bottom nav & menu button -->
     <nav class="mobile-bottom-nav mobile-only">
-        <a href="#" class="bottom-nav-item" data-view="contacts"><i class="fas fa-address-book"></i><span>Contacts</span></a>
-        <a href="#" class="bottom-nav-item active" data-view="chats"><i class="fas fa-comment"></i><span>Chats</span></a>
-        <a href="#" class="bottom-nav-item" data-view="search"><i class="fas fa-search"></i><span>Search</span></a>
-        <a href="#" class="bottom-nav-item" data-view="settings"><i class="fas fa-cog"></i><span>Settings</span></a>
+        <a href="#" class="bottom-nav-item" data-view="contacts">👥<span>Contacts</span></a>
+        <a href="#" class="bottom-nav-item active" data-view="chats">💬<span>Chats</span></a>
+        <a href="#" class="bottom-nav-item" data-view="search">🔍<span>Search</span></a>
+        <a href="#" class="bottom-nav-item" data-view="settings">⚙️<span>Settings</span></a>
     </nav>
-    <button class="mobile-menu-btn" onclick="toggleMobileSidebar()"><i class="fas fa-bars"></i></button>
+    <button class="mobile-menu-btn" onclick="toggleMobileSidebar()">☰</button>
 
+    <!-- Upload area & file input -->
+    <div class="upload-area" id="uploadArea">
+        <div id="uploadFileName">No file selected</div>
+        <div class="upload-actions">
+            <button class="upload-btn" onclick="uploadFile()">Upload</button>
+            <button class="upload-btn cancel" onclick="cancelUpload()">Cancel</button>
+        </div>
+    </div>
     <div id="modalRoot"></div>
     <input type="file" id="fileInput" style="display:none" multiple onchange="handleFileSelect(this)">
 
     <!-- Hidden modal for file preview (used by JS) -->
     <div class="modal-overlay" id="filePreviewModal" style="display:none">
         <div class="modal-container" style="max-width: 600px;">
-            <div class="modal-header"><h3 id="previewTitle">File Preview</h3><button class="modal-close" onclick="this.closest('.modal-overlay').style.display='none'"><i class="fas fa-times"></i></button></div>
+            <div class="modal-header"><h3 id="previewTitle">File Preview</h3><button class="modal-close" onclick="this.closest('.modal-overlay').style.display='none'">✕</button></div>
             <div class="modal-body" id="previewBody"></div>
             <div class="modal-footer">
                 <button class="modal-btn modal-btn-secondary" onclick="this.closest('.modal-overlay').style.display='none'">Cancel</button>

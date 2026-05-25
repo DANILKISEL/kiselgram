@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kiselgram Video - Room {{ room_id }}</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="/static/css/video.css">
     <style>
         * {
@@ -201,21 +200,21 @@
     <div class="container">
         <div class="room-header">
             <div class="room-info">
-                <h1><i class="fas fa-video"></i> Room: {{ room_id }}</h1>
-                <span class="user-badge"><i class="fas fa-user"></i> {{ username }}</span>
+                <h1>🎥 Room: {{ room_id }}</h1>
+                <span class="user-badge">👤 {{ username }}</span>
             </div>
             <div>
-                <button onclick="copyRoomId()" class="btn-control"><i class="fas fa-copy"></i> Copy Room ID</button>
-                <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> Back to Kiselgram</a>
+                <button onclick="copyRoomId()" class="btn-control">📋 Copy Room ID</button>
+                <a href="http://localhost:5000/chat_list" class="back-link">← Back to Kiselgram</a>
             </div>
         </div>
 
         <div class="controls">
-            <button onclick="toggleVideo()" id="videoBtn" class="btn-control"><i class="fas fa-video"></i> Stop Video</button>
-            <button onclick="toggleAudio()" id="audioBtn" class="btn-control"><i class="fas fa-microphone"></i> Mute</button>
-            <button onclick="toggleScreenShare()" id="screenBtn" class="btn-control"><i class="fas fa-desktop"></i> Share Screen</button>
-            <button onclick="toggleAudioOnly()" id="audioOnlyBtn" class="btn-control"><i class="fas fa-volume-up"></i> Audio Only</button>
-            <button onclick="getParticipants()" id="participantsBtn" class="btn-control"><i class="fas fa-users"></i> Participants</button>
+            <button onclick="toggleVideo()" id="videoBtn" class="btn-control">📹 Stop Video</button>
+            <button onclick="toggleAudio()" id="audioBtn" class="btn-control">🎤 Mute</button>
+            <button onclick="toggleScreenShare()" id="screenBtn" class="btn-control">🖥️ Share Screen</button>
+            <button onclick="toggleAudioOnly()" id="audioOnlyBtn" class="btn-control">🔊 Audio Only</button>
+            <button onclick="getParticipants()" id="participantsBtn" class="btn-control">👥 Participants</button>
         </div>
 
         <div id="videoGrid" class="video-grid">
@@ -231,7 +230,7 @@
         const serverPort = {{ server_port }};
 
         // Connect to video server
-        const socket = io(`${window.location.protocol}//${window.location.hostname}:${serverPort}`);
+        const socket = io(`http://localhost:${serverPort}`);
 
         let localStream;
         let peers = {};
@@ -385,7 +384,7 @@
                 video.style.display = 'none';
                 const audioOnlyIndicator = document.createElement('div');
                 audioOnlyIndicator.className = 'audio-only-indicator';
-                audioOnlyIndicator.innerHTML = '<i class="fas fa-microphone"></i> Audio Only';
+                audioOnlyIndicator.textContent = '🎤 Audio Only';
                 videoContainer.appendChild(audioOnlyIndicator);
             }
 
@@ -457,7 +456,7 @@
                     if (!videoContainer.querySelector('.audio-only-indicator')) {
                         const indicator = document.createElement('div');
                         indicator.className = 'audio-only-indicator';
-                        indicator.innerHTML = '<i class="fas fa-microphone"></i> Audio Only';
+                        indicator.textContent = '🎤 Audio Only';
                         videoContainer.appendChild(indicator);
                     }
                 } else {
@@ -576,7 +575,7 @@
             if (videoTrack) {
                 videoEnabled = !videoEnabled;
                 videoTrack.enabled = videoEnabled;
-                document.getElementById('videoBtn').innerHTML = videoEnabled ? '<i class="fas fa-video"></i> Stop Video' : '<i class="fas fa-video-slash"></i> Start Video';
+                document.getElementById('videoBtn').textContent = videoEnabled ? '📹 Stop Video' : '📹 Start Video';
             }
         }
 
@@ -585,7 +584,7 @@
             if (audioTrack) {
                 audioEnabled = !audioEnabled;
                 audioTrack.enabled = audioEnabled;
-                document.getElementById('audioBtn').innerHTML = audioEnabled ? '<i class="fas fa-microphone"></i> Mute' : '<i class="fas fa-microphone-slash"></i> Unmute';
+                document.getElementById('audioBtn').textContent = audioEnabled ? '🎤 Mute' : '🎤 Unmute';
             }
         }
 
@@ -604,7 +603,7 @@
                         stopScreenShare();
                     };
 
-                    document.getElementById('screenBtn').innerHTML = '<i class="fas fa-desktop"></i> Stop Sharing';
+                    document.getElementById('screenBtn').textContent = '🖥️ Stop Sharing';
                 } catch (error) {
                     console.error('Screen share error:', error);
                 }
@@ -624,7 +623,7 @@
                     if (sender) sender.replaceTrack(videoTrack);
                 });
 
-                document.getElementById('screenBtn').innerHTML = '<i class="fas fa-desktop"></i> Share Screen';
+                document.getElementById('screenBtn').textContent = '🖥️ Share Screen';
             }
         }
 
@@ -632,7 +631,7 @@
             audioOnlyMode = !audioOnlyMode;
 
             const btn = document.getElementById('audioOnlyBtn');
-            btn.innerHTML = audioOnlyMode ? '<i class="fas fa-video"></i> Video Mode' : '<i class="fas fa-volume-up"></i> Audio Only';
+            btn.textContent = audioOnlyMode ? '🔊 Video Mode' : '🔊 Audio Only';
 
             socket.emit('toggle-audio-only', {
                 room: roomId,
@@ -656,7 +655,7 @@
                 if (!indicator) {
                     indicator = document.createElement('div');
                     indicator.className = 'audio-only-indicator';
-                    indicator.innerHTML = '<i class="fas fa-microphone"></i> Audio Only (You)';
+                    indicator.textContent = '🎤 Audio Only (You)';
                     localContainer.appendChild(indicator);
                 }
             } else {

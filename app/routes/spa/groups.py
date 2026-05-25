@@ -5,14 +5,14 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify, session
 
 from app import db
-from app.models import User, Chat, ChatMember, GroupPermission, Message, BlockedUser, File
+from app.models import User, Group, GroupMember, GroupPermission, Message, BlockedUser
 from app.utils.helpers import get_current_user_id, get_current_user, format_file_size, message_to_dict
 
 spa_groups_bp = Blueprint('spa_groups', __name__, url_prefix='/api')
 
 
 
-def create_group_permissions(chat_id):
+def create_group_permissions(group_id):
     """Insert default permissions for all roles in a new group."""
     roles_perms = {
         'owner': dict(can_send_messages=True, can_send_media=True, can_add_members=True,
@@ -23,13 +23,13 @@ def create_group_permissions(chat_id):
                         can_pin_messages=False, can_change_info=False, can_delete_messages=False, can_ban_users=False),
     }
     for role, perms in roles_perms.items():
-        db.session.add(GroupPermission(chat_id=chat_id, role=role, **perms))
+        db.session.add(GroupPermission(group_id=group_id, role=role, **perms))
     db.session.flush()
 
 
-def get_group_permissions(chat_id, role):
+def get_group_permissions(group_id, role):
     """Query group permissions from DB, with fallback to defaults."""
-    perms = GroupPermission.query.filter_by(chat_id=chat_id, role=role).first()
+    perms = GroupPermission.query.filter_by(group_id=group_id, role=role).first()
     if perms:
         return {
             'can_send_messages': perms.can_send_messages,
@@ -52,9 +52,9 @@ def get_group_permissions(chat_id, role):
     return default_perms
 
 
-def update_group_permissions_db(chat_id, role, **kwargs):
+def update_group_permissions_db(group_id, role, **kwargs):
     """Update or insert permissions for a role."""
-    perms = GroupPermission.query.filter_by(chat_id=chat_id, role=role).first()
+    perms = GroupPermission.query.filter_by(group_id=group_id, role=role).first()
     if perms:
         for key, value in kwargs.items():
             if hasattr(perms, key):
@@ -63,7 +63,7 @@ def update_group_permissions_db(chat_id, role, **kwargs):
         defaults = dict(can_send_messages=True, can_send_media=True, can_add_members=False,
                         can_pin_messages=False, can_change_info=False, can_delete_messages=False, can_ban_users=False)
         defaults.update(kwargs)
-        db.session.add(GroupPermission(chat_id=chat_id, role=role, **defaults))
+        db.session.add(GroupPermission(group_id=group_id, role=role, **defaults))
     db.session.commit()
 
 
@@ -99,8 +99,7 @@ def create_group():
         return jsonify({'success': False, 'error': 'Group name must be at least 3 characters'}), 400
 
     invite_link = secrets.token_urlsafe(16)
-    new_chat = Chat(
-        chat_type='group',
+    new_group = Group(
         name=name,
         description=description,
         owner_id=current_user_id,
@@ -108,7 +107,7 @@ def create_group():
         invite_link=invite_link,
         created_at=datetime.utcnow()
     )
-    db.session.add(new_chat)
+    db.session.add(new_group)
     db.session.flush()
 
     # Handle avatar upload (if any)
@@ -118,42 +117,43 @@ def create_group():
             try:
                 from PIL import Image
                 ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'jpg'
-                filename = f"group_{new_chat.id}_{secrets.token_urlsafe(8)}.{ext}"
+                filename = f"group_{new_group.id}_{secrets.token_urlsafe(8)}.{ext}"
                 upload_dir = os.path.join('uploads', 'groups')
                 os.makedirs(upload_dir, exist_ok=True)
                 file_path = os.path.join(upload_dir, filename)
                 img = Image.open(file)
                 img.thumbnail((200, 200))
                 img.save(file_path)
-                new_chat.avatar_url = f"/uploads/groups/{filename}"
+                new_group.avatar_url = f"/uploads/groups/{filename}"
             except:
+                # If no PIL, just save the file as is
                 ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'jpg'
-                filename = f"group_{new_chat.id}_{secrets.token_urlsafe(8)}.{ext}"
+                filename = f"group_{new_group.id}_{secrets.token_urlsafe(8)}.{ext}"
                 upload_dir = os.path.join('uploads', 'groups')
                 os.makedirs(upload_dir, exist_ok=True)
                 file_path = os.path.join(upload_dir, filename)
                 file.save(file_path)
-                new_chat.avatar_url = f"/uploads/groups/{filename}"
+                new_group.avatar_url = f"/uploads/groups/{filename}"
 
     # Add creator as owner
-    db.session.add(ChatMember(user_id=current_user_id, chat_id=new_chat.id, role='owner'))
+    db.session.add(GroupMember(user_id=current_user_id, group_id=new_group.id, role='owner'))
     # Add initial members
     for member_id in member_ids:
         if member_id != current_user_id:
-            db.session.add(ChatMember(user_id=member_id, chat_id=new_chat.id, role='member'))
+            db.session.add(GroupMember(user_id=member_id, group_id=new_group.id, role='member'))
 
-    # Create default permissions
-    create_group_permissions(new_chat.id)
+    # Create default permissions (if model exists)
+    create_group_permissions(new_group.id)
 
     db.session.commit()
 
     return jsonify({
         'success': True,
         'group': {
-            'id': new_chat.id,
-            'name': new_chat.name,
-            'avatar_url': new_chat.avatar_url,
-            'invite_link': new_chat.invite_link
+            'id': new_group.id,
+            'name': new_group.name,
+            'avatar_url': new_group.avatar_url,
+            'invite_link': new_group.invite_link
         }
     })
 
@@ -167,18 +167,18 @@ def get_group(group_id):
     if not current_user_id:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
 
-    chat = Chat.query.get(group_id)
-    if not chat or chat.chat_type != 'group':
+    group = Group.query.get(group_id)
+    if not group:
         return jsonify({'success': False, 'error': 'Group not found'}), 404
 
     # Check if user is a member (or if group is public)
-    membership = ChatMember.query.filter_by(user_id=current_user_id, chat_id=group_id).first()
-    if not membership and not chat.is_public:
+    membership = GroupMember.query.filter_by(user_id=current_user_id, group_id=group_id).first()
+    if not membership and not group.is_public:
         return jsonify({'success': False, 'error': 'You are not a member of this private group'}), 403
 
     # Build member list
     members = []
-    for m in ChatMember.query.filter_by(chat_id=group_id).all():
+    for m in GroupMember.query.filter_by(group_id=group_id).all():
         user = User.query.get(m.user_id)
         if user:
             members.append({
@@ -198,13 +198,13 @@ def get_group(group_id):
     return jsonify({
         'success': True,
         'group': {
-            'id': chat.id,
-            'name': chat.name,
-            'description': chat.description,
-            'avatar_url': chat.avatar_url,
-            'is_public': chat.is_public,
-            'invite_link': chat.invite_link,
-            'owner_id': chat.owner_id,
+            'id': group.id,
+            'name': group.name,
+            'description': group.description,
+            'avatar_url': group.avatar_url,
+            'is_public': group.is_public,
+            'invite_link': group.invite_link,
+            'owner_id': group.owner_id,
             'member_count': len(members),
         },
         'members': members,
@@ -222,19 +222,19 @@ def get_group_messages(group_id):
     if not current_user_id:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
 
-    membership = ChatMember.query.filter_by(user_id=current_user_id, chat_id=group_id).first()
+    membership = GroupMember.query.filter_by(user_id=current_user_id, group_id=group_id).first()
     if not membership:
         return jsonify({'success': False, 'error': 'Not a member'}), 403
 
     after_id = request.args.get('after', 0, type=int)
     limit = request.args.get('limit', 50, type=int)
 
-    messages = Message.query.filter_by(chat_id=group_id) \
+    messages = Message.query.filter_by(group_id=group_id) \
         .filter(Message.id > after_id) \
         .order_by(Message.timestamp.asc()) \
         .limit(limit).all()
 
-    from app.utils.helpers import message_to_dict
+    from app.routes.spa.chat import message_to_dict   # reuse converter from chat.py
     result = [message_to_dict(msg, current_user_id) for msg in messages]
     return jsonify({'success': True, 'messages': result})
 
@@ -267,14 +267,14 @@ def send_group_message():
     group_id = int(group_id)
 
     # Verify membership
-    membership = ChatMember.query.filter_by(user_id=current_user_id, chat_id=group_id).first()
+    membership = GroupMember.query.filter_by(user_id=current_user_id, group_id=group_id).first()
     if not membership:
         return jsonify({'success': False, 'error': 'Not a member'}), 403
 
     # Create the base message
     new_message = Message(
         sender_id=current_user_id,
-        chat_id=group_id,
+        group_id=group_id,
         receiver_id=current_user_id,  # dummy
         content=content,
         timestamp=datetime.utcnow()
@@ -285,32 +285,17 @@ def send_group_message():
         if file and file.filename:
             file_ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
             file_type = get_file_type_from_ext(file_ext)
-            dir_map = {'image': 'images', 'video': 'media', 'audio': 'media', 'document': 'documents'}
-            upload_subdir = dir_map.get(file_type, 'documents')
             unique_name = f"{secrets.token_urlsafe(16)}.{file_ext}"
-            upload_dir = os.path.join('uploads', upload_subdir)
+            upload_dir = os.path.join('uploads', file_type + 's')  # images, videos, etc.
             os.makedirs(upload_dir, exist_ok=True)
             file_path = os.path.join(upload_dir, unique_name)
             file.save(file_path)
             file_size = os.path.getsize(file_path)
-
-            new_file = File(
-                file_type=file_type,
-                file_name=file.filename,
-                file_path=os.path.relpath(file_path, 'uploads'),
-                file_size=file_size,
-                preview_size='big' if file_type == 'image' else 'medium' if file_type in ('video',) else 'none',
-                uploader_id=current_user_id,
-            )
-            db.session.add(new_file)
-            db.session.flush()
-
             new_message.has_attachment = True
             new_message.file_type = file_type
             new_message.file_path = os.path.relpath(file_path, 'uploads')
             new_message.file_name = file.filename
             new_message.file_size = file_size
-            new_message.file_id = new_file.id
             break  # only one file per message? For simplicity, use the first file.
 
     db.session.add(new_message)
@@ -326,7 +311,7 @@ def send_group_message():
 
     db.session.commit()
 
-    from app.utils.helpers import message_to_dict
+    from app.routes.spa.chat import message_to_dict
     return jsonify({'success': True, 'message': message_to_dict(new_message, current_user_id)})
 
 
@@ -337,19 +322,22 @@ def leave_group(group_id):
     if not current_user_id:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
 
-    membership = ChatMember.query.filter_by(user_id=current_user_id, chat_id=group_id).first()
+    membership = GroupMember.query.filter_by(user_id=current_user_id, group_id=group_id).first()
     if not membership:
         return jsonify({'success': False, 'error': 'Not a member'}), 400
 
     if membership.role == 'owner':
-        other_admin = ChatMember.query.filter(ChatMember.chat_id == group_id,
-                                               ChatMember.user_id != current_user_id,
-                                               ChatMember.role == 'admin').first()
+        # Transfer ownership to another admin, or delete the group
+        other_admin = GroupMember.query.filter(GroupMember.group_id == group_id,
+                                               GroupMember.user_id != current_user_id,
+                                               GroupMember.role == 'admin').first()
         if other_admin:
             other_admin.role = 'owner'
             db.session.delete(membership)
         else:
-            Chat.query.filter_by(id=group_id, chat_type='group').delete()
+            # No admin – delete the group
+            Group.query.filter_by(id=group_id).delete()
+            # Cascade will delete members and messages
     else:
         db.session.delete(membership)
 
@@ -364,17 +352,17 @@ def join_group(invite_link):
     if not current_user_id:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
 
-    chat = Chat.query.filter_by(chat_type='group', invite_link=invite_link).first()
-    if not chat:
+    group = Group.query.filter_by(invite_link=invite_link).first()
+    if not group:
         return jsonify({'success': False, 'error': 'Group not found'}), 404
 
-    existing = ChatMember.query.filter_by(user_id=current_user_id, chat_id=chat.id).first()
+    existing = GroupMember.query.filter_by(user_id=current_user_id, group_id=group.id).first()
     if existing:
-        return jsonify({'success': True, 'already_member': True, 'group_id': chat.id})
+        return jsonify({'success': True, 'already_member': True, 'group_id': group.id})
 
-    db.session.add(ChatMember(user_id=current_user_id, chat_id=chat.id, role='member'))
+    db.session.add(GroupMember(user_id=current_user_id, group_id=group.id, role='member'))
     db.session.commit()
-    return jsonify({'success': True, 'group_id': chat.id})
+    return jsonify({'success': True, 'group_id': group.id})
 
 
 # ==================== GROUP MANAGEMENT (owner/admin) ====================
@@ -386,21 +374,21 @@ def update_group(group_id):
     if not current_user_id:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
 
-    membership = ChatMember.query.filter_by(user_id=current_user_id, chat_id=group_id).first()
+    membership = GroupMember.query.filter_by(user_id=current_user_id, group_id=group_id).first()
     if not membership or membership.role not in ('owner', 'admin'):
         return jsonify({'success': False, 'error': 'Insufficient permissions'}), 403
 
-    chat = Chat.query.get(group_id)
-    if not chat or chat.chat_type != 'group':
+    group = Group.query.get(group_id)
+    if not group:
         return jsonify({'success': False, 'error': 'Group not found'}), 404
 
     data = request.get_json() or {}
     if 'name' in data:
-        chat.name = data['name']
+        group.name = data['name']
     if 'description' in data:
-        chat.description = data['description']
+        group.description = data['description']
     if 'is_public' in data:
-        chat.is_public = data['is_public']
+        group.is_public = data['is_public']
 
     db.session.commit()
     return jsonify({'success': True})
@@ -413,11 +401,11 @@ def update_member_role(group_id, user_id):
     if not current_user_id:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
 
-    membership = ChatMember.query.filter_by(user_id=current_user_id, chat_id=group_id).first()
+    membership = GroupMember.query.filter_by(user_id=current_user_id, group_id=group_id).first()
     if not membership or membership.role not in ('owner', 'admin'):
         return jsonify({'success': False, 'error': 'Insufficient permissions'}), 403
 
-    target_membership = ChatMember.query.filter_by(user_id=user_id, chat_id=group_id).first()
+    target_membership = GroupMember.query.filter_by(user_id=user_id, group_id=group_id).first()
     if not target_membership:
         return jsonify({'success': False, 'error': 'Member not found'}), 404
 
@@ -441,11 +429,11 @@ def remove_member(group_id, user_id):
     if not current_user_id:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
 
-    membership = ChatMember.query.filter_by(user_id=current_user_id, chat_id=group_id).first()
+    membership = GroupMember.query.filter_by(user_id=current_user_id, group_id=group_id).first()
     if not membership or membership.role not in ('owner', 'admin'):
         return jsonify({'success': False, 'error': 'Insufficient permissions'}), 403
 
-    target = ChatMember.query.filter_by(user_id=user_id, chat_id=group_id).first()
+    target = GroupMember.query.filter_by(user_id=user_id, group_id=group_id).first()
     if not target:
         return jsonify({'success': False, 'error': 'Member not found'}), 404
 
@@ -466,10 +454,11 @@ def get_permissions(group_id):
     if not current_user_id:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
 
-    membership = ChatMember.query.filter_by(user_id=current_user_id, chat_id=group_id).first()
+    membership = GroupMember.query.filter_by(user_id=current_user_id, group_id=group_id).first()
     if not membership or membership.role != 'owner':
         return jsonify({'success': False, 'error': 'Only the owner can view permissions'}), 403
 
+    # Return permissions for all roles (stub)
     roles = ['owner', 'admin', 'member']
     perms = {}
     for role in roles:
@@ -485,7 +474,7 @@ def update_permissions(group_id):
     if not current_user_id:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
 
-    membership = ChatMember.query.filter_by(user_id=current_user_id, chat_id=group_id).first()
+    membership = GroupMember.query.filter_by(user_id=current_user_id, group_id=group_id).first()
     if not membership or membership.role != 'owner':
         return jsonify({'success': False, 'error': 'Only the owner can change permissions'}), 403
 

@@ -178,7 +178,7 @@ class TestCompleteRegistration:
         updated = User.query.get(user.id)
         assert updated.username == "testuser_final"
         assert updated.display_name == "Test User Final"
-        assert "avatar1.jpg" in updated.avatar_url
+        assert updated.avatar_url == "avatar1.jpg"
 
     def test_complete_registration_short_username(self, client, user):
         with client.session_transaction() as sess:

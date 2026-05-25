@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from app import db
-from app.models import Message, Reaction, Reply, Forward, User, BlockedUser, Chat
+from app.models import Message, Reaction, Reply, Forward, User, BlockedUser
 from app.utils.helpers import get_current_user_id, message_to_dict
 from datetime import datetime
 import time
@@ -67,14 +67,7 @@ def send_personal_message():
             return jsonify({'success': False, 'error': 'User not found'}), 404
         if BlockedUser.query.filter_by(user_id=receiver_id, blocked_user_id=current_user_id).first():
             return jsonify({'success': False, 'error': 'You are blocked'}), 403
-        # Find or create personal chat (uses user1_id/user2_id, NOT ChatMember)
-        a, b = sorted([current_user_id, receiver_id])
-        chat = Chat.query.filter_by(chat_type='personal', user1_id=a, user2_id=b).first()
-        if not chat:
-            chat = Chat(chat_type='personal', user1_id=a, user2_id=b)
-            db.session.add(chat)
-            db.session.flush()
-        new_message = Message(content=content, sender_id=current_user_id, receiver_id=receiver_id, chat_id=chat.id, timestamp=datetime.utcnow())
+        new_message = Message(content=content, sender_id=current_user_id, receiver_id=receiver_id, timestamp=datetime.utcnow())
         db.session.add(new_message)
         db.session.flush()
         if reply_to_id:
@@ -214,10 +207,10 @@ def forward_message():
     if target_type == 'personal':
         new_msg.receiver_id = int(target_id)
     elif target_type == 'group':
-        new_msg.chat_id = int(target_id)
+        new_msg.group_id = int(target_id)
         new_msg.receiver_id = user_id
     elif target_type == 'channel':
-        new_msg.chat_id = int(target_id)
+        new_msg.channel_id = int(target_id)
         new_msg.receiver_id = user_id
     else:
         return jsonify({'success': False, 'error': 'Invalid target type'}), 400
@@ -247,15 +240,9 @@ def forward_message():
             'reactions': {}
         }
         if msg.has_attachment:
-            file = msg.file
-            d['file_type'] = file.file_type if file else msg.file_type
-            d['file_name'] = file.file_name if file else msg.file_name
-            d['file_url'] = f"/uploads/{file.file_path if file else msg.file_path}" if (file or msg.file_path) else None
-            d['preview_size'] = file.preview_size if file else (
-                'big' if msg.file_type == 'image'
-                else 'medium' if msg.file_type in ('video',)
-                else 'none'
-            )
+            d['file_type'] = msg.file_type
+            d['file_name'] = msg.file_name
+            d['file_url'] = f"/uploads/{msg.file_path}" if msg.file_path else None
         return d
 
     return jsonify({'success': True, 'message': message_to_dict(new_msg, user_id)})
@@ -279,9 +266,9 @@ def clear_chat():
     if chat_id:
         filters.append(Message.chat_id == int(chat_id))
     if group_id:
-        filters.append(Message.chat_id == int(group_id))
+        filters.append(Message.group_id == int(group_id))
     if channel_id:
-        filters.append(Message.chat_id == int(channel_id))
+        filters.append(Message.channel_id == int(channel_id))
 
     Message.query.filter(*filters).update({'is_deleted': True})
     db.session.commit()

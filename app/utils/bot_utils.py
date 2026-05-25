@@ -13,7 +13,7 @@ def setup_bots():
     """Initialize bot users"""
     # Import inside function
     from app import db
-    from app.models import User
+    from app.models import TelegramBot, User
 
     bots_data = [
         {'name': 'Weather Bot', 'username': 'weather_bot', 'description': 'Get weather information'},
@@ -30,6 +30,10 @@ def setup_bots():
                                                                           'username'] != "kiselgram_bot" else "kiselgramsupport"
             )
             db.session.add(bot_user)
+        if not TelegramBot.query.filter_by(username=bot_data['username']).first():
+            telegram_bot = TelegramBot(**bot_data)
+            db.session.add(telegram_bot)
+
     db.session.commit()
 
 
@@ -40,13 +44,17 @@ def simulate_bot_interaction(app):
             # Use the provided app context
             with app.app_context():
                 from app import db
-                from app.models import User, Message
+                from app.models import TelegramBot, User, Message
 
-                bots = User.query.filter_by(is_bot=True).all()
+                bots = TelegramBot.query.filter_by(is_active=True).all()
 
                 for bot in bots:
+                    bot_user = User.query.filter_by(username=bot.username).first()
+                    if not bot_user:
+                        continue
+
                     unread_messages = Message.query.filter_by(
-                        receiver_id=bot.id,
+                        receiver_id=bot_user.id,
                         is_read=False
                     ).all()
 
@@ -70,7 +78,7 @@ def simulate_bot_interaction(app):
 
                         bot_response = Message(
                             content=response,
-                            sender_id=bot.id,
+                            sender_id=bot_user.id,
                             receiver_id=message.sender_id,
                             is_from_telegram=True
                         )

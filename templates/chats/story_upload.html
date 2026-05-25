@@ -11,9 +11,9 @@
             <!-- Clickable upload area -->
             <div class="story-upload-area" onclick="document.getElementById('storyFileInput').click()">
                 <div class="upload-placeholder" id="storyMediaPreview">
-                    <i class="fas fa-cloud-upload-alt" style="font-size: 48px; color: var(--accent-orange);"></i>
+                    <i class="fas fa-cloud-upload-alt" style="font-size: 48px; color: var(--primary-color);"></i>
                     <p>Click to upload image or video</p>
-                    <small style="color: #999;">JPG, PNG, GIF, MP4, MOV</small>
+                    <small style="color: var(--text-muted);">JPG, PNG, GIF, MP4, MOV</small>
                 </div>
                 <input type="file" id="storyFileInput" accept="image/*,video/*" style="display: none;"
                        onchange="previewStoryMedia(this)">
@@ -29,7 +29,7 @@
             </div>
             <button class="modal-btn modal-btn-primary"
                     onclick="uploadStory()"
-                    style="width: 100%; margin-top: 16px; background: linear-gradient(135deg, #fb6340, #2dce89);">
+                    style="width: 100%; margin-top: 16px; background: var(--primary-gradient);">
                 <i class="fas fa-paper-plane"></i> Post Story
             </button>
         </div>

@@ -448,7 +448,7 @@ def init_database():
 if __name__ == '__main__':
     init_database()
     print("\\n🚀 Kiselgram is running!")
-    print(f"🌐 Access at: http://{'localhost' if host == '0.0.0.0' else host}:{port}")
+    print(f"🌐 Access at: http://'localhost' if '{host}' == '0.0.0.0' else '{host}':{port}")
     print("📝 Press Ctrl+C to stop\\n")
     app.run(host='{host}', port={port}, debug={debug})
 '''

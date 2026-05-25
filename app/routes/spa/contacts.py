@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from app import db
-from app.models import User, BlockedUser, Contact
+from app.models import User, BlockedUser, Contact, ContactName
 from app.utils.helpers import get_current_user_id, get_current_user
 
 spa_contacts_bp = Blueprint('spa_contacts', __name__, url_prefix='/api')
@@ -27,13 +27,18 @@ def get_contacts():
     if not current_user_id:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
 
-    contacts_rel = Contact.query.filter_by(user_id=current_user_id).all()
+    # Get contacts with custom names
+    rows = db.session.query(Contact, ContactName).join(
+        ContactName,
+        (Contact.user_id == ContactName.user_id) & (Contact.contact_id == ContactName.contact_id),
+        isouter=True
+    ).filter(Contact.user_id == current_user_id).all()
 
     contacts = []
-    for contact_rel in contacts_rel:
+    for contact_rel, name_rel in rows:
         user = User.query.get(contact_rel.contact_id)
         if user and not user.is_deleted:
-            contacts.append(user_to_contact_dict(user, custom_name=contact_rel.custom_name))
+            contacts.append(user_to_contact_dict(user, custom_name=name_rel.name if name_rel else None))
 
     return jsonify({'success': True, 'contacts': contacts})
 
@@ -86,10 +91,17 @@ def rename_contact():
     if not contact:
         return jsonify({'success': False, 'error': 'Contact not found'}), 404
 
+    # Upsert custom name
+    custom = ContactName.query.filter_by(user_id=current_user_id, contact_id=contact_id).first()
     if name:
-        contact.custom_name = name
+        if custom:
+            custom.name = name
+        else:
+            db.session.add(ContactName(user_id=current_user_id, contact_id=contact_id, name=name))
     else:
-        contact.custom_name = None
+        # Empty name → remove custom name
+        if custom:
+            db.session.delete(custom)
 
     db.session.commit()
     return jsonify({'success': True})
