@@ -518,10 +518,7 @@ os.chdir(project_root)
 sys.path.insert(0, project_root)
 
 try:
-    from video_server.app import app as video_app
-    from flask_socketio import SocketIO
-
-    socketio = SocketIO(video_app, cors_allowed_origins="*")
+    from video_server.app import app as video_app, socketio
 
     if __name__ == '__main__':
         print("\\n🎥 Video Server is running!")

@@ -14,17 +14,37 @@ def hash_password(password):
 
 
 def get_current_user():
-    from flask import session
-    from app.models import User
+    from flask import session, request
+    from app.models import User, UserSession
+
     user_id = session.get('user_id')
     if user_id:
         return User.query.get(user_id)
+
+    auth = request.headers.get('Authorization', '')
+    if auth.startswith('Bearer '):
+        token = auth[7:]
+        us = UserSession.query.filter_by(session_token=token, is_active=True).first()
+        if us:
+            return User.query.get(us.user_id)
     return None
 
 
 def get_current_user_id():
-    from flask import session
-    return session.get('user_id')
+    from flask import session, request
+    from app.models import UserSession
+
+    user_id = session.get('user_id')
+    if user_id:
+        return user_id
+
+    auth = request.headers.get('Authorization', '')
+    if auth.startswith('Bearer '):
+        token = auth[7:]
+        us = UserSession.query.filter_by(session_token=token, is_active=True).first()
+        if us:
+            return us.user_id
+    return None
 
 
 def generate_invite_link():

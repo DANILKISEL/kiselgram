@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes"><title>Call</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#000;color:#fff;overflow:hidden;height:100dvh}
+.call-overlay{position:fixed;inset:0;background:#111;display:flex;align-items:center;justify-content:center}
+.remote-wrap{position:absolute;inset:0;display:none;background:#111}
+.remote-wrap.show{display:block}
+.remote-wrap video{width:100%;height:100%;object-fit:cover}
+.self-wrap{position:absolute;bottom:100px;right:16px;width:120px;height:160px;border-radius:12px;overflow:hidden;z-index:10;border:2px solid rgba(255,255,255,.3);background:#1a1a2e;transition:all .3s;display:none}
+.self-wrap video{width:100%;height:100%;object-fit:cover;display:block}
+.self-wrap.pip{display:block}
+.self-badge{position:absolute;top:6px;left:6px;background:rgba(220,53,69,.85);border-radius:50%;width:24px;height:24px;display:none;align-items:center;justify-content:center;font-size:.7rem}
+.start-overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:15;background:linear-gradient(135deg,#0f0c29,#302b63,#24243e)}
+.start-avatar{width:96px;height:96px;border-radius:50%;background:#667eea;display:flex;align-items:center;justify-content:center;font-size:2.5rem;font-weight:700;animation:pulse 2s ease-in-out infinite}
+.start-name{font-size:1.4rem;font-weight:600}
+.start-btn{margin-top:12px;padding:16px 40px;border:none;border-radius:30px;background:#28a745;color:#fff;font-size:1.1rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:10px;transition:all .2s;box-shadow:0 4px 20px rgba(40,167,69,.4)}
+.start-btn:hover{background:#218838;transform:scale(1.03)}
+.start-btn:disabled{opacity:.6;transform:none;cursor:default}
+.call-status{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;z-index:5;background:rgba(0,0,0,.5)}
+.status-avatar{width:80px;height:80px;border-radius:50%;background:#667eea;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:700;animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(102,126,234,.5)}50%{box-shadow:0 0 0 20px rgba(102,126,234,0)}}
+.status-name{font-size:1.3rem;font-weight:600}
+.status-text{font-size:.9rem;color:rgba(255,255,255,.5)}
+.call-timer{position:absolute;top:16px;left:50%;transform:translateX(-50%);font-size:1.1rem;font-weight:600;letter-spacing:1px;background:rgba(0,0,0,.5);padding:6px 18px;border-radius:20px;z-index:20;display:none;backdrop-filter:blur(8px)}
+.call-timer.show{display:block}
+.call-controls{position:absolute;bottom:max(36px,env(safe-area-inset-bottom,36px));left:0;right:0;display:none;align-items:center;justify-content:center;gap:16px;z-index:20;padding:0 16px}
+.call-controls.show{display:flex}
+.ctrl-btn{width:52px;height:52px;border-radius:50%;border:none;background:rgba(255,255,255,.12);color:#fff;cursor:pointer;transition:all .2s;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:1.2rem;backdrop-filter:blur(8px);position:relative}
+.ctrl-btn span{font-size:.55rem;position:absolute;bottom:-16px;white-space:nowrap;color:rgba(255,255,255,.5)}
+.ctrl-btn:hover{background:rgba(255,255,255,.2)}
+.ctrl-btn.off{background:rgba(220,53,69,.7)}
+.ctrl-end{width:60px;height:60px;background:#dc3545;font-size:1.4rem}
+.ctrl-end:hover{background:#c82333;transform:scale(1.05)}
+.ended-overlay{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;z-index:30;background:rgba(0,0,0,.85)}
+.ended-overlay.show{display:flex}
+.ended-icon{width:64px;height:64px;border-radius:50%;background:rgba(220,53,69,.2);display:flex;align-items:center;justify-content:center;font-size:1.5rem;color:#dc3545;margin-bottom:8px}
+.ended-text{font-size:1.3rem;font-weight:600}
+.ended-duration{font-size:.9rem;color:rgba(255,255,255,.5);margin-bottom:16px}
+.back-btn{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;padding:12px 28px;border-radius:30px;cursor:pointer;font-weight:600;transition:all .2s}
+.back-btn:hover{background:rgba(255,255,255,.2)}
+.chat-panel{position:fixed;right:-320px;top:0;bottom:0;width:300px;background:rgba(15,12,41,.98);border-left:1px solid rgba(255,255,255,.1);transition:right .3s;z-index:100;display:flex;flex-direction:column}
+.chat-panel.open{right:0}
+.chat-header{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.1);font-weight:600}
+.chat-header button{background:none;border:none;color:#fff;font-size:1.2rem;cursor:pointer}
+.chat-body{flex:1;overflow-y:auto;padding:16px 20px}
+.chat-msg{margin-bottom:14px}
+.chat-sender{font-size:.8rem;color:#667eea;font-weight:600}
+.chat-text{font-size:.9rem;margin-top:2px;word-break:break-word}
+.chat-foot{display:flex;gap:8px;padding:12px 16px;border-top:1px solid rgba(255,255,255,.1)}
+.chat-foot input{flex:1;padding:10px 14px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:10px;color:#fff;outline:none;font-size:.9rem}
+.chat-foot button{background:#667eea;border:none;color:#fff;width:40px;border-radius:10px;cursor:pointer}
+.error-card{position:fixed;inset:0;background:linear-gradient(135deg,#0f0c29,#302b63,#24243e);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;text-align:center}
+.error-card .icon{font-size:56px;margin-bottom:16px}
+.error-card h2{font-size:1.6rem;margin-bottom:8px}
+.error-card p{color:rgba(255,255,255,.5);margin-bottom:24px;max-width:320px;line-height:1.5}
+.error-card .btn{width:auto;padding:12px 28px;border-radius:30px}
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#28a745;color:#fff;padding:10px 22px;border-radius:50px;font-size:.9rem;z-index:9999;animation:sd .3s}
+.toast.error{background:#dc3545}
+@keyframes sd{from{opacity:0;transform:translateX(-50%) translateY(-20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+@media(max-width:480px){
+.self-wrap{width:80px;height:110px;bottom:80px;right:8px;border-radius:10px}
+.ctrl-btn{width:44px;height:44px;font-size:.95rem}
+.ctrl-btn span{font-size:.5rem;bottom:-14px}
+.ctrl-end{width:52px;height:52px}
+.call-controls{gap:8px;padding:0 8px}
+.chat-panel{width:100%;right:-100%}
+.start-avatar{width:80px;height:80px;font-size:2rem}
+.start-btn{padding:14px 32px;font-size:1rem}
+.status-avatar{width:68px;height:68px;font-size:1.6rem}
+}
+@media(max-height:420px){
+.self-wrap{width:70px;height:90px;bottom:70px;right:8px}
+.ctrl-btn{width:38px;height:38px;font-size:.8rem}
+.ctrl-end{width:44px;height:44px}
+.call-controls{gap:6px;bottom:12px}
+.call-timer{font-size:.9rem;top:8px;padding:4px 14px}
+}
+</style>
+</head>
+<body>
+{% if error %}
+<div class="error-card">
+  {% if error == 'not_found' %}
+  <div class="icon"><i class="fas fa-times-circle" style="color:#dc3545"></i></div>
+  <h2>Room Not Found</h2>
+  <p>The room <strong>{{ room_id }}</strong> doesn't exist or has already been closed.</p>
+  {% elif error == 'room_full' %}
+  <div class="icon"><i class="fas fa-exclamation-triangle" style="color:#ffc107"></i></div>
+  <h2>Room is Full</h2>
+  <p>This room has reached its maximum capacity of <strong>{{ max_participants }}</strong> participants.</p>
+  {% elif error == 'unauthorised' %}
+  <div class="icon"><i class="fas fa-lock" style="color:#dc3545"></i></div>
+  <h2>Access Denied</h2>
+  <p>You are not authorised to join this call.</p>
+  {% endif %}
+  <a href="/join" class="btn btn-primary"><i class="fas fa-arrow-left"></i> Back</a>
+</div>
+{% else %}
+<div id="co" class="call-overlay">
+  <div class="remote-wrap" id="rw"><video id="rv" autoplay playsinline></video></div>
+  <div class="self-wrap" id="sw"><video id="sv" autoplay playsinline muted></video><div class="self-badge" id="smb"><i class="fas fa-microphone-slash"></i></div></div>
+  <div class="call-status" id="cs"><div class="status-avatar" id="sa">{{ room_name[:1].upper() }}</div><div class="status-name" id="sn">{{ room_name }}</div><div class="status-text" id="st"></div></div>
+  <div class="start-overlay" id="so"><div class="start-avatar">{{ room_name[:1].upper() }}</div><div class="start-name">{{ room_name }}</div><button class="start-btn" id="sb" onclick="start()"><i class="fas fa-phone-alt"></i> Join Call</button></div>
+  <div class="call-timer" id="ct">00:00</div>
+  <div class="call-controls" id="cc">
+    <button class="ctrl-btn" id="mb" onclick="tog('mic')"><i class="fas fa-microphone"></i><span>Mute</span></button>
+    <button class="ctrl-btn" id="fb" onclick="flip()"><i class="fas fa-camera-retro"></i><span>Flip</span></button>
+    <button class="ctrl-btn" id="cb" onclick="tog('cam')"><i class="fas fa-video"></i><span>Camera</span></button>
+    <button class="ctrl-btn" onclick="tog('chat')"><i class="fas fa-comment"></i><span>Chat</span></button>
+    <button class="ctrl-btn ctrl-end" onclick="end()"><i class="fas fa-phone-slash"></i></button>
+  </div>
+  <div class="ended-overlay" id="eo"><div class="ended-icon"><i class="fas fa-phone-slash"></i></div><div class="ended-text">Call ended</div><div class="ended-duration" id="ed"></div><button class="back-btn" onclick="location.href='/join'"><i class="fas fa-arrow-left"></i> Back</button></div>
+</div>
+<div class="chat-panel" id="cp">
+  <div class="chat-header"><span>Chat</span><button onclick="tog('chat')"><i class="fas fa-times"></i></button></div>
+  <div class="chat-body" id="cb2"></div>
+  <div class="chat-foot"><input type="text" id="ci" placeholder="Message..." maxlength="500"><button onclick="sendChat()"><i class="fas fa-paper-plane"></i></button></div>
+</div>
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<script>
+const rid='{{room_id}}', u='{{username|e}}'||new URLSearchParams(location.search).get('username')||'Anonymous',
+      uid=new URLSearchParams(location.search).get('user_id')||'usr_'+Math.random().toString(36).slice(2,8);
+const io2=io(window.location.origin,{transports:['websocket','polling']});
+let ls,p={},mike=true,cam=true,face='user',act=false,ti=null,sec=0;
+const ice={iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}]};
+const $=x=>document.getElementById(x);
+function show(s){
+  $('so').style.display='none';$('cs').style.display='none';$('rw').classList.remove('show');$('sw').classList.remove('pip');
+  $('cc').classList.remove('show');$('eo').classList.remove('show');$('ct').classList.remove('show');
+  if(s==='start')$('so').style.display='flex';
+  if(s==='waiting')$('cs').style.display='flex';
+  if(s==='connected'){$('rw').classList.add('show');$('sw').classList.add('pip');$('cc').classList.add('show');$('ct').classList.add('show')}
+  if(s==='ended')$('eo').classList.add('show');
+}
+async function start(){
+  const b=$('sb');b.disabled=true;b.innerHTML='<i class="fas fa-spinner fa-spin"></i> Connecting...';
+  try{
+    ls=await navigator.mediaDevices.getUserMedia({video:true,audio:true});
+    $('sv').srcObject=ls;
+    if(window.screen?.orientation)window.screen.orientation.addEventListener('change',()=>{$('sv').srcObject=ls});
+    io2.emit('join-room',{room:rid,username:u,user_id:uid});
+    show('waiting');$('st').textContent='Waiting for someone to join...';
+  }catch(e){
+    console.error(e);
+    $('st').textContent=e.name==='NotAllowedError'||e.name==='PermissionDeniedError'?'Camera/mic access denied. Please allow permissions.':
+      e.name==='NotFoundError'?'No camera or microphone found.':'Could not access camera/microphone.';
+    show('waiting');b.disabled=false;b.innerHTML='<i class="fas fa-phone-alt"></i> Try Again';
+  }
+}
+io2.on('connect_error',()=>{$('st').textContent='Connection lost. Reconnecting...'});
+io2.on('room-info',d=>{if(d.participants.length){$('sa').textContent=d.participants[0].username[0].toUpperCase();$('sn').textContent=d.participants[0].username;$('st').textContent='Connected';act=true;show('connected');tick()}d.participants.forEach(p=>mkPeer(p.sid,false))});
+io2.on('user-joined',d=>{$('sa').textContent=d.username[0].toUpperCase();$('sn').textContent=d.username;$('st').textContent='Connected';act=true;show('connected');tick();mkPeer(d.sid,true)});
+io2.on('user-left',d=>{if(act){clearInterval(ti);ti=null;show('ended');$('ed').textContent=fmt(sec);act=false}if(p[d.sid]){p[d.sid].close();delete p[d.sid]}$('rv').srcObject=null});
+io2.on('offer',async d=>{const peer=mkPeer(d.from,false);await peer.setRemoteDescription(new RTCSessionDescription(d.offer));const a=await peer.createAnswer();await peer.setLocalDescription(a);io2.emit('answer',{to:d.from,answer:peer.localDescription})});
+io2.on('answer',async d=>{if(p[d.from])await p[d.from].setRemoteDescription(new RTCSessionDescription(d.answer))});
+io2.on('ice-candidate',d=>{if(p[d.from])p[d.from].addIceCandidate(new RTCIceCandidate(d.candidate)).catch(()=>{})});
+io2.on('user-audio-changed',d=>{const b=document.querySelector('.remote-muted-badge');if(b)b.style.display=d.muted?'flex':'none'});
+io2.on('user-video-changed',d=>{$('rv').style.display=d.enabled?'block':'none'});
+io2.on('chat-message',d=>{addMsg(d.username,d.message,false)});
+io2.on('error',d=>{$('st').textContent=d.message});
+function mkPeer(sid,init){
+  if(p[sid]){p[sid].close();delete p[sid]}
+  const peer=new RTCPeerConnection(ice);p[sid]=peer;
+  if(ls)ls.getTracks().forEach(t=>peer.addTrack(t,ls));
+  peer.onicecandidate=e=>{if(e.candidate)io2.emit('ice-candidate',{to:sid,candidate:e.candidate})};
+  peer.ontrack=e=>{$('rv').srcObject=e.streams[0];$('rw').classList.add('show')};
+  if(init)peer.createOffer().then(o=>peer.setLocalDescription(o)).then(()=>io2.emit('offer',{to:sid,offer:peer.localDescription})).catch(e=>console.error(e));
+  return peer;
+}
+function tog(x){
+  if(x==='mic'){if(!ls)return;mike=!mike;ls.getAudioTracks().forEach(t=>t.enabled=mike);const b=$('mb');b.classList.toggle('off',!mike);b.querySelector('i').className=mike?'fas fa-microphone':'fas fa-microphone-slash';b.querySelector('span').textContent=mike?'Mute':'Unmute';$('smb').style.display=mike?'none':'flex';io2.emit('toggle-audio',{room:rid,muted:!mike})}
+  if(x==='cam'){if(!ls)return;cam=!cam;ls.getVideoTracks().forEach(t=>t.enabled=cam);const b=$('cb');b.classList.toggle('off',!cam);b.querySelector('i').className=cam?'fas fa-video':'fas fa-video-slash';b.querySelector('span').textContent=cam?'Camera':'Camera Off';$('sv').style.display=cam?'block':'none';io2.emit('toggle-video',{room:rid,enabled:cam})}
+  if(x==='chat')$('cp').classList.toggle('open');
+}
+async function flip(){
+  face=face==='user'?'environment':'user';
+  try{const ns=await navigator.mediaDevices.getUserMedia({video:{facingMode:face},audio:true});const ot=ls.getVideoTracks()[0],nt=ns.getVideoTracks()[0];ls.removeTrack(ot);ls.addTrack(nt);ot.stop();$('sv').srcObject=ls;Object.values(p).forEach(peer=>{const s=peer.getSenders().find(s=>s.track&&s.track.kind==='video');if(s)s.replaceTrack(nt)})}catch(e){console.error(e)}
+}
+function end(){clearInterval(ti);ti=null;if(ls)ls.getTracks().forEach(t=>t.stop());io2.emit('leave-room',{room:rid});Object.values(p).forEach(p=>p.close());p={};act=false;show('ended');$('ed').textContent=fmt(sec)}
+window.onbeforeunload=()=>{if(ls)ls.getTracks().forEach(t=>t.stop());io2.emit('leave-room',{room:rid})};
+function tick(){sec=0;$('ct').textContent='00:00';ti=setInterval(()=>{sec++;$('ct').textContent=fmt(sec)},1000)}
+function fmt(s){return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
+function sendChat(){const i=$('ci'),m=i.value.trim();if(!m)return;i.value='';io2.emit('chat-message',{room:rid,message:m,username:u});addMsg('You',m,true)}
+function addMsg(sender,text,self){const b=$('cb2'),d=document.createElement('div');d.className='chat-msg';d.innerHTML='<div class="chat-sender">'+(self?'You':sender)+'</div><div class="chat-text">'+esc(text)+'</div>';b.appendChild(d);b.scrollTop=b.scrollHeight}
+$('ci').addEventListener('keydown',e=>{if(e.key==='Enter')sendChat()});
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+</script>
+{% endif %}
+</body>
+</html>

@@ -87,8 +87,9 @@ def create_app():
         return User.query.get(int(user_id))
 
     # Register blueprints
-    from app.routes import spa, premium, files
+    from app.routes import spa, spav2, premium, files
     from app.routes.utils_api import utils_api_bp
+    spav2.Api2(app)
     spa.register_spa_blueprints(app)
     app.register_blueprint(premium.premium_bp)
     app.register_blueprint(files.files_bp)

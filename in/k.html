@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% block title %}Kiselgram K{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/k.css') }}">
+{% endblock %}
+{% block content %}
+<div class="k-app" id="app">
+  <button class="k-menu-btn" id="menuBtn" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+
+  <aside class="k-sidebar" id="sidebar">
+    <div class="k-sidebar-user" id="sidebarUserBtn">
+      <div class="k-sidebar-avatar" id="sidebarAvatar">?</div>
+      <div class="k-sidebar-info">
+        <div class="k-sidebar-name" id="sidebarName">User</div>
+        <div class="k-sidebar-username" id="sidebarUsername">@user</div>
+      </div>
+    </div>
+    <nav class="k-nav">
+      <a class="k-nav-item active" data-view="chats" onclick="K.views.show('chats')"><i class="fas fa-comment"></i><span>Chats</span></a>
+      <a class="k-nav-item" data-view="contacts" onclick="K.views.show('contacts')"><i class="fas fa-address-book"></i><span>Contacts</span></a>
+      <a class="k-nav-item" data-view="saved" onclick="K.views.show('saved')"><i class="fas fa-bookmark"></i><span>Saved</span></a>
+      <a class="k-nav-item" data-view="stories" onclick="K.views.show('stories')"><i class="fas fa-camera"></i><span>Stories</span></a>
+      <a class="k-nav-item" data-view="search" onclick="K.views.show('search')"><i class="fas fa-search"></i><span>Search</span></a>
+    </nav>
+    <div class="k-nav-bottom">
+      <a class="k-nav-item" data-view="settings" onclick="K.views.show('settings')"><i class="fas fa-cog"></i><span>Settings</span></a>
+      <a class="k-nav-item" onclick="K.auth.logout()"><i class="fas fa-sign-out-alt"></i><span>Sign Out</span></a>
+    </div>
+  </aside>
+  <div class="k-sidebar-backdrop" id="sidebarBackdrop"></div>
+
+  <div class="k-main">
+    <div class="k-panel chats-panel active" id="panel-chats">
+      <div class="k-panel-header">
+        <h1 class="k-logo">Kiselgram <span class="k-badge">K</span></h1>
+        <button class="k-panel-action" onclick="K.modals.show('createGroup')" title="New Group"><i class="fas fa-user-plus"></i></button>
+      </div>
+      <div class="k-search-box">
+        <i class="fas fa-search"></i>
+        <input class="k-search-input" id="globalSearch" placeholder="Search Kiselgram..." oninput="K.search.global(this.value)">
+        <div class="k-search-dropdown" id="searchDropdown"></div>
+      </div>
+      <div class="k-stories-row" id="storiesRow"></div>
+      <div class="k-chat-list" id="chatList"><div class="k-loader"></div></div>
+    </div>
+
+    <div class="k-panel contacts-panel" id="panel-contacts">
+      <div class="k-panel-header">
+        <button class="k-back-btn" onclick="K.views.show('chats')"><i class="fas fa-arrow-left"></i></button>
+        <h2>Contacts</h2>
+        <button class="k-panel-action" onclick="K.modals.show('addContact')"><i class="fas fa-plus"></i></button>
+      </div>
+      <div class="k-search-box">
+        <i class="fas fa-search"></i>
+        <input class="k-search-input" placeholder="Search contacts..." oninput="K.contacts.search(this.value)">
+      </div>
+      <div class="k-list" id="contactsList"></div>
+    </div>
+
+    <div class="k-panel saved-panel" id="panel-saved">
+      <div class="k-panel-header">
+        <button class="k-back-btn" onclick="K.views.show('chats')"><i class="fas fa-arrow-left"></i></button>
+        <h2>Saved Messages</h2>
+      </div>
+      <div class="k-messages-scroll" id="savedMessagesList"><div class="k-loader"></div></div>
+    </div>
+
+    <div class="k-panel stories-panel" id="panel-stories">
+      <div class="k-panel-header">
+        <button class="k-back-btn" onclick="K.views.show('chats')"><i class="fas fa-arrow-left"></i></button>
+        <h2>Stories</h2>
+        <button class="k-panel-action" onclick="K.stories.create()"><i class="fas fa-plus"></i></button>
+      </div>
+      <div class="k-stories-grid" id="storiesGrid"><div class="k-loader"></div></div>
+    </div>
+
+    <div class="k-panel search-panel" id="panel-search">
+      <div class="k-panel-header">
+        <button class="k-back-btn" onclick="K.views.show('chats')"><i class="fas fa-arrow-left"></i></button>
+        <h2>Search</h2>
+      </div>
+      <div class="k-search-box" style="margin:12px">
+        <i class="fas fa-search"></i>
+        <input class="k-search-input" placeholder="Users, groups, channels..." oninput="K.search.global(this.value)">
+      </div>
+      <div class="k-search-results" id="searchResults">
+        <div class="k-search-section"><h3>Users</h3><div id="searchUsers"></div></div>
+        <div class="k-search-section"><h3>Groups</h3><div id="searchGroups"></div></div>
+        <div class="k-search-section"><h3>Channels</h3><div id="searchChannels"></div></div>
+      </div>
+    </div>
+
+    <div class="k-panel settings-panel" id="panel-settings">
+      <div class="k-panel-header">
+        <button class="k-back-btn" onclick="K.views.show('chats')"><i class="fas fa-arrow-left"></i></button>
+        <h2>Settings</h2>
+      </div>
+      <div class="k-settings-scroll">
+        <div class="k-settings-section">
+          <h3>Appearance</h3>
+          <div class="k-theme-options">
+            <button class="k-theme-btn active" data-theme="light" onclick="K.settings.setTheme('light')"><i class="fas fa-sun"></i> Light</button>
+            <button class="k-theme-btn" data-theme="dark" onclick="K.settings.setTheme('dark')"><i class="fas fa-moon"></i> Dark</button>
+          </div>
+        </div>
+        <div class="k-settings-section">
+          <h3>Font Size</h3>
+          <div class="k-font-options">
+            <button class="k-font-btn" data-size="small" onclick="K.settings.setFontSize('small')">Small</button>
+            <button class="k-font-btn active" data-size="medium" onclick="K.settings.setFontSize('medium')">Medium</button>
+            <button class="k-font-btn" data-size="large" onclick="K.settings.setFontSize('large')">Large</button>
+          </div>
+        </div>
+        <div class="k-settings-section">
+          <h3>Privacy</h3>
+          <div class="k-settings-item"><span>Last Seen</span><select onchange="K.settings.updatePrivacy('last_seen',this.value)"><option value="everyone">Everyone</option><option value="contacts">Contacts</option><option value="nobody">Nobody</option></select></div>
+          <div class="k-settings-item"><span>Profile Photo</span><select onchange="K.settings.updatePrivacy('profile_photo',this.value)"><option value="everyone">Everyone</option><option value="contacts">Contacts</option><option value="nobody">Nobody</option></select></div>
+        </div>
+        <div class="k-settings-section">
+          <h3>Sessions</h3>
+          <div id="sessionsList"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="k-chat-view" id="chatView" style="display:none">
+      <div class="k-chat-header" id="chatHeader">
+        <div class="k-chat-header-left">
+          <button class="k-back-btn k-mobile-back" onclick="K.chat.close()"><i class="fas fa-arrow-left"></i></button>
+          <div class="k-chat-avatar-sm" id="chatAvatar">?</div>
+          <div class="k-chat-header-info">
+            <div class="k-chat-header-name" id="chatName">Name</div>
+            <div class="k-chat-header-status" id="chatStatus"></div>
+          </div>
+        </div>
+        <div class="k-chat-header-actions">
+          <button class="k-icon-btn" onclick="K.chat.info.toggle()" title="Info"><i class="fas fa-info-circle"></i></button>
+          <button class="k-icon-btn" id="chatMenuBtn" onclick="K.chat.menu.toggle()" title="Menu"><i class="fas fa-ellipsis-v"></i></button>
+        </div>
+      </div>
+      <div class="k-chat-menu" id="chatMenu" style="display:none"></div>
+      <div class="k-chat-info" id="chatInfo" style="display:none"></div>
+      <div class="k-messages" id="messagesContainer"><div class="k-loader"></div></div>
+      <div class="k-typing-indicator" id="typingIndicator" style="display:none"></div>
+      <div class="k-reply-bar" id="replyBar" style="display:none">
+        <div class="k-reply-info"><span class="k-reply-name" id="replyName">Replying</span><span class="k-reply-text" id="replyText"></span></div>
+        <button class="k-icon-btn" onclick="K.chat.reply.cancel()"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="k-input-area">
+        <button class="k-icon-btn" onclick="document.getElementById('fileInput').click()"><i class="fas fa-paperclip"></i></button>
+        <textarea class="k-message-input" id="messageInput" placeholder="Type a message..." rows="1" oninput="K.chat.input.handle()" onkeydown="K.chat.input.keydown(event)"></textarea>
+        <button class="k-send-btn" id="sendBtn" onclick="K.chat.send()"><i class="fas fa-paper-plane"></i></button>
+      </div>
+      <input type="file" id="fileInput" style="display:none" multiple onchange="K.chat.uploadFiles(this)">
+    </div>
+  </div>
+
+  <div class="k-modal-overlay" id="modalOverlay" style="display:none" onclick="K.modals.close()">
+    <div class="k-modal" id="modalContent" onclick="event.stopPropagation()"></div>
+  </div>
+
+  <div class="k-toast" id="toast"></div>
+</div>
+
+<div class="k-story-viewer" id="storyViewer" style="display:none">
+  <div class="k-story-progress" id="storyProgress"></div>
+  <div class="k-story-header">
+    <div class="k-story-user">
+      <div class="k-story-avatar" id="storyViewerAvatar">?</div>
+      <span id="storyViewerName">User</span>
+    </div>
+    <button class="k-icon-btn" style="color:white" onclick="K.stories.close()"><i class="fas fa-times"></i></button>
+  </div>
+  <div class="k-story-media" id="storyMedia"></div>
+  <div class="k-story-actions" id="storyActions">
+    <button class="k-story-btn" onclick="K.stories.like()"><i class="fas fa-heart"></i> <span id="storyLikeCount">0</span></button>
+    <button class="k-story-btn" onclick="K.stories.react()"><i class="fas fa-smile"></i></button>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/k_app.js') }}"></script>
+{% endblock %}

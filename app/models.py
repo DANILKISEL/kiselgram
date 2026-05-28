@@ -234,6 +234,8 @@ class Message(db.Model):
     is_from_telegram = db.Column(db.Boolean, default=False)
     delivered_at = db.Column(db.DateTime, nullable=True)
     read_at = db.Column(db.DateTime, nullable=True)
+    is_saved = db.Column(db.Boolean, default=False)
+    deleted_at = db.Column(db.DateTime, nullable=True)
 
     # if has file, use File model: see below
 
