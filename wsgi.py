@@ -11,9 +11,10 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app import create_app
+from werkzeug.middleware.proxy_fix import ProxyFix
 
-# Create the application instance
 app = create_app()
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
 if __name__ == "__main__":
     app.run(port=5500)
