@@ -10,3 +10,4 @@ Flask-Mail
 flask-login
 flask-migrate
 authlib
+psycopg2-binary

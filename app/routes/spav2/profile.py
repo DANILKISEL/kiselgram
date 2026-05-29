@@ -25,7 +25,8 @@ def get_profile():
         'is_admin': getattr(current_user, 'is_admin', False),
         'is_online': getattr(current_user, 'is_online', False),
         'last_seen': current_user.last_seen.isoformat() if current_user.last_seen else None,
-        'created_at': current_user.created_at.isoformat() if current_user.created_at else datetime.utcnow().isoformat()
+        'created_at': current_user.created_at.isoformat() if current_user.created_at else datetime.utcnow().isoformat(),
+        'status_emoji': getattr(current_user, 'status_emoji', '')
     }})
 
 
@@ -40,6 +41,8 @@ def update_profile():
         current_user.display_name = data['display_name']
     if 'bio' in data:
         current_user.bio = data['bio']
+    if 'status_emoji' in data:
+        current_user.status_emoji = data['status_emoji']
     db.session.commit()
     return jsonify({'success': True, 'data': {'message': 'Profile updated'}})
 

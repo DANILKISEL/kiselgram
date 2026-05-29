@@ -12,7 +12,30 @@ const K = {
   state: {
     user: null, chats: [], contacts: [], stories: [],
     activeChat: null, replyTo: null, online: navigator.onLine,
-    blockedUsers: []
+    blockedUsers: [],
+    pinned: JSON.parse(localStorage.getItem('k_pinned')||'[]'),
+    folders: JSON.parse(localStorage.getItem('k_folders')||'[]'),
+    activeFolder: null,
+    saveURL() {
+      const p = new URLSearchParams(window.location.search);
+      if (K.state.activeChat) p.set('chat', K.state.activeChat.type+':'+K.state.activeChat.id);
+      else p.delete('chat');
+      const stab = document.querySelector('.k-stab.active');
+      if (stab) p.set('settings', stab.dataset.tab);
+      else p.delete('settings');
+      const n = window.location.pathname + '?' + p.toString();
+      if (n !== window.location.href.replace(window.location.origin,'')) history.replaceState(null, '', n);
+    },
+    restoreURL() {
+      const p = new URLSearchParams(window.location.search);
+      const chat = p.get('chat');
+      if (chat) {
+        const [type, id] = chat.split(':');
+        if (type && id) { K.state._pendingChat = {type, id: parseInt(id)}; }
+      }
+      const stab = p.get('settings');
+      if (stab) K.state._pendingSettings = stab;
+    }
   }
 };
 
@@ -85,6 +108,8 @@ K.ui = {
     const u = K.state.user; if (!u) return;
     const av = $('sidebarAvatar'); if (av) av.innerHTML = K.ui.avatar(u.username, u.avatar_url);
     const nm = $('sidebarName'); if (nm) nm.textContent = u.display_name || u.username;
+    const se = u.status_emoji || '';
+    if (nm && se) nm.textContent = se + ' ' + nm.textContent;
     const un = $('sidebarUsername'); if (un) un.textContent = '@' + u.username;
   }
 };
@@ -264,7 +289,10 @@ K.views = {
     if (name === 'saved') K.saved.load();
     if (name === 'stories') K.stories.load();
     if (name === 'contacts') K.contacts.load();
-    if (name === 'settings') K.settings.loadPrivacy();
+    if (name === 'calls') K.calls.load();
+    if (name === 'music') K.music.load();
+    if (name === 'settings') { K.settings.loadPrivacy(); K.settings.loadSessions(); }
+    K.state.saveURL();
   }
 };
 
@@ -285,13 +313,37 @@ K.chat = {
       c.innerHTML = `<div class="k-empty"><i class="fas fa-comment"></i><h3>No chats yet</h3><p>Search users to start chatting</p><button class="k-btn k-btn-primary" style="margin-top:16px" onclick="K.chat.startNew()"><i class="fas fa-plus"></i> New Chat</button></div>`;
       return;
     }
-    c.innerHTML = chats.map(chat => {
+    const af = K.state.activeFolder;
+    let filtered = chats;
+    if (af) {
+      const f = K.state.folders.find(x => x.name === af);
+      if (f?.chats?.length) {
+        const ids = new Set(f.chats.map(x => x.type+':'+x.id));
+        filtered = chats.filter(chat => {
+          const cid = chat.chat_type === 'personal' ? (chat.peer?.user_id || chat.peer?.id) : (chat.group?.group_id || chat.channel?.channel_id);
+          return ids.has(chat.chat_type+':'+cid);
+        });
+      }
+    }
+    const pinned = K.state.pinned || [];
+    const sorted = [...filtered].sort((a,b) => {
+      const aId = a.chat_type === 'personal' ? (a.peer?.user_id || a.peer?.id) : (a.group?.group_id || a.channel?.channel_id);
+      const bId = b.chat_type === 'personal' ? (b.peer?.user_id || b.peer?.id) : (b.group?.group_id || b.channel?.channel_id);
+      const aP = pinned.includes(a.chat_type+':'+aId);
+      const bP = pinned.includes(b.chat_type+':'+bId);
+      if (aP && !bP) return -1;
+      if (!aP && bP) return 1;
+      return 0;
+    });
+    c.innerHTML = sorted.map(chat => {
       if (chat.chat_type === 'saved' || chat.chat_type === 'saved_messages') return '';
       const id = chat.chat_type === 'personal' ? (chat.peer?.user_id || chat.peer?.id) : (chat.group?.group_id || chat.channel?.channel_id);
       const name = chat.peer?.display_name || chat.peer?.username || chat.group?.name || chat.channel?.name || 'Unknown';
+      const statusEmoji = chat.peer?.status_emoji || '';
       const avatar = chat.peer?.avatar_url || chat.group?.avatar_url || chat.channel?.avatar_url;
       const type = chat.chat_type;
       const isActive = K.state.activeChat?.type === type && K.state.activeChat?.id === id;
+      const isPinned = K.state.pinned?.includes(type+':'+id);
       let preview = '';
       if (chat.last_message) {
         const lm = chat.last_message;
@@ -303,10 +355,10 @@ K.chat = {
       const time = chat.last_message?.timestamp ? fmtTime(chat.last_message.timestamp) : '';
       const unread = chat.unread_count || 0;
       const isOnline = type === 'personal' && chat.peer?.is_online;
-      return `<div class="k-chat-item ${isActive?'active':''}" onclick="K.chat.open('${type}',${id})" data-type="${type}" data-id="${id}">
+      return `<div class="k-chat-item ${isActive?'active':''} ${isPinned?'pinned':''}" onclick="K.chat.open('${type}',${id})" data-type="${type}" data-id="${id}">
         <div class="k-chat-avatar ${type}">${K.ui.avatar(name, avatar)}${isOnline ? '<span class="k-online-dot"></span>' : ''}</div>
         <div class="k-chat-info">
-          <div class="k-chat-name-row"><span class="k-chat-name">${esc(name)}</span><span class="k-chat-time">${time}</span></div>
+          <div class="k-chat-name-row"><span class="k-chat-name">${statusEmoji ? esc(statusEmoji+' ') : ''}${esc(name)}${isPinned ? ' <i class="fas fa-thumbtack" style="font-size:10px;color:var(--accent-blue);transform:rotate(45deg);margin-left:2px"></i>' : ''}</span><span class="k-chat-time">${time}</span></div>
           <div class="k-chat-preview"><span>${preview}</span>${unread ? `<span class="k-unread">${unread>99?'99+':unread}</span>` : ''}</div>
         </div>
       </div>`;
@@ -318,6 +370,7 @@ K.chat = {
   },
   async open(type, id) {
     K.state.activeChat = { type, id };
+    K.state.saveURL();
     K.chat.reply.cancel();
     const _sb = $('sidebar'), _mb = $('menuBtn'), _bd = $('sidebarBackdrop'); _sb?.classList.remove('open'); _mb?.classList.remove('active'); _bd?.classList.remove('open');
     document.querySelectorAll('.k-chat-item').forEach(i => i.classList.remove('active'));
@@ -344,11 +397,14 @@ K.chat = {
       if (type === 'group') return c.group?.group_id === id;
       if (type === 'channel') return c.channel?.channel_id === id;
     });
+    const cb = $('callBtn');
+    if (cb) cb.style.display = (type === 'personal') ? 'flex' : 'none';
     if (chat) {
       const peer = chat.peer || chat.group || chat.channel;
       if (peer) {
         const pname = peer.display_name || peer.name || peer.username || 'User #'+id;
-        if (nameEl) nameEl.textContent = pname;
+        const emoji = peer.status_emoji || '';
+        if (nameEl) nameEl.textContent = emoji ? emoji + ' ' + pname : pname;
         if (avatarEl) { avatarEl.innerHTML = K.ui.avatar(pname, peer.avatar_url); avatarEl.className = 'k-chat-avatar-sm'+(type==='group'?' group':type==='channel'?' channel':''); }
         if (statusEl) { statusEl.textContent = peer.is_online ? 'online' : ''; statusEl.className = 'k-chat-header-status'+(peer.is_online?' online':''); }
         return;
@@ -361,10 +417,12 @@ K.chat = {
           const users = d.data?.users || [];
           const u = users.find(x => x.user_id === id);
           if (u) {
-            if (nameEl) nameEl.textContent = u.display_name || u.username;
+            const emoji = u.status_emoji || '';
+            if (nameEl) nameEl.textContent = emoji ? emoji + ' ' + (u.display_name || u.username) : (u.display_name || u.username);
             if (avatarEl) { avatarEl.className = 'k-chat-avatar-sm'; avatarEl.innerHTML = K.ui.avatar(u.display_name||u.username, u.avatar_url); }
             if (statusEl) { statusEl.textContent = u.is_online ? 'online' : ''; statusEl.className = 'k-chat-header-status'+(u.is_online?' online':''); }
           }
+          const cb = $('callBtn'); if (cb) cb.style.display = 'flex';
         }
         if (nameEl && !nameEl.textContent) nameEl.textContent = 'User #'+id;
       } else if (type === 'group') {
@@ -458,7 +516,7 @@ K.chat = {
       } else if (isVid && fileUrl) {
         att = `<div class="k-msg-attachment"><video src="${fileUrl}" controls preload="metadata" style="max-width:260px;max-height:200px;border-radius:12px"></video></div>`;
       } else if (isAud && fileUrl) {
-        att = `<div class="k-msg-attachment"><audio src="${fileUrl}" controls style="max-width:220px;height:36px;border-radius:8px"></audio></div>`;
+        att = `<div class="k-msg-attachment"><audio src="${fileUrl}" controls style="max-width:220px;height:36px;border-radius:8px"></audio><button class="k-icon-btn" onclick="event.stopPropagation();K.music.likeMusic(${m.message_id||m.id})" title="Add to My Music" style="font-size:14px;width:28px;height:28px;display:inline-flex;vertical-align:middle"><i class="fas fa-heart"></i></button></div>`;
       } else if (fileUrl) {
         const icon = fileName.match(/\.pdf$/i) ? 'fa-file-pdf' : fileName.match(/\.(doc|docx)$/i) ? 'fa-file-word' : 'fa-file';
         att = `<div class="k-msg-file"><i class="fas ${icon}"></i> <a href="${fileUrl}" target="_blank" rel="noopener">${esc(fileName||'File')}</a></div>`;
@@ -578,13 +636,15 @@ K.chat = {
     if (!input?.files?.length || !K.state.activeChat) return;
     const { type, id } = K.state.activeChat;
     const fd = new FormData();
+    const msgText = $('messageInput')?.value?.trim();
     for (const f of input.files) fd.append('file', f);
+    if (msgText) fd.append('message_text', msgText);
     if (type === 'personal') fd.append('receiver_id', id);
     else if (type === 'group') fd.append('group_id', id);
     else if (type === 'channel') fd.append('channel_id', id);
     try {
       const d = await K.api.post('/files/upload_file', fd);
-      if (d.success) { K.chat.loadMessages(type, id); K.ui.toast('File sent', 'success'); }
+      if (d.success) { $('messageInput').value = ''; K.chat.loadMessages(type, id); K.ui.toast('File sent', 'success'); }
       else K.ui.toast('Upload failed', 'error');
     } catch(e) { K.ui.toast('Upload error', 'error'); }
     input.value = '';
@@ -622,6 +682,17 @@ K.chat = {
     img.src = url; img.style.cssText = 'max-width:90%;max-height:90%;border-radius:8px;object-fit:contain';
     o.appendChild(img); document.body.appendChild(o);
   },
+  async startCall() {
+    if (!K.state.activeChat || K.state.activeChat.type !== 'personal') return;
+    const peerId = K.state.activeChat.id;
+    try {
+      const d = await K.api.post(V2 + '/video/create-room', {user_id: peerId});
+      if (d.success && d.data?.room_id) {
+        const url = 'http://localhost:5001/video/join/' + d.data.room_id;
+        K.calls.start(url, peerId);
+      } else K.ui.toast('Failed to create call', 'error');
+    } catch(e) { K.ui.toast('Call failed', 'error'); }
+  },
   menu: {
     toggle() {
       const menu = $('chatMenu'), info = $('chatInfo');
@@ -630,7 +701,10 @@ K.chat = {
       const { type, id } = K.state.activeChat;
       if (menu.style.display === 'block') { menu.style.display = 'none'; return; }
       menu.style.display = 'block';
+      const key = type+':'+id;
+      const isPinned = K.state.pinned?.includes(key);
       let items = '';
+      items += `<div class="k-chat-menu-item" onclick="K.chat.menu.togglePin('${key}')"><i class="fas fa-thumbtack"></i> ${isPinned ? 'Unpin' : 'Pin'}</div>`;
       if (type === 'personal') {
         items += `<div class="k-chat-menu-item" onclick="K.chat.menu.block(${id})"><i class="fas fa-ban"></i> Block User</div>`;
         items += `<div class="k-chat-menu-item" onclick="K.chat.menu.clear(${id})"><i class="fas fa-trash"></i> Clear Chat</div>`;
@@ -641,7 +715,38 @@ K.chat = {
         items += `<div class="k-chat-menu-item" onclick="K.chat.info.toggle()"><i class="fas fa-info-circle"></i> Channel Info</div>`;
         items += `<div class="k-chat-menu-item" onclick="K.chat.menu.unsubscribe(${id})"><i class="fas fa-bell-slash"></i> Unsubscribe</div>`;
       }
+      if (K.state.folders?.length) {
+        items += `<div style="border-top:1px solid var(--border-color);margin:6px 0;padding-top:6px;font-size:11px;color:var(--text-muted);padding:6px 12px 0">Folders</div>`;
+        items += K.state.folders.map(f => {
+          const inF = f.chats?.some(x => x.type === type && x.id === id);
+          return `<div class="k-chat-menu-item" onclick="K.chat.menu.toggleFolder('${esc(f.name)}','${type}',${id})"><i class="fas fa-folder${inF?'-open':''}"></i> ${inF ? 'Remove from' : 'Add to'} ${esc(f.name)}</div>`;
+        }).join('');
+      }
       menu.innerHTML = items || '<div style="padding:16px;color:var(--text-muted)">No actions</div>';
+    },
+    togglePin(key) {
+      let p = K.state.pinned || [];
+      const idx = p.indexOf(key);
+      if (idx >= 0) p.splice(idx, 1);
+      else p.push(key);
+      K.state.pinned = p;
+      localStorage.setItem('k_pinned', JSON.stringify(p));
+      K.settings.saveToServer();
+      K.chat.loadList();
+      K.chat.menu.toggle();
+    },
+    toggleFolder(fname, type, id) {
+      const f = K.state.folders.find(x => x.name === fname);
+      if (!f) return;
+      if (!f.chats) f.chats = [];
+      const idx = f.chats.findIndex(x => x.type === type && x.id === id);
+      if (idx >= 0) f.chats.splice(idx, 1);
+      else f.chats.push({type, id});
+      K.state.folders = K.state.folders.map(x => x.name === fname ? f : x);
+      localStorage.setItem('k_folders', JSON.stringify(K.state.folders));
+      K.settings.saveToServer();
+      K.chat.loadList();
+      K.chat.menu.toggle();
     },
     async block(id) { if (await K.ui.confirm('Block this user?')) { try { const d = await K.api.post(V2 + `/block_user/${id}`); if (d.success) { K.ui.toast('Blocked', 'success'); K.chat.close(); K.chat.loadList(); } } catch(e) { K.ui.toast('Failed', 'error'); } } },
     async leaveGroup(id) { if (await K.ui.confirm('Leave this group?')) { try { const d = await K.api.post(V2 + `/leave_group/${id}`); if (d.success) { K.ui.toast('Left group', 'success'); K.chat.close(); K.chat.loadList(); } } catch(e) { K.ui.toast('Failed', 'error'); } } },
@@ -697,7 +802,7 @@ K.contacts = {
       `<div class="k-contact-item" onclick="K.chat.open('personal',${ct.user_id})">
         <div class="k-contact-avatar">${K.ui.avatar(ct.username, ct.avatar_url)}</div>
         <div class="k-contact-info">
-          <div class="k-contact-name">${esc(ct.display_name||ct.username)}</div>
+          <div class="k-contact-name">${esc((ct.status_emoji||'')+' '+(ct.display_name||ct.username))}</div>
           <div class="k-contact-username">@${esc(ct.username)}${ct.is_online ? ' <span class="k-contact-status">● Online</span>' : ''}</div>
         </div>
         <button class="k-icon-btn" onclick="event.stopPropagation();K.contacts.rename(${ct.user_id})" title="Rename"><i class="fas fa-pen"></i></button>
@@ -794,6 +899,11 @@ K.modals = {
         <input class="k-input" id="editDisplayName" value="${esc(u.display_name||'')}" placeholder="Display name">
         <label style="font-size:13px;font-weight:500;margin-bottom:4px;display:block">Bio</label>
         <textarea class="k-input" id="editBio" rows="3" placeholder="About you">${esc(u.bio||'')}</textarea>
+        <label style="font-size:13px;font-weight:500;margin-bottom:4px;display:block;margin-top:8px">Status Emoji</label>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px" id="emojiPicker">
+          ${['🌴','💼','🎮','📚','🎵','🏖️','💪','😴','❤️','🔥','🌟','🎯','💡','🎨','🏃','☕'].map(e => `<span class="k-emoji-opt${(u.status_emoji||'')===e?' active':''}" onclick="document.getElementById('statusEmoji').value=this.textContent;document.querySelectorAll('.k-emoji-opt').forEach(x=>x.classList.remove('active'));this.classList.add('active')">${e}</span>`).join('')}
+        </div>
+        <input class="k-input" id="statusEmoji" value="${esc(u.status_emoji||'')}" placeholder="Or type any emoji" style="margin-bottom:4px">
         <button class="k-btn k-btn-secondary" style="width:100%;margin-top:4px" onclick="document.getElementById('avatarUpload').click()"><i class="fas fa-camera"></i> Change Photo</button>
         <input type="file" id="avatarUpload" accept="image/*" style="display:none" onchange="K.profile.uploadAvatar(this)">
       </div>
@@ -999,6 +1109,145 @@ K.saved = {
   }
 };
 
+K.calls = {
+  _roomUrl: null, _peerId: null, _timer: null, _started: null,
+  start(url, peerId) {
+    K.calls._roomUrl = url;
+    K.calls._peerId = peerId;
+    const overlay = $('videoOverlay');
+    const frame = $('videoFrame');
+    if (overlay) overlay.style.display = 'flex';
+    if (frame) {
+      frame.innerHTML = `<iframe src="${url}" allow="camera;microphone;display-capture" style="width:100%;height:100%;border:none"></iframe>`;
+    }
+    $('videoCallPeer').textContent = 'In call';
+    K.calls._started = Date.now();
+    K.calls._updateTimer();
+    K.calls._timer = setInterval(K.calls._updateTimer, 1000);
+  },
+  _updateTimer() {
+    if (!K.calls._started) return;
+    const elapsed = Math.floor((Date.now() - K.calls._started) / 1000);
+    const m = String(Math.floor(elapsed / 60)).padStart(2, '0');
+    const s = String(elapsed % 60).padStart(2, '0');
+    const t = m + ':' + s;
+    $('videoCallDuration').textContent = t;
+    $('miniDuration').textContent = t;
+  },
+  minimize() {
+    $('videoOverlay').style.display = 'none';
+    $('videoMinimized').style.display = 'flex';
+  },
+  maximize() {
+    $('videoMinimized').style.display = 'none';
+    $('videoOverlay').style.display = 'flex';
+  },
+  endCall() {
+    clearInterval(K.calls._timer);
+    K.calls._timer = null;
+    K.calls._started = null;
+    $('videoOverlay').style.display = 'none';
+    $('videoMinimized').style.display = 'none';
+    const frame = $('videoFrame');
+    if (frame) frame.innerHTML = '<div class="k-loader" style="margin:auto"></div>';
+    K.calls._roomUrl = null;
+    K.calls._peerId = null;
+    K.chat.loadList();
+  },
+  async load() {
+    const list = $('callsList'); if (!list) return;
+    list.innerHTML = K.ui.loader();
+    try {
+      const d = await K.api.get(V2 + '/calls/history');
+      if (d.success) {
+        const calls = d.data?.calls || [];
+        if (!calls.length) { list.innerHTML = '<div class="k-empty"><i class="fas fa-phone-alt"></i><h3>No calls yet</h3></div>'; return; }
+        list.innerHTML = calls.map(c => `
+          <div class="k-call-item" onclick="K.chat.open('personal',${c.peer_id||c.other_user_id})">
+            <div class="k-call-icon"><i class="fas fa-${c.direction==='outgoing'?'phone-alt':'phone-alt'}"></i></div>
+            <div class="k-call-info">
+              <div class="k-call-name">${esc(c.peer_name||'Unknown')}</div>
+              <div class="k-call-meta">${c.direction==='outgoing'?'Outgoing':'Incoming'} · ${c.status||'ended'} · ${c.duration ? Math.floor(c.duration/60)+'m' : '--'}</div>
+            </div>
+            <div class="k-call-time">${fmtTime(c.created_at)}</div>
+          </div>
+        `).join('');
+      }
+    } catch(e) { list.innerHTML = '<div class="k-empty">Failed to load</div>'; }
+  }
+};
+
+K.music = {
+  _tracks: JSON.parse(localStorage.getItem('k_music_tracks')||'[]'),
+  async load() {
+    const list = $('musicList'); if (!list) return;
+    list.innerHTML = K.ui.loader();
+    try {
+      const d = await K.api.get(V2 + '/music/library');
+      if (d.success) {
+        K.music._tracks = d.data?.tracks || [];
+        localStorage.setItem('k_music_tracks', JSON.stringify(K.music._tracks));
+        K.music.render();
+      }
+    } catch(e) { list.innerHTML = '<div class="k-empty">Failed to load</div>'; }
+  },
+  render() {
+    const list = $('musicList'); if (!list) return;
+    if (!K.music._tracks.length) {
+      list.innerHTML = '<div class="k-empty"><i class="fas fa-music"></i><h3>No music yet</h3><p>Heart audio messages to save them</p></div>';
+      return;
+    }
+    list.innerHTML = K.music._tracks.map((t, i) =>
+      `<div class="k-music-item" onclick="K.music.play(${i})">
+        <div class="k-music-cover"><i class="fas fa-music"></i></div>
+        <div class="k-music-info">
+          <div class="k-music-title">${esc(t.title||t.file_name||'Unknown')}</div>
+          <div class="k-music-artist">${esc(t.artist||'Unknown')}</div>
+        </div>
+        <button class="k-icon-btn" onclick="event.stopPropagation();K.music.remove(${t.id})" style="flex-shrink:0" title="Remove"><i class="fas fa-trash"></i></button>
+      </div>`
+    ).join('');
+    if (K.music._audio) {
+      list.insertAdjacentHTML('beforeend', `<div class="k-music-player">
+        <div class="k-music-player-info">
+          <span id="musicNowPlaying">${esc(K.music._tracks[K.music._currentIdx]?.title||'')}</span>
+          <button class="k-icon-btn" onclick="K.music.stop()"><i class="fas fa-stop"></i></button>
+        </div>
+      </div>`);
+    }
+  },
+  _currentIdx: -1,
+  _audio: null,
+  play(idx) {
+    const t = K.music._tracks[idx];
+    if (!t?.file_url) return;
+    if (K.music._audio) { K.music._audio.pause(); K.music._audio = null; }
+    K.music._currentIdx = idx;
+    K.music._audio = new Audio(t.file_url);
+    K.music._audio.play();
+    K.music.render();
+  },
+  stop() {
+    if (K.music._audio) { K.music._audio.pause(); K.music._audio = null; }
+    K.music._currentIdx = -1;
+    K.music.render();
+  },
+  async remove(id) {
+    try {
+      const d = await K.api.del(V2 + '/music/library/' + id);
+      if (d.success) { K.ui.toast('Removed', 'success'); K.music.load(); }
+      else K.ui.toast('Failed', 'error');
+    } catch(e) { K.ui.toast('Error', 'error'); }
+  },
+  async likeMusic(msgId) {
+    try {
+      const d = await K.api.post(V2 + '/music/library', {message_id: msgId});
+      if (d.success) { K.ui.toast('Added to music library', 'success'); K.music.load(); }
+      else K.ui.toast('Failed', 'error');
+    } catch(e) { K.ui.toast('Error', 'error'); }
+  }
+};
+
 K.search = {
   global: debounce(async (q) => {
     const dd = $('searchDropdown');
@@ -1042,12 +1291,36 @@ K.settings = {
     const label = $('themeLabel'); if (label) label.textContent = isDark ? 'Light Mode' : 'Dark Mode';
     const ni = $('navThemeIcon'); if (ni) ni.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
     const nl = $('navThemeLabel'); if (nl) nl.textContent = isDark ? 'Light mode' : 'Dark mode';
+    K.settings.saveToServer();
   },
   setFontSize(s) {
     document.querySelectorAll('.k-font-btn').forEach(b => b.classList.toggle('active', b.dataset.size === s));
     const sizes = { small: '13px', medium: '14px', large: '16px' };
     document.querySelector('.k-app').style.fontSize = sizes[s] || '14px';
     localStorage.setItem('k_font_size', s);
+    K.settings.saveToServer();
+  },
+  switchTab(tab) {
+    document.querySelectorAll('.k-stab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    document.querySelectorAll('.k-settings-tab-content').forEach(p => p.style.display = p.dataset.tab === tab ? '' : 'none');
+    if (tab === 'folders') K.settings.renderFolders();
+    if (tab === 'themes') K.settings.renderSavedThemes();
+    if (tab === 'privacy') K.settings.loadPrivacy();
+    if (tab === 'sessions') K.settings.loadSessions();
+    K.state.saveURL();
+  },
+  setHero(url) {
+    const bg = $('splashScreen')?.querySelector('.k-splash-bg');
+    if (bg) {
+      if (url) { bg.style.backgroundImage = 'url(' + url + ')'; localStorage.setItem('k_hero_url', url); }
+      else { bg.style.backgroundImage = ''; localStorage.removeItem('k_hero_url'); }
+    }
+    K.settings.saveToServer();
+  },
+  loadHero() {
+    const url = localStorage.getItem('k_hero_url');
+    if (url) { const bg = $('splashScreen')?.querySelector('.k-splash-bg'); if (bg) bg.style.backgroundImage = 'url(' + url + ')'; }
+    const hu = $('heroUrlInput'); if (hu) hu.value = url || '';
   },
   async loadPrivacy() {
     try {
@@ -1073,7 +1346,7 @@ K.settings = {
         if (list) {
           const sessions = d.data?.sessions || [];
           list.innerHTML = sessions.length ? sessions.map(s =>
-            `<div class="k-settings-item"><span><strong>${esc(s.device||'Unknown')}</strong>${s.is_current ? ' <span style="color:var(--online-green)">(current)</span>' : ''}<br><span style="font-size:12px;color:var(--text-muted)">${esc(s.ip_address||'')}</span></span><span style="font-size:11px;color:var(--text-muted)">${s.last_active ? fmtTime(s.last_active) : ''}</span></div>`
+            `<div class="k-settings-item"><span><strong>${esc(s.device||'Unknown')}</strong>${s.is_current ? ' <span style="color:var(--online-green)">(current)</span>' : ''}<br><span style="font-size:12px;color:var(--text-muted)">${esc(s.ip_address||'')}</span></span><span style="font-size:11px;color:var(--text-muted)">${s.last_activity||s.last_active ? fmtTime(s.last_activity||s.last_active) : ''}</span></div>`
           ).join('') : '<div style="color:var(--text-muted);padding:12px">No active sessions</div>';
         }
       }
@@ -1082,10 +1355,180 @@ K.settings = {
   setMyColor(color) {
     document.documentElement.style.setProperty('--bubble-my', color);
     localStorage.setItem('k_color_my', color);
+    K.settings.saveToServer();
   },
   setTheirColor(color) {
     document.documentElement.style.setProperty('--bubble-their', color);
     localStorage.setItem('k_color_their', color);
+    K.settings.saveToServer();
+  },
+  addFolder() {
+    const name = prompt('Folder name:');
+    if (name && name.trim()) {
+      K.state.folders = K.state.folders || [];
+      K.state.folders.push({name: name.trim(), chats: []});
+      localStorage.setItem('k_folders', JSON.stringify(K.state.folders));
+      K.settings.saveToServer();
+      K.settings.renderFolders();
+      K.settings.renderFolderBar();
+    }
+  },
+  deleteFolder(name) {
+    K.state.folders = (K.state.folders||[]).filter(f => f.name !== name);
+    localStorage.setItem('k_folders', JSON.stringify(K.state.folders));
+    K.settings.saveToServer();
+    if (K.state.activeFolder === name) K.state.activeFolder = null;
+    K.settings.renderFolders();
+    K.settings.renderFolderBar();
+    K.chat.loadList();
+  },
+  renameFolder(oldName) {
+    const newName = prompt('New folder name:', oldName);
+    if (newName && newName.trim() && newName.trim() !== oldName) {
+      const f = K.state.folders.find(x => x.name === oldName);
+      if (f) { f.name = newName.trim(); localStorage.setItem('k_folders', JSON.stringify(K.state.folders)); K.settings.saveToServer(); K.settings.renderFolders(); K.settings.renderFolderBar(); }
+    }
+  },
+  renderFolders() {
+    const list = $('foldersList'); if (!list) return;
+    const folders = K.state.folders || [];
+    if (!folders.length) { list.innerHTML = '<div style="padding:12px;color:var(--text-muted);font-size:13px">No folders yet. Create one to organize chats.</div>'; return; }
+    list.innerHTML = folders.map(f =>
+      `<div class="k-settings-item">
+        <span><i class="fas fa-folder" style="margin-right:8px;color:var(--accent-blue)"></i>${esc(f.name)} <span style="font-size:11px;color:var(--text-muted)">(${(f.chats||[]).length} chats)</span></span>
+        <span style="display:flex;gap:4px">
+          <button class="k-icon-btn" onclick="K.settings.renameFolder('${esc(f.name)}')" style="font-size:14px;width:28px;height:28px" title="Rename"><i class="fas fa-pen"></i></button>
+          <button class="k-icon-btn" onclick="K.settings.deleteFolder('${esc(f.name)}')" style="font-size:14px;width:28px;height:28px;color:var(--accent-red)" title="Delete"><i class="fas fa-trash"></i></button>
+        </span>
+      </div>`
+    ).join('');
+  },
+  renderFolderBar() {
+    const bar = $('folderBar'); if (!bar) return;
+    const folders = K.state.folders || [];
+    if (!folders.length) { bar.style.display = 'none'; return; }
+    bar.style.display = 'flex';
+    const af = K.state.activeFolder;
+    bar.innerHTML = `<button class="k-folder-btn ${!af?'active':''}" onclick="K.state.activeFolder=null;K.settings.renderFolderBar();K.chat.loadList()">All</button>` +
+      folders.map(f => `<button class="k-folder-btn ${af===f.name?'active':''}" onclick="K.state.activeFolder='${esc(f.name)}';K.settings.renderFolderBar();K.chat.loadList()">${esc(f.name)}</button>`).join('');
+  },
+  saveCurrentTheme() {
+    const saved = JSON.parse(localStorage.getItem('k_saved_themes')||'[]');
+    const t = {
+      name: 'Theme ' + (saved.length + 1),
+      version: 1,
+      theme: K.settings._isDark() ? 'dark' : 'light',
+      font_size: localStorage.getItem('k_font_size')||'medium',
+      color_my: localStorage.getItem('k_color_my')||'#5e72e4',
+      color_their: localStorage.getItem('k_color_their')||'#e8e8e8',
+      hero_url: localStorage.getItem('k_hero_url')||''
+    };
+    saved.push(t);
+    localStorage.setItem('k_saved_themes', JSON.stringify(saved));
+    K.settings.saveToServer();
+    K.settings.renderSavedThemes();
+    K.ui.toast('Theme saved', 'success');
+  },
+  renderSavedThemes() {
+    const list = $('themeList'); if (!list) return;
+    const saved = JSON.parse(localStorage.getItem('k_saved_themes')||'[]');
+    if (!saved.length) { list.innerHTML = '<div style="padding:12px;color:var(--text-muted);font-size:13px">No saved themes</div>'; return; }
+    list.innerHTML = saved.map((t, i) =>
+      `<div class="k-settings-item">
+        <span><span style="display:inline-block;width:16px;height:16px;border-radius:50%;background:${t.color_my};margin-right:8px;vertical-align:middle"></span>${esc(t.name)}</span>
+        <span style="display:flex;gap:4px">
+          <button class="k-btn k-btn-secondary" style="padding:4px 10px;font-size:12px" onclick="K.settings.applySavedTheme(${i})">Apply</button>
+          <button class="k-icon-btn" onclick="K.settings.deleteSavedTheme(${i})" style="font-size:14px;width:28px;height:28px;color:var(--accent-red)" title="Delete"><i class="fas fa-trash"></i></button>
+        </span>
+      </div>`
+    ).join('');
+    const cl = $('savedThemeList');
+    if (cl) cl.innerHTML = list.innerHTML;
+  },
+  applySavedTheme(idx) {
+    const saved = JSON.parse(localStorage.getItem('k_saved_themes')||'[]');
+    const t = saved[idx]; if (!t) return;
+    K.settings._applyTheme(t.theme === 'dark');
+    K.settings.setFontSize(t.font_size);
+    K.settings.setMyColor(t.color_my);
+    K.settings.setTheirColor(t.color_their);
+    K.settings.setHero(t.hero_url);
+    K.settings.saveToServer();
+    K.ui.toast('Theme applied: ' + t.name, 'success');
+  },
+  deleteSavedTheme(idx) {
+    const saved = JSON.parse(localStorage.getItem('k_saved_themes')||'[]');
+    saved.splice(idx, 1);
+    localStorage.setItem('k_saved_themes', JSON.stringify(saved));
+    K.settings.saveToServer();
+    K.settings.renderSavedThemes();
+  },
+  exportTheme() {
+    const t = {
+      name: 'Kiselgram Theme',
+      version: 1,
+      theme: K.settings._isDark() ? 'dark' : 'light',
+      font_size: localStorage.getItem('k_font_size')||'medium',
+      color_my: localStorage.getItem('k_color_my')||'#5e72e4',
+      color_their: localStorage.getItem('k_color_their')||'#e8e8e8',
+      hero_url: localStorage.getItem('k_hero_url')||''
+    };
+    const blob = new Blob([JSON.stringify(t, null, 2)], {type: 'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'kiselgram-theme.ktqh';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  },
+  async loadFromServer() {
+    try {
+      const d = await K.api.get(V2 + '/k/settings');
+      if (d.success && d.data?.settings) {
+        const s = d.data.settings;
+        if (s.pinned) { K.state.pinned = s.pinned; localStorage.setItem('k_pinned', JSON.stringify(s.pinned)); }
+        if (s.folders) { K.state.folders = s.folders; localStorage.setItem('k_folders', JSON.stringify(s.folders)); }
+        if (s.hero_url) { localStorage.setItem('k_hero_url', s.hero_url); K.settings.loadHero(); }
+        if (s.theme) { localStorage.setItem('k_theme', s.theme); K.settings._applyTheme(s.theme === 'dark'); }
+        if (s.font_size) { localStorage.setItem('k_font_size', s.font_size); K.settings.setFontSize(s.font_size); }
+        if (s.color_my) { localStorage.setItem('k_color_my', s.color_my); K.settings.setMyColor(s.color_my); }
+        if (s.color_their) { localStorage.setItem('k_color_their', s.color_their); K.settings.setTheirColor(s.color_their); }
+        if (s.saved_themes) { localStorage.setItem('k_saved_themes', JSON.stringify(s.saved_themes)); }
+        if (s.music_tracks) { K.music._tracks = s.music_tracks; localStorage.setItem('k_music_tracks', JSON.stringify(s.music_tracks)); }
+      }
+    } catch(e) {}
+  },
+  async saveToServer() {
+    const settings = {
+      pinned: K.state.pinned || [],
+      folders: K.state.folders || [],
+      hero_url: localStorage.getItem('k_hero_url') || '',
+      theme: localStorage.getItem('k_theme') || 'light',
+      font_size: localStorage.getItem('k_font_size') || 'medium',
+      color_my: localStorage.getItem('k_color_my') || '#5e72e4',
+      color_their: localStorage.getItem('k_color_their') || '#e8e8e8',
+      saved_themes: JSON.parse(localStorage.getItem('k_saved_themes')||'[]'),
+      music_tracks: K.music._tracks || []
+    };
+    try {
+      await K.api.put(V2 + '/k/settings', {settings});
+    } catch(e) {}
+  },
+  importTheme(input) {
+    if (!input?.files?.length) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const t = JSON.parse(e.target.result);
+        if (t.theme) K.settings._applyTheme(t.theme === 'dark');
+        if (t.font_size) K.settings.setFontSize(t.font_size);
+        if (t.color_my) K.settings.setMyColor(t.color_my);
+        if (t.color_their) K.settings.setTheirColor(t.color_their);
+        if (t.hero_url) K.settings.setHero(t.hero_url);
+        K.ui.toast('Theme imported: ' + (t.name||'Unknown'), 'success');
+      } catch(e) { K.ui.toast('Invalid theme file', 'error'); }
+    };
+    reader.readAsText(input.files[0]);
+    input.value = '';
   }
 };
 
@@ -1093,11 +1536,12 @@ K.profile = {
   async save() {
     const name = $('editDisplayName')?.value?.trim();
     const bio = $('editBio')?.value?.trim();
+    const statusEmoji = $('statusEmoji')?.value?.trim() || '';
     try {
-      const d = await K.api.put(V2 + '/profile', {display_name: name, bio});
+      const d = await K.api.put(V2 + '/profile', {display_name: name, bio, status_emoji: statusEmoji});
       if (d.success) {
         K.ui.toast('Profile updated', 'success');
-        if (K.state.user) { K.state.user.display_name = name; K.state.user.bio = bio; }
+        if (K.state.user) { K.state.user.display_name = name; K.state.user.bio = bio; K.state.user.status_emoji = statusEmoji; }
         K.ui.renderUser(); K.modals.close();
       } else K.ui.toast('Failed', 'error');
     } catch(e) { K.ui.toast('Error', 'error'); }
@@ -1157,6 +1601,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   await K.auth.init();
 
+  await K.settings.loadFromServer();
+  K.settings.loadHero();
+  K.settings.renderFolderBar();
+  K.state.restoreURL();
+  if (K.state._pendingChat) {
+    const pc = K.state._pendingChat;
+    delete K.state._pendingChat;
+    K.chat.open(pc.type, pc.id);
+  } else if (K.state._pendingSettings) {
+    const ps = K.state._pendingSettings;
+    delete K.state._pendingSettings;
+    K.views.show('settings');
+    setTimeout(() => K.settings.switchTab(ps), 100);
+  }
+
   setInterval(() => K.chat.loadList(), 15000);
   setInterval(() => { if (K.state.activeChat) K.chat.loadMessages(K.state.activeChat.type, K.state.activeChat.id); }, 5000);
   setInterval(() => K.stories.load(), 60000);
@@ -1164,4 +1623,5 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 window.K = K;
+window.$ = $;
 })();

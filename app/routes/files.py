@@ -7,6 +7,7 @@ from datetime import datetime
 from app import db
 from app.models import User, Message, Chat, ChatMember, ChatSubscriber, File
 from app.utils.logging_utils import log_main
+from app.utils.helpers import get_current_user_id
 
 files_bp = Blueprint('files', __name__)
 
@@ -181,7 +182,7 @@ def serve_avatar(filename):
 @files_bp.route('/files/upload_file', methods=['POST'])
 def upload_file():
     """Handle file uploads for personal chats, groups, and channels"""
-    user_id = session.get('user_id')
+    user_id = get_current_user_id() or session.get('user_id')
     if not user_id:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
 

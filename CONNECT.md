@@ -94,4 +94,3 @@ Visit `http://YOUR_SERVER_IP` in a browser to confirm the site is live.
 | View Gunicorn logs | `tail -f /var/www/kiselgram/logs/gunicorn_error.log` |
 | View Nginx logs | `tail -f /var/log/nginx/kiselgram_error.log` |
 | Check Gunicorn status | `supervisorctl status` |
-ument only contains the essential commands for deploying code changes and restarting services – nothing else.

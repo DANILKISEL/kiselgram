@@ -45,15 +45,23 @@ def video_required(f):
         return f(*args, **kwargs)
     return wrapper
 
+def _vs(method, path, **kwargs):
+    """Proxy to video server."""
+    try:
+        r = requests.request(method, f"{VIDEO_BASE_URL}{path}",
+                            timeout=VIDEO_TIMEOUT, **kwargs)
+        return r.json() if r.status_code == 200 else (r.text, r.status_code)
+    except requests.exceptions.ConnectionError:
+        return jsonify({'error': 'Video server not running'}), 503
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @video_int_bp.route('/')
 @login_required
 @video_required
 def index():
-    try:
-        r = requests.get(f"{VIDEO_BASE_URL}/api/rooms", timeout=VIDEO_TIMEOUT)
-        rooms = r.json() if r.status_code == 200 else {'rooms': []}
-    except Exception:
-        rooms = {'rooms': []}
+    rooms = _vs('GET', '/api/rooms')
+    if isinstance(rooms, tuple): rooms = {'rooms': []}
     return render_template('video_integration.html',
                          username=session.get('username'),
                          user_id=session.get('user_id'),
@@ -64,55 +72,86 @@ def index():
 @login_required
 @video_required
 def create_room():
-    try:
-        body = flask_request.get_json(silent=True) or {}
-        r = requests.post(f"{VIDEO_BASE_URL}/api/rooms", json={
-            'username': session.get('username'),
-            'user_id': session.get('user_id'),
-            'name': body.get('room_name', f"{session.get('username')}'s Room"),
-        }, timeout=VIDEO_TIMEOUT)
-        return r.json() if r.status_code == 200 else (r.text, r.status_code)
-    except requests.exceptions.ConnectionError:
-        return jsonify({'error': 'Video server not running'}), 503
-    except Exception as e:
-        logger.error(f"create_room error: {e}")
-        return jsonify({'error': str(e)}), 500
+    body = flask_request.get_json(silent=True) or {}
+    return _vs('POST', '/api/rooms', json={
+        'username': session.get('username'),
+        'user_id': session.get('user_id'),
+        'name': body.get('room_name', f"{session.get('username')}'s Room"),
+    })
 
 @video_int_bp.route('/rooms')
 @login_required
 @video_required
 def list_rooms():
-    try:
-        r = requests.get(f"{VIDEO_BASE_URL}/api/rooms", timeout=VIDEO_TIMEOUT)
-        return jsonify(r.json()) if r.status_code == 200 else (r.text, r.status_code)
-    except Exception:
-        return jsonify({'error': 'Video server not running'}), 503
+    return _vs('GET', '/api/rooms')
 
 @video_int_bp.route('/room/<room_id>')
 @login_required
 @video_required
 def join_room(room_id):
     qs = f"?username={quote(session.get('username', ''))}&user_id={session.get('user_id')}"
-    public_url = get_video_public_url()
-    return redirect(f"{public_url}/room/{room_id}{qs}")
+    return redirect(f"{get_video_public_url()}/room/{room_id}{qs}")
 
 @video_int_bp.route('/room/<room_id>/info')
 @login_required
 @video_required
 def room_info(room_id):
-    try:
-        r = requests.get(f"{VIDEO_BASE_URL}/api/rooms/{room_id}", timeout=VIDEO_TIMEOUT)
-        return jsonify(r.json()) if r.status_code == 200 else (r.text, r.status_code)
-    except Exception:
-        return jsonify({'error': 'Video server not running'}), 503
+    return _vs('GET', f'/api/rooms/{room_id}')
 
 @video_int_bp.route('/health')
 def health():
-    if check_video_server():
-        return jsonify({'status': 'ok', 'video_server': 'running', 'url': get_video_public_url()})
-    return jsonify({'status': 'degraded', 'video_server': 'down', 'url': get_video_public_url()}), 503
+    ok = check_video_server()
+    return jsonify({'status': 'ok' if ok else 'degraded', 'video_server': 'running' if ok else 'down',
+                    'url': get_video_public_url()})
 
 @video_int_bp.route('/leave/<room_id>', methods=['POST'])
 @login_required
 def leave_room(room_id):
     return jsonify({'success': True})
+
+# ---- Call API (proxied to video server) ----
+@video_int_bp.route('/call/<int:user_id>', methods=['POST'])
+@login_required
+@video_required
+def initiate_call(user_id):
+    """Ring a user. Creates a call + room on video server in ringing state."""
+    return _vs('POST', '/api/calls', json={
+        'caller_id': session.get('user_id'),
+        'caller_username': session.get('username'),
+        'callee_id': user_id,
+        'callee_username': flask_request.get_json(silent=True).get('callee_username', '') if flask_request.is_json else '',
+    })
+
+@video_int_bp.route('/calls/incoming')
+@login_required
+def incoming_calls():
+    """Poll: check for ringing calls for current user."""
+    return _vs('GET', f"/api/calls/incoming?user_id={session.get('user_id')}")
+
+@video_int_bp.route('/calls/<call_id>/accept', methods=['POST'])
+@login_required
+def accept_call(call_id):
+    return _vs('POST', f'/api/calls/{call_id}/accept')
+
+@video_int_bp.route('/calls/<call_id>/decline', methods=['POST'])
+@login_required
+def decline_call(call_id):
+    return _vs('POST', f'/api/calls/{call_id}/decline')
+
+@video_int_bp.route('/calls/<call_id>/end', methods=['POST'])
+@login_required
+def end_call(call_id):
+    return _vs('POST', f'/api/calls/{call_id}/end')
+
+# ---- Embed ----
+@video_int_bp.route('/embed/<room_id>')
+@login_required
+@video_required
+def embed_call(room_id):
+    """Page that embeds the video room in an iframe (for main app)."""
+    qs = f"?username={quote(session.get('username', ''))}&user_id={session.get('user_id')}"
+    embed_url = f"{get_video_public_url()}/room/{room_id}{qs}"
+    return render_template('video_embed.html',
+                         embed_url=embed_url,
+                         room_id=room_id,
+                         username=session.get('username'))

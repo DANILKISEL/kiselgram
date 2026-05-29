@@ -1,5 +1,5 @@
-from flask import Blueprint, request, jsonify, session
-from datetime import datetime
+from flask import Blueprint, request, jsonify, session, current_app, url_for
+from datetime import datetime, timedelta
 import re
 import secrets
 from app import db
@@ -29,17 +29,21 @@ def register():
     if errors:
         return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'Validation failed', 'fields': errors}}), 400
 
-    user = User(username=username, email=email, display_name=username, is_online=True, last_seen=datetime.utcnow())
+    user = User(username=username, email=email, display_name=username, is_online=False, last_seen=datetime.utcnow())
     user.set_password(password)
-    user.email_verified = True
+    user.email_verified = False
     db.session.add(user)
     db.session.flush()
 
-    session_token = secrets.token_urlsafe(32)
-    session['user_id'] = user.id
-    session['username'] = user.username
-    db.session.add(UserSession(user_id=user.id, session_token=session_token, device='K Web', created_at=datetime.utcnow(), last_activity=datetime.utcnow(), is_active=True))
+    verify_token = secrets.token_urlsafe(32)
+    expires_at = datetime.utcnow() + timedelta(hours=24)
+    db.session.add(EmailVerification(user_id=user.id, token=verify_token, expires_at=expires_at))
     db.session.commit()
+
+    from flask import request as req
+    verify_url = f"{req.host_url}api.v2/api/auth/verify?token={verify_token}"
+    current_app.logger.info(f'Verification token for {username}: {verify_token}')
+    print(f'[EMAIL] Verification link: {verify_url}')
 
     return jsonify({'success': True, 'data': {
         'user': {
@@ -51,11 +55,12 @@ def register():
             'bio': getattr(user, 'bio', None),
             'is_premium': getattr(user, 'is_premium', False) or (user.premium.is_premium if user.premium else False),
             'is_admin': getattr(user, 'is_admin', False),
-            'is_online': True,
-            'last_seen': datetime.utcnow().isoformat(),
+            'is_online': False,
+            'last_seen': None,
             'created_at': user.created_at.isoformat() if user.created_at else datetime.utcnow().isoformat()
         },
-        'session_token': session_token
+        'verification_token': verify_token,
+        'message': 'Account created. Please verify your email.'
     }}), 201
 
 
@@ -71,6 +76,9 @@ def login():
     user = User.query.filter_by(username=username).first()
     if not user or not user.check_password(password):
         return jsonify({'success': False, 'error': {'code': 'INVALID_CREDENTIALS', 'message': 'Invalid username or password'}}), 401
+
+    if not user.email_verified:
+        return jsonify({'success': False, 'error': {'code': 'EMAIL_NOT_VERIFIED', 'message': 'Please verify your email first'}}), 403
 
     session_token = secrets.token_urlsafe(32)
     session['user_id'] = user.id
@@ -109,6 +117,37 @@ def logout():
             db.session.commit()
     session.clear()
     return jsonify({'success': True, 'data': {'message': 'Logged out successfully'}})
+
+
+@spav2_auth_bp.route('verify', methods=['GET', 'POST'])
+def verify_email():
+    token = ''
+    if request.method == 'GET':
+        token = request.args.get('token', '').strip()
+    else:
+        data = request.get_json() or {}
+        token = data.get('token', '').strip()
+    if not token:
+        return jsonify({'success': False, 'error': {'code': 'INVALID_TOKEN', 'message': 'Verification token is required'}}), 400
+
+    verification = EmailVerification.query.filter_by(token=token, verified=False).first()
+    if not verification:
+        return jsonify({'success': False, 'error': {'code': 'INVALID_TOKEN', 'message': 'Invalid or expired verification token'}}), 400
+
+    if verification.expires_at < datetime.utcnow():
+        return jsonify({'success': False, 'error': {'code': 'EXPIRED_TOKEN', 'message': 'Verification token has expired'}}), 400
+
+    user = User.query.get(verification.user_id)
+    if not user:
+        return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'User not found'}}), 404
+
+    user.email_verified = True
+    user.is_online = True
+    user.last_seen = datetime.utcnow()
+    verification.verified = True
+    db.session.commit()
+
+    return jsonify({'success': True, 'data': {'message': 'Email verified successfully'}})
 
 
 @spav2_auth_bp.route('/check_username', methods=['GET'])

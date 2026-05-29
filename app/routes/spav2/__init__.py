@@ -26,6 +26,8 @@ class Api2:
         from .sessions import spav2_sessions_bp
         from .messages import spav2_messages_bp
         from .saved import spav2_saved_bp
+        from .music import spav2_music_bp
+        from .ksettings import spav2_ksettings_bp
 
         # 1. Create a parent blueprint with the prefix
         spav2_bp=self.spav2_bp
@@ -43,6 +45,8 @@ class Api2:
         spav2_bp.register_blueprint(spav2_sessions_bp)
         spav2_bp.register_blueprint(spav2_messages_bp)
         spav2_bp.register_blueprint(spav2_saved_bp)
+        spav2_bp.register_blueprint(spav2_music_bp)
+        spav2_bp.register_blueprint(spav2_ksettings_bp)
 
         app.register_blueprint(self.spav2_bp)
 
