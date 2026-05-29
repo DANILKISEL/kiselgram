@@ -1,0 +1,89 @@
+K.profile = {
+  async save() {
+    const name = $('editDisplayName')?.value?.trim();
+    const bio = $('editBio')?.value?.trim();
+    const statusEmoji = $('statusEmoji')?.value?.trim() || '';
+    try {
+      const d = await K.api.put(V2 + '/profile', {display_name: name, bio, status_emoji: statusEmoji});
+      if (d.success) {
+        K.ui.toast('Profile updated', 'success');
+        if (K.state.user) { K.state.user.display_name = name; K.state.user.bio = bio; K.state.user.status_emoji = statusEmoji; }
+        K.ui.renderUser(); K.modals.close();
+      } else K.ui.toast('Failed', 'error');
+    } catch(e) { K.ui.toast('Error', 'error'); }
+  },
+  async uploadAvatar(input) {
+    if (!input?.files?.length) return;
+    const fd = new FormData(); fd.append('avatar', input.files[0]);
+    try {
+      const d = await K.api.post(V2 + '/profile/avatar', fd);
+      if (d.success) {
+        K.ui.toast('Photo updated', 'success');
+        if (K.state.user) K.state.user.avatar_url = d.data?.avatar_url;
+        K.ui.renderUser();
+      }
+    } catch(e) { K.ui.toast('Upload failed', 'error'); }
+  }
+};
+
+document.addEventListener('DOMContentLoaded', async () => {
+  document.addEventListener('click', (e) => {
+    const dd = $('searchDropdown');
+    if (dd && !e.target.closest('.k-search-box')) dd.classList.remove('active');
+    const menu = $('chatMenu');
+    if (menu && !e.target.closest('#chatMenuBtn') && !e.target.closest('.k-chat-menu')) menu.style.display = 'none';
+  });
+
+  const menuBtn = $('menuBtn');
+  const sb = $('sidebar');
+  const backdrop = $('sidebarBackdrop');
+  function closeSidebar() { sb?.classList.remove('open'); menuBtn?.classList.remove('active'); backdrop?.classList.remove('open'); }
+  if (menuBtn) {
+    menuBtn.addEventListener('click', (e) => { e.stopPropagation(); sb?.classList.toggle('open'); menuBtn.classList.toggle('active'); backdrop?.classList.toggle('open'); });
+    backdrop?.addEventListener('click', closeSidebar);
+    document.addEventListener('click', (e) => {
+      if (sb?.classList.contains('open') && !sb.contains(e.target) && !menuBtn.contains(e.target)) {
+        closeSidebar();
+      }
+    });
+  }
+
+  $('sidebar')?.querySelector('.k-sidebar-user')?.addEventListener('click', () => { K.modals.show('editProfile'); });
+  document.querySelectorAll('.k-nav-item').forEach(item => {
+    item.addEventListener('click', closeSidebar);
+  });
+
+  const savedTheme = localStorage.getItem('k_theme');
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  K.settings._applyTheme(savedTheme === 'dark' || (!savedTheme && prefersDark));
+  const fs = localStorage.getItem('k_font_size') || 'medium';
+  K.settings.setFontSize(fs);
+  const myColor = localStorage.getItem('k_color_my') || '#5e72e4';
+  const theirColor = localStorage.getItem('k_color_their') || '#e8e8e8';
+  document.documentElement.style.setProperty('--bubble-my', myColor);
+  document.documentElement.style.setProperty('--bubble-their', theirColor);
+  const myInput = $('myColor'); if (myInput) myInput.value = myColor;
+  const theirInput = $('theirColor'); if (theirInput) theirInput.value = theirColor;
+
+  await K.auth.init();
+
+  await K.settings.loadFromServer();
+  K.settings.loadHero();
+  K.settings.renderFolderBar();
+  K.state.restoreURL();
+  if (K.state._pendingChat) {
+    const pc = K.state._pendingChat;
+    delete K.state._pendingChat;
+    K.chat.open(pc.type, pc.id);
+  } else if (K.state._pendingSettings) {
+    const ps = K.state._pendingSettings;
+    delete K.state._pendingSettings;
+    K.views.show('settings');
+    setTimeout(() => K.settings.switchTab(ps), 100);
+  }
+
+  setInterval(() => K.chat.loadList(), 15000);
+  setInterval(() => { if (K.state.activeChat) K.chat.loadMessages(K.state.activeChat.type, K.state.activeChat.id); }, 5000);
+  setInterval(() => K.stories.load(), 60000);
+  setInterval(() => K.saved.load(), 30000);
+});

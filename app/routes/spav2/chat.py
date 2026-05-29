@@ -11,9 +11,11 @@ def _serialize_peer(user):
     return {
         'user_id': user.id,
         'username': user.username,
+        'display_name': user.display_name or user.username,
         'avatar_url': user.avatar_url,
         'is_online': getattr(user, 'is_online', False),
-        'last_seen': user.last_seen.isoformat() if user.last_seen else None
+        'last_seen': user.last_seen.isoformat() if user.last_seen else None,
+        'status_emoji': getattr(user, 'status_emoji', '') or ''
     }
 
 

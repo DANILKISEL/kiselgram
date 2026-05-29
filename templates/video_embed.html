@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Call - Kiselgram{% endblock %}
+{% block styles %}
+{{ super() }}
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;background:#000}
+.video-embed-wrap{position:fixed;inset:0;display:flex;flex-direction:column}
+.video-embed-header{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:#1a1a2e;color:#fff;z-index:10;min-height:44px}
+.video-embed-header .info{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:500}
+.video-embed-header .info i{color:#28a745}
+.video-embed-header .actions{display:flex;gap:8px}
+.video-embed-header .close-btn{background:none;border:none;color:#ef4444;font-size:18px;cursor:pointer;padding:6px;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center}
+.video-embed-header .close-btn:hover{background:rgba(239,68,68,.15)}
+.video-embed-frame{flex:1;position:relative}
+.video-embed-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:none}
+</style>
+{% endblock %}
+{% block content %}
+<div class="video-embed-wrap">
+  <div class="video-embed-header">
+    <div class="info"><i class="fas fa-phone-alt"></i> <span>{{ username }}</span></div>
+    <div class="actions">
+      <button class="close-btn" onclick="endCall()" title="End Call"><i class="fas fa-phone-slash"></i></button>
+    </div>
+  </div>
+  <div class="video-embed-frame">
+    <iframe src="{{ embed_url }}" allow="camera;microphone;display-capture;fullscreen"></iframe>
+  </div>
+</div>
+<script>
+function endCall(){
+  fetch('/video/leave/{{ room_id }}',{method:'POST'}).catch(()=>{});
+  window.close();
+  location.href = '/';
+}
+</script>
+{% endblock %}

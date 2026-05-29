@@ -26,6 +26,10 @@ except (AttributeError, OSError):
     # Fallback for Windows/macOS or older Python versions where the method doesn't exist
     production = False
 
+# Always respect DATABASE_URL env var (Docker deployment)
+if os.environ.get('DATABASE_URL'):
+    production = True
+
 
 
 def create_app():
@@ -52,9 +56,12 @@ def create_app():
     # Always enforce these
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-    # Override database for production
+    # Override database for production (env var takes precedence)
     if production:
-        app.config['SQLALCHEMY_DATABASE_URI'] = "postgresql://kiselgram_user:String-123@localhost:5432/kiselgram"
+        app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
+            'DATABASE_URL',
+            "postgresql://kiselgram_user:String-123@localhost:5432/kiselgram"
+        )
 
     print(f"✅ Database URI: {app.config['SQLALCHEMY_DATABASE_URI']}")
 
@@ -131,9 +138,12 @@ def create_app():
         session.clear()
         return redirect('/auth/login')
 
-    # Create tables if they don't exist (development convenience)
-    with app.app_context():
-        db.create_all()
+    # Create tables if they don't exist (safe for concurrent workers)
+    try:
+        with app.app_context():
+            db.create_all()
+    except Exception:
+        app.logger.warning("db.create_all() skipped (tables likely already exist)")
 
     # Background thread: cleanup expired stories every 30 minutes
     def story_cleanup_loop():

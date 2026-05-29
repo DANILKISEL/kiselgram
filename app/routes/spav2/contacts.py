@@ -26,7 +26,8 @@ def get_contacts():
                 'custom_name': c.custom_name,
                 'is_online': getattr(user, 'is_online', False),
                 'last_seen': user.last_seen.isoformat() if user.last_seen else None,
-                'added_at': c.created_at.isoformat() if c.created_at else None
+                'added_at': c.created_at.isoformat() if c.created_at else None,
+                'status_emoji': getattr(user, 'status_emoji', '') or ''
             })
 
     return jsonify({'success': True, 'data': {'contacts': result, 'total': len(result)}})

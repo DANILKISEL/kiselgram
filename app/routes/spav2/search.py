@@ -32,7 +32,8 @@ def global_search():
             'username': u.username,
             'display_name': u.display_name or u.username,
             'avatar_url': u.avatar_url,
-            'is_contact': u.id in contacts_set
+            'is_contact': u.id in contacts_set,
+            'status_emoji': getattr(u, 'status_emoji', '') or ''
         })
 
     # Groups
@@ -100,7 +101,8 @@ def search_users():
             'avatar_url': u.avatar_url,
             'bio': getattr(u, 'bio', None),
             'is_online': getattr(u, 'is_online', False),
-            'is_contact': u.id in contacts_set
+            'is_contact': u.id in contacts_set,
+            'status_emoji': getattr(u, 'status_emoji', '') or ''
         })
 
     return jsonify({'success': True, 'data': {'query': query, 'users': result, 'total': len(result)}})

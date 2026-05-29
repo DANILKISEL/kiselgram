@@ -98,6 +98,7 @@ class User(db.Model):
     recent_searches = db.relationship('RecentSearch', backref='user', lazy=True)
     pinned_chats = db.relationship('PinnedChat', backref='user', lazy=True)
     email_verifications = db.relationship('EmailVerification', backref='user', lazy=True)
+    k_settings = db.relationship('UserKSettings', backref='user', uselist=False, lazy=True)
 
     def to_dict(self):
         return {
@@ -540,3 +541,30 @@ class EmailVerification(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     expires_at = db.Column(db.DateTime, nullable=False)
     verified = db.Column(db.Boolean, default=False)
+
+
+class UserMusic(db.Model):
+    __tablename__ = 'user_music'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    file_url = db.Column(db.String(500), nullable=False)
+    file_name = db.Column(db.String(255), nullable=True)
+    artist = db.Column(db.String(255), nullable=True)
+    title = db.Column(db.String(255), nullable=True)
+    duration = db.Column(db.Integer, default=0)
+    source_message_id = db.Column(db.Integer, db.ForeignKey('message.id'), nullable=True)
+    added_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class UserKSettings(db.Model):
+    """Per-user K SPA settings stored as JSON blob"""
+    __tablename__ = 'user_k_settings'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, unique=True)
+    settings = db.Column(db.JSON, default=dict)
+
+    def to_dict(self):
+        return {
+            'user_id': self.user_id,
+            'settings': self.settings or {}
+        }
