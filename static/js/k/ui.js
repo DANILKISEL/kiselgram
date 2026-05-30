@@ -39,9 +39,7 @@ K.ui = {
   renderUser() {
     const u = K.state.user; if (!u) return;
     const av = $('sidebarAvatar'); if (av) av.innerHTML = K.ui.avatar(u.username, u.avatar_url);
-    const nm = $('sidebarName'); if (nm) nm.textContent = u.display_name || u.username;
-    const se = u.status_emoji || '';
-    if (nm && se) nm.textContent = se + ' ' + nm.textContent;
+    const nm = $('sidebarName'); if (nm) nm.innerHTML = esc(u.display_name || u.username) + (u.status_emoji ? ` <span class="k-status-emoji" onclick="K.modals.show('editProfile')" style="cursor:pointer" title="Set status">${esc(u.status_emoji)}</span>` : ' <span class="k-status-emoji" onclick="K.modals.show(\'editProfile\')" style="cursor:pointer;font-size:11px;opacity:0.4" title="Set status">set status</span>');
     const un = $('sidebarUsername'); if (un) un.textContent = '@' + u.username;
   }
 };

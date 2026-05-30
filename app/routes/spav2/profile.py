@@ -4,6 +4,7 @@ from flask import Blueprint, request, jsonify, session
 from app import db
 from app.models import User
 from app.utils.helpers import get_current_user
+from app.utils.security import sanitize_string, rate_limit
 
 spav2_profile_bp = Blueprint('spav2_profile', __name__, url_prefix='/api')
 
@@ -38,11 +39,11 @@ def update_profile():
 
     data = request.get_json() or {}
     if 'display_name' in data:
-        current_user.display_name = data['display_name']
+        current_user.display_name = sanitize_string(data['display_name'], max_length=50)
     if 'bio' in data:
-        current_user.bio = data['bio']
+        current_user.bio = sanitize_string(data['bio'], max_length=200)
     if 'status_emoji' in data:
-        current_user.status_emoji = data['status_emoji']
+        current_user.status_emoji = sanitize_string(data['status_emoji'], max_length=10)
     db.session.commit()
     return jsonify({'success': True, 'data': {'message': 'Profile updated'}})
 
@@ -83,6 +84,7 @@ def get_privacy():
 
 
 @spav2_profile_bp.route('/profile/avatar', methods=['POST'])
+@rate_limit('v2_avatar', max_requests=5, window=120)
 def upload_avatar():
     current_user = get_current_user()
     if not current_user:

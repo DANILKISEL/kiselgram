@@ -9,8 +9,13 @@ from app.utils.helpers import get_current_user, get_current_user_id, get_blocked
 
 spa_chat_bp = Blueprint('chats', __name__)
 
+@spa_chat_bp.route('/app')
+def picker():
+    return render_template(
+        'picker.html',
+    )
 
-@spa_chat_bp.route('/chat_list')
+@spa_chat_bp.route('/a')
 def chat_list():
     """Main chat list view - serves premium or free HTML based on user status"""
     if not get_current_user():
@@ -187,17 +192,11 @@ def chat_list():
     )
 
 
-@spa_chat_bp.route('/app')
-def app_redirect():
-    """Redirect to chat list"""
-    return redirect(url_for('chats.chat_list'))
-
-
 @spa_chat_bp.route('/app_1')
 def index():
     """Root route - redirect to chat list or login"""
     if get_current_user():
-        return redirect(url_for('chats.chat_list'))
+        return redirect(url_for('chats.picker'))
     return redirect(url_for('auth.login'))
 
 

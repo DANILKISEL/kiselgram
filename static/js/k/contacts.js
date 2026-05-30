@@ -18,7 +18,7 @@ K.contacts = {
       `<div class="k-contact-item" onclick="K.chat.open('personal',${ct.user_id})">
         <div class="k-contact-avatar">${K.ui.avatar(ct.username, ct.avatar_url)}</div>
         <div class="k-contact-info">
-          <div class="k-contact-name">${esc((ct.status_emoji||'')+' '+(ct.display_name||ct.username))}</div>
+          <div class="k-contact-name">${esc(ct.display_name||ct.username)}${ct.status_emoji ? ' ' + esc(ct.status_emoji) : ''}</div>
           <div class="k-contact-username">@${esc(ct.username)}${ct.is_online ? ' <span class="k-contact-status">● Online</span>' : ''}</div>
         </div>
         <button class="k-icon-btn" onclick="event.stopPropagation();K.contacts.rename(${ct.user_id})" title="Rename"><i class="fas fa-pen"></i></button>

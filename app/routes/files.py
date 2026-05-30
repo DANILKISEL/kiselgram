@@ -8,6 +8,7 @@ from app import db
 from app.models import User, Message, Chat, ChatMember, ChatSubscriber, File
 from app.utils.logging_utils import log_main
 from app.utils.helpers import get_current_user_id
+from app.utils.security import rate_limit
 
 files_bp = Blueprint('files', __name__)
 
@@ -180,6 +181,7 @@ def serve_avatar(filename):
 
 
 @files_bp.route('/files/upload_file', methods=['POST'])
+@rate_limit('upload_file', max_requests=30, window=60)
 def upload_file():
     """Handle file uploads for personal chats, groups, and channels"""
     user_id = get_current_user_id() or session.get('user_id')
@@ -328,6 +330,7 @@ def upload_file():
 
 
 @files_bp.route('/files/upload_avatar', methods=['POST'])
+@rate_limit('upload_avatar', max_requests=5, window=120)
 def upload_avatar():
     """Handle avatar upload for user profile"""
     user_id = session.get('user_id')
@@ -393,6 +396,7 @@ def upload_avatar():
 
 
 @files_bp.route('/files/upload_story', methods=['POST'])
+@rate_limit('upload_story', max_requests=10, window=60)
 def upload_story():
     """Upload a story media file"""
     user_id = session.get('user_id')

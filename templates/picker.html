@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Kiselgram · Choose Version</title>
+    <!-- Font Awesome 6 (free) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            font-family: system-ui, 'Segoe UI', 'Inter', 'Helvetica Neue', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(8px);
+            border-radius: 2rem;
+            padding: 2.5rem 2rem;
+            box-shadow: 0 25px 45px -12px rgba(0, 0, 0, 0.4);
+            text-align: center;
+            max-width: 700px;
+            width: 100%;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.2s ease;
+        }
+
+        .title {
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+            color: #f1f5f9;
+            margin-bottom: 0.5rem;
+        }
+
+        .title i {
+            color: #f59e0b;
+            margin-right: 8px;
+        }
+
+        .divider {
+            width: 80px;
+            height: 3px;
+            background: #f59e0b;
+            margin: 1rem auto;
+            border-radius: 4px;
+        }
+
+        .sub {
+            color: #cbd5e1;
+            margin-bottom: 1.5rem;
+            font-size: 0.95rem;
+        }
+
+        .countdown-box {
+            background: rgba(0, 0, 0, 0.4);
+            display: inline-block;
+            padding: 0.5rem 1.2rem;
+            border-radius: 60px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #fbbf24;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(4px);
+            font-family: monospace;
+            letter-spacing: 1px;
+        }
+
+        .countdown-box i {
+            margin-right: 8px;
+            font-size: 1rem;
+        }
+
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            justify-content: center;
+            margin-top: 0.5rem;
+        }
+
+        .version-btn {
+            flex: 1;
+            min-width: 200px;
+            padding: 1.2rem 1.5rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+            border: none;
+            border-radius: 60px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.8rem;
+            font-family: inherit;
+            text-decoration: none;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .version-btn i {
+            font-size: 1.4rem;
+        }
+
+        .version-btn.old {
+            background: rgba(100, 116, 139, 0.3);
+            box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.3);
+        }
+
+        .version-btn.old:hover {
+            background: #475569;
+            transform: translateY(-4px);
+            border-color: #94a3b8;
+            box-shadow: 0 15px 30px -10px rgba(0, 0, 0, 0.4);
+        }
+
+        .version-btn.new {
+            background: rgba(245, 158, 11, 0.2);
+            border-color: #f59e0b;
+            box-shadow: 0 8px 20px -8px rgba(245, 158, 11, 0.3);
+        }
+
+        .version-btn.new:hover {
+            background: #f59e0b;
+            color: #0f172a;
+            transform: translateY(-4px);
+            border-color: #fbbf24;
+            box-shadow: 0 15px 30px -8px #f59e0b;
+        }
+
+        .version-btn.new:hover i {
+            color: #0f172a;
+        }
+
+        .footer-note {
+            margin-top: 2rem;
+            font-size: 0.75rem;
+            color: #94a3b8;
+        }
+
+        @media (max-width: 550px) {
+            .card {
+                padding: 1.8rem;
+            }
+            .title {
+                font-size: 1.6rem;
+            }
+            .version-btn {
+                font-size: 1.2rem;
+                padding: 0.9rem 1rem;
+                min-width: 160px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="card">
+    <div class="title">
+        <i class="fab fa-telegram-plane"></i> Kiselgram: Pick your version
+    </div>
+    <div class="divider"></div>
+    <div class="sub">Choose the interface that suits you best</div>
+
+    <!-- Countdown display -->
+    <div class="countdown-box" id="countdownDisplay">
+        <i class="fas fa-hourglass-half"></i> Auto-redirect in <span id="countdownSeconds">4</span>s
+    </div>
+
+    <div class="button-group">
+        <a href="/a" class="version-btn old" id="oldBtn">
+            <i class="fas fa-archive"></i> A (OLD)
+        </a>
+        <a href="/k" class="version-btn new" id="newBtn">
+            <i class="fas fa-rocket"></i> K (NEW)
+        </a>
+    </div>
+    <div class="footer-note">
+        ⚡ Classic or modern — your experience, your choice
+    </div>
+</div>
+
+<script>
+    let countdown = 4;          // 4 seconds
+    const countdownElement = document.getElementById('countdownSeconds');
+    const oldBtn = document.getElementById('oldBtn');
+    const newBtn = document.getElementById('newBtn');
+    let timeoutId = null;
+    let redirectCancelled = false;
+
+    // Function to perform auto-redirect to /k
+    function autoRedirectToK() {
+        if (!redirectCancelled) {
+            window.location.href = '/k';
+        }
+    }
+
+    // Start countdown timer
+    function startCountdown() {
+        if (timeoutId) clearInterval(timeoutId);
+        timeoutId = setInterval(() => {
+            if (!redirectCancelled && countdown > 1) {
+                countdown--;
+                if (countdownElement) {
+                    countdownElement.textContent = countdown;
+                }
+            } else if (!redirectCancelled && countdown === 1) {
+                countdown--;
+                if (countdownElement) {
+                    countdownElement.textContent = '0';
+                }
+                clearInterval(timeoutId);
+                autoRedirectToK();
+            } else if (redirectCancelled) {
+                clearInterval(timeoutId);
+            }
+        }, 1000);
+    }
+
+    // Cancel countdown when user clicks any button
+    function cancelCountdownAndProceed(url) {
+        if (redirectCancelled) return;
+        redirectCancelled = true;
+        if (timeoutId) clearInterval(timeoutId);
+        // Update countdown display to show it's cancelled
+        const countdownBox = document.getElementById('countdownDisplay');
+        if (countdownBox) {
+            countdownBox.innerHTML = '<i class="fas fa-check-circle"></i> Redirect cancelled';
+            countdownBox.style.background = "rgba(34, 197, 94, 0.3)";
+            countdownBox.style.color = "#86efac";
+        }
+        // Navigate after a tiny delay so the visual update happens
+        setTimeout(() => {
+            window.location.href = url;
+        }, 50);
+    }
+
+    // Add click handlers to buttons
+    oldBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        cancelCountdownAndProceed('/a');
+    });
+
+    newBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        cancelCountdownAndProceed('/k');
+    });
+
+    // Start the countdown only if no button is clicked before it finishes
+    startCountdown();
+</script>
+</body>
+</html>

@@ -34,6 +34,7 @@ if os.environ.get('DATABASE_URL'):
 
 def create_app():
     from app.utils.helpers import get_current_user
+    from app.utils.security import add_security_headers, generate_csrf_token, rate_limiter
     from app.models import User
 
     basedir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
@@ -84,6 +85,17 @@ def create_app():
     db.init_app(app)
     login_manager.init_app(app)
     migrate.init_app(app, db)
+
+    # ─── Security: headers, CSRF token context ───────────────────────────────
+    app.after_request(add_security_headers)
+
+    @app.context_processor
+    def inject_csrf():
+        return {'csrf_token': generate_csrf_token()}
+
+    @app.teardown_appcontext
+    def cleanup_rate_limiter(exc=None):
+        rate_limiter.cleanup()
 
     login_manager.login_view = 'auth.login'
     login_manager.login_message = 'Please log in to access this page.'
