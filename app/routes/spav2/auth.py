@@ -5,23 +5,26 @@ import secrets
 from app import db
 from app.models import User, EmailVerification, UserSession
 from app.utils.helpers import get_current_user
+from app.utils.security import rate_limit, validate_password, sanitize_string
 
 spav2_auth_bp = Blueprint('spav2_auth', __name__, url_prefix='/api/auth')
 
 @spav2_auth_bp.route('/register', methods=['POST'])
+@rate_limit('register', max_requests=5, window=300)
 def register():
     data = request.get_json() or {}
-    username = data.get('username', '').strip()
-    email = data.get('email', '').strip()
+    username = sanitize_string(data.get('username', ''), max_length=32)
+    email = sanitize_string(data.get('email', ''), max_length=128)
     password = data.get('password', '')
 
     errors = {}
     if len(username) < 3 or not re.match(r'^[a-zA-Z0-9_]+$', username):
-        errors['username'] = 'Username must be at least 3 characters (letters, numbers, underscores)'
+        errors['username'] = 'Username must be 3-32 characters (letters, numbers, underscores)'
     if not re.match(r'^[^@]+@[^@]+\.[^@]+$', email):
         errors['email'] = 'Invalid email format'
-    if len(password) < 8:
-        errors['password'] = 'Password must be at least 8 characters'
+    pwd_errors = validate_password(password)
+    if pwd_errors:
+        errors['password'] = ' '.join(pwd_errors)
     if User.query.filter_by(username=username).first():
         errors['username'] = 'Username already taken'
     if User.query.filter_by(email=email).first():
@@ -65,9 +68,10 @@ def register():
 
 
 @spav2_auth_bp.route('login', methods=['POST'])
+@rate_limit('login', max_requests=10, window=60)
 def login():
     data = request.get_json() or {}
-    username = data.get('username', '').strip()
+    username = sanitize_string(data.get('username', ''), max_length=32)
     password = data.get('password', '')
 
     if not username or not password:
@@ -107,6 +111,7 @@ def login():
 
 
 @spav2_auth_bp.route('logout', methods=['POST'])
+@rate_limit('logout', max_requests=10, window=60)
 def logout():
     user_id = session.get('user_id')
     if user_id:
@@ -120,6 +125,7 @@ def logout():
 
 
 @spav2_auth_bp.route('verify', methods=['GET', 'POST'])
+@rate_limit('verify', max_requests=20, window=60)
 def verify_email():
     token = ''
     if request.method == 'GET':

@@ -60,7 +60,7 @@ K.chat = {
       return `<div class="k-chat-item ${isActive?'active':''} ${isPinned?'pinned':''}" onclick="K.chat.open('${type}',${id})" data-type="${type}" data-id="${id}">
         <div class="k-chat-avatar ${type}">${K.ui.avatar(name, avatar)}${isOnline ? '<span class="k-online-dot"></span>' : ''}</div>
         <div class="k-chat-info">
-          <div class="k-chat-name-row"><span class="k-chat-name">${statusEmoji ? esc(statusEmoji+' ') : ''}${esc(name)}${isPinned ? ' <i class="fas fa-thumbtack" style="font-size:10px;color:var(--accent-blue);transform:rotate(45deg);margin-left:2px"></i>' : ''}</span><span class="k-chat-time">${time}</span></div>
+          <div class="k-chat-name-row"><span class="k-chat-name">${esc(name)}${statusEmoji ? ' ' + esc(statusEmoji) : ''}${isPinned ? ' <i class="fas fa-thumbtack" style="font-size:10px;color:var(--accent-blue);transform:rotate(45deg);margin-left:2px"></i>' : ''}</span><span class="k-chat-time">${time}</span></div>
           <div class="k-chat-preview"><span>${preview}</span>${unread ? `<span class="k-unread">${unread>99?'99+':unread}</span>` : ''}</div>
         </div>
       </div>`;
@@ -106,7 +106,7 @@ K.chat = {
       if (peer) {
         const pname = peer.display_name || peer.name || peer.username || 'User #'+id;
         const emoji = peer.status_emoji || '';
-        if (nameEl) nameEl.textContent = emoji ? emoji + ' ' + pname : pname;
+        if (nameEl) nameEl.textContent = pname + (emoji ? ' ' + emoji : '');
         if (avatarEl) { avatarEl.innerHTML = K.ui.avatar(pname, peer.avatar_url); avatarEl.className = 'k-chat-avatar-sm'+(type==='group'?' group':type==='channel'?' channel':''); }
         if (statusEl) { statusEl.textContent = peer.is_online ? 'online' : ''; statusEl.className = 'k-chat-header-status'+(peer.is_online?' online':''); }
         return;
@@ -120,7 +120,7 @@ K.chat = {
           const u = users.find(x => x.user_id === id);
           if (u) {
             const emoji = u.status_emoji || '';
-            if (nameEl) nameEl.textContent = emoji ? emoji + ' ' + (u.display_name || u.username) : (u.display_name || u.username);
+            if (nameEl) nameEl.textContent = (u.display_name || u.username) + (emoji ? ' ' + emoji : '');
             if (avatarEl) { avatarEl.className = 'k-chat-avatar-sm'; avatarEl.innerHTML = K.ui.avatar(u.display_name||u.username, u.avatar_url); }
             if (statusEl) { statusEl.textContent = u.is_online ? 'online' : ''; statusEl.className = 'k-chat-header-status'+(u.is_online?' online':''); }
           }

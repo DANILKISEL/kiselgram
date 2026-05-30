@@ -13,11 +13,11 @@ from app.utils.helpers import get_blocked_user_ids
 chats_bp = Blueprint('chats', __name__)
 
 
-@chats_bp.route('/chat_list')
+@chats_bp.route('/a')
 def chat_list():
     """Main chat list view - serves premium or free HTML based on user status"""
     if not get_current_user():
-        return redirect('/')
+        return redirect('/auth/login')
 
     current_user = get_current_user()
     current_user_id = current_user.id
@@ -176,12 +176,6 @@ def chat_list():
     )
 
 
-@chats_bp.route('/app')
-def app_redirect():
-    """Redirect to chat list"""
-    return redirect(url_for('chats.chat_list'))
-
-
 @chats_bp.route('/app_1')
 def index():
     """Root route - redirect to chat list or login"""
@@ -207,6 +201,13 @@ def kis_info():
         'kis_info.html',
         current_user=current_user,
         is_premium=current_user.premium.is_premium if current_user and current_user.premium else False
+    )
+
+
+@chats_bp.route('/app')
+def picker():
+    return render_template(
+        'picker.html',
     )
 
 

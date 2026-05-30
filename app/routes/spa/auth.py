@@ -18,6 +18,8 @@ mail = Mail()
 # ========== LOGIN (username + password) ==========
 @spa_auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
+    if get_current_user():
+        return redirect('/app')
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
@@ -35,7 +37,7 @@ def login():
             user.is_online = True
             user.last_seen = datetime.utcnow()
             db.session.commit()
-            return redirect('/chat_list')
+            return redirect('/app')
         else:
             return render_template('login.html', error="Invalid username or password", username=username)
 
@@ -45,6 +47,8 @@ def login():
 # ========== REGISTER (email + username + password + send verification email) ==========
 @spa_auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
+    if get_current_user():
+        return redirect('/app')
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         email = request.form.get('email', '').strip()
@@ -190,7 +194,7 @@ def complete_registration():
 
         session['username'] = username
         session['display_name'] = user.display_name
-        return redirect(url_for('chats.chat_list'))
+        return redirect(url_for('chats.picker'))
 
     # GET: show avatar selection
     # avatars = PreloadedAvatar.query.filter(PreloadedAvatar.category != 'system').all()
@@ -286,7 +290,7 @@ def google_authorize():
     # If username is the auto-generated one, ask to complete registration
     if user.username.startswith('user_') or not user.display_name:
         return redirect(url_for('auth.complete_registration'))
-    return redirect('/chat_list')
+    return redirect('/app')
 
 
 # ========== LOGOUT ==========
@@ -319,7 +323,7 @@ def api_login():
             user.is_online = True
             user.last_seen = datetime.utcnow()
             db.session.commit()
-            return jsonify({'success': True, 'redirect': '/chat_list'})
+            return jsonify({'success': True, 'redirect': '/app'})
         else:
             return jsonify({'error': 'Invalid username or password'}), 401
     return jsonify({'error': 'Method not allowed'}), 405
