@@ -28,6 +28,7 @@ def _serialize_message(msg, current_user_id):
         'content': msg.content,
         'reply_to_id': None,
         'file_path': msg.file_path,
+        'file_url': f"/uploads/{msg.file_path}" if msg.file_path else None,
         'file_type': msg.file_type,
         'is_read': msg.is_read,
         'timestamp': msg.timestamp.isoformat() if msg.timestamp else None,
