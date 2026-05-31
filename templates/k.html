@@ -130,38 +130,32 @@
         <button class="k-stab" data-tab="privacy" onclick="K.settings.switchTab('privacy')">Privacy</button>
         <button class="k-stab" data-tab="sessions" onclick="K.settings.switchTab('sessions')">Sessions</button>
         <button class="k-stab" data-tab="themes" onclick="K.settings.switchTab('themes')">Themes</button>
+        <button class="k-stab" data-tab="bots" onclick="K.settings.switchTab('bots')">Bots</button>
+
       </div>
-      <div class="k-settings-scroll">
-        <div class="k-settings-tab-content" data-tab="appearance">
-          <div class="k-settings-section">
-            <h3>Dark Mode</h3>
-            <div class="k-theme-toggle" onclick="K.settings.toggleTheme()">
-              <span><i class="fas fa-moon" id="themeIcon"></i> <span id="themeLabel">Dark Mode</span></span>
-              <label class="k-switch"><input type="checkbox" id="themeSwitch"><span class="k-slider"></span></label>
-            </div>
-          </div>
-          <div class="k-settings-section">
-            <h3>Font Size</h3>
-            <div class="k-font-options">
-              <button class="k-font-btn" data-size="small" onclick="K.settings.setFontSize('small')">Sm</button>
-              <button class="k-font-btn active" data-size="medium" onclick="K.settings.setFontSize('medium')">Md</button>
-              <button class="k-font-btn" data-size="large" onclick="K.settings.setFontSize('large')">Lg</button>
-            </div>
-          </div>
-          <div class="k-settings-section">
-            <h3>Preview</h3>
-            <div class="k-preview-chat" id="previewChat">
-              <div class="k-msg incoming"><div class="k-msg-bubble"><div class="k-msg-text">Hey! How are you?</div><div class="k-msg-meta">12:30</div></div></div>
-              <div class="k-msg outgoing"><div class="k-msg-bubble"><div class="k-msg-text">I'm great, thanks! 😊</div><div class="k-msg-meta">12:31</div></div></div>
-              <div class="k-msg incoming"><div class="k-msg-bubble"><div class="k-msg-text">Want to grab coffee later?</div><div class="k-msg-meta">12:32</div></div></div>
-              <div class="k-msg outgoing"><div class="k-msg-bubble"><div class="k-msg-text">Sure! How about 3pm?</div><div class="k-msg-meta">12:33</div></div></div>
-              <div class="k-msg incoming"><div class="k-msg-bubble"><div class="k-msg-text">Perfect, see you there! ☕</div><div class="k-msg-meta">12:34</div></div></div>
-            </div>
+      <div class="k-settings-tab-content" data-tab="appearance">
+        <div class="k-settings-section">
+          <h3>Font Size</h3>
+          <div class="k-font-options">
+            <button class="k-font-btn" data-size="small" onclick="K.settings.setFontSize('small')">Sm</button>
+            <button class="k-font-btn active" data-size="medium" onclick="K.settings.setFontSize('medium')">Md</button>
+            <button class="k-font-btn" data-size="large" onclick="K.settings.setFontSize('large')">Lg</button>
           </div>
         </div>
-        <div class="k-settings-tab-content" data-tab="colors" style="display:none">
-          <div class="k-settings-section">
-            <h3>Bubble Colors</h3>
+        <div class="k-settings-section">
+          <h3>Preview</h3>
+          <div class="k-preview-chat" id="previewChat">
+            <div class="k-msg incoming"><div class="k-msg-bubble"><div class="k-msg-text">Hey! How are you?</div><div class="k-msg-meta">12:30</div></div></div>
+            <div class="k-msg outgoing"><div class="k-msg-bubble"><div class="k-msg-text">I'm great, thanks! 😊</div><div class="k-msg-meta">12:31</div></div></div>
+            <div class="k-msg incoming"><div class="k-msg-bubble"><div class="k-msg-text">Want to grab coffee later?</div><div class="k-msg-meta">12:32</div></div></div>
+            <div class="k-msg outgoing"><div class="k-msg-bubble"><div class="k-msg-text">Sure! How about 3pm?</div><div class="k-msg-meta">12:33</div></div></div>
+            <div class="k-msg incoming"><div class="k-msg-bubble"><div class="k-msg-text">Perfect, see you there! ☕</div><div class="k-msg-meta">12:34</div></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="k-settings-tab-content" data-tab="colors" style="display:none">
+        <div class="k-settings-section">
+          <h3>Bubble Colors</h3>
             <div class="k-settings-item"><span>My messages</span><input type="color" id="myColor" class="k-color-input" value="#5e72e4" onchange="K.settings.setMyColor(this.value)"></div>
             <div class="k-settings-item"><span>Their messages</span><input type="color" id="theirColor" class="k-color-input" value="#e8e8e8" onchange="K.settings.setTheirColor(this.value)"></div>
           </div>
@@ -213,26 +207,72 @@
         </div>
         <div class="k-settings-tab-content" data-tab="themes" style="display:none">
           <div class="k-settings-section">
-            <h3>Export Theme</h3>
-            <p style="margin:0 0 8px;font-size:13px;color:var(--text-muted)">Download current settings as a <code>.ktqh</code> theme file.</p>
-            <button class="k-btn k-btn-secondary" style="width:100%;padding:8px;font-size:13px" onclick="K.settings.exportTheme()"><i class="fas fa-download"></i> Export .ktqh</button>
+            <div class="k-settings-title">Saved Themes</div>
+            <div id="savedThemes"></div>
           </div>
           <div class="k-settings-section">
-            <h3>Import Theme</h3>
-            <p style="margin:0 0 8px;font-size:13px;color:var(--text-muted)">Load a <code>.ktqh</code> theme file from your device.</p>
-            <input type="file" accept=".ktqh,.json" id="themeFileInput" style="display:none" onchange="K.settings.importTheme(this)">
-            <button class="k-btn k-btn-primary" style="width:100%;padding:8px;font-size:13px" onclick="$('themeFileInput').click()"><i class="fas fa-upload"></i> Import .ktqh</button>
+            <div class="k-settings-title">Export / Import</div>
+            <div class="k-settings-row"><button class="k-btn k-btn-secondary" onclick="K.settings.exportTheme()" style="flex:1"><i class="fas fa-file-export"></i> Export</button><button class="k-btn k-btn-secondary" onclick="K.settings.importTheme()" style="flex:1"><i class="fas fa-file-import"></i> Import</button></div>
           </div>
           <div class="k-settings-section">
-            <h3>Saved Themes</h3>
-            <div id="themeList"></div>
+            <div class="k-settings-title">Default Theme</div>
+            <select class="k-select" onchange="K.settings.setTheme(this.value)">
+              <option value="dark">Dark</option>
+              <option value="light">Light</option>
+            </select>
           </div>
         </div>
-      </div>
+        <div class="k-settings-tab-content" data-tab="bots" style="display:none">
+          <div class="k-settings-section">
+            <div class="k-settings-title">Create Bot</div>
+            <input class="k-input" id="botUsername" placeholder="Bot username (a-z, 0-9, _)" style="margin-bottom:8px">
+            <input class="k-input" id="botDisplayName" placeholder="Display name (optional)" style="margin-bottom:8px">
+            <button class="k-btn k-btn-primary" style="width:100%" onclick="K.settings.createBot()"><i class="fas fa-robot"></i> Create Bot</button>
+            <div id="botTokenResult" style="display:none;margin-top:10px;padding:10px;background:var(--bg-surface);border-radius:12px;border:1px solid var(--border-color);word-break:break-all;font-size:13px"></div>
+          </div>
+          <div class="k-settings-section">
+            <div class="k-settings-title">My Bots</div>
+            <div id="myBotsList"></div>
+          </div>
+        </div>
     </div>
 
     <div class="k-chat-view" id="chatView">
-      <div class="k-chat-header" id="chatHeader">
+      <div class="k-chat-placeholder" id="chatPlaceholder">
+        <div class="k-cp-inner">
+          <h2 class="k-cp-title">Kiselgram</h2>
+          <div class="k-cp-section">
+            <label class="k-cp-label">Font Size</label>
+            <div class="k-font-options">
+              <button class="k-font-btn" data-size="small" onclick="K.settings.setFontSize('small')">Sm</button>
+              <button class="k-font-btn active" data-size="medium" onclick="K.settings.setFontSize('medium')">Md</button>
+              <button class="k-font-btn" data-size="large" onclick="K.settings.setFontSize('large')">Lg</button>
+            </div>
+          </div>
+          <div class="k-cp-section">
+            <label class="k-cp-label">Theme</label>
+            <div class="k-theme-toggle" onclick="K.settings.toggleTheme()">
+              <span><i class="fas fa-moon" id="cpThemeIcon"></i> <span id="cpThemeLabel">Dark Mode</span></span>
+              <label class="k-switch"><input type="checkbox" id="cpThemeSwitch" onchange="K.settings.toggleTheme()"><span class="k-slider"></span></label>
+            </div>
+          </div>
+          <div class="k-cp-section">
+            <label class="k-cp-label">Bubble Colors</label>
+            <div class="k-cp-colors">
+              <div class="k-cp-color-item"><span>Mine</span><input type="color" id="cpMyColor" class="k-color-input" value="#5e72e4" onchange="K.settings.setMyColor(this.value)"></div>
+              <div class="k-cp-color-item"><span>Theirs</span><input type="color" id="cpTheirColor" class="k-color-input" value="#e8e8e8" onchange="K.settings.setTheirColor(this.value)"></div>
+            </div>
+          </div>
+          <div class="k-cp-section">
+            <label class="k-cp-label">Preview</label>
+            <div class="k-preview-chat" id="cpPreviewChat">
+              <div class="k-msg incoming"><div class="k-msg-bubble"><div class="k-msg-text">Hey! How are you?</div><div class="k-msg-meta">12:30</div></div></div>
+              <div class="k-msg outgoing"><div class="k-msg-bubble"><div class="k-msg-text">I'm great, thanks! 😊</div><div class="k-msg-meta">12:31</div></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="k-chat-header k-hidden" id="chatHeader">
         <div class="k-chat-header-left">
           <button class="k-back-btn k-mobile-back" onclick="K.chat.close()"><i class="fas fa-arrow-left"></i></button>
           <div class="k-chat-avatar-sm" id="chatAvatar">?</div>
@@ -243,19 +283,20 @@
         </div>
         <div class="k-chat-header-actions">
           <button class="k-icon-btn" onclick="K.chat.startCall()" title="Video Call" id="callBtn" style="display:none"><i class="fas fa-video"></i></button>
+          <button class="k-icon-btn" onclick="K.webapp.open(this.dataset.url, document.getElementById('chatName')?.textContent||'Web App')" title="Web App" id="webappBtn" style="display:none"><i class="fas fa-globe"></i></button>
           <button class="k-icon-btn" onclick="K.chat.info.toggle()" title="Info"><i class="fas fa-info-circle"></i></button>
           <button class="k-icon-btn" id="chatMenuBtn" onclick="K.chat.menu.toggle()" title="Menu"><i class="fas fa-ellipsis-v"></i></button>
         </div>
       </div>
       <div class="k-chat-menu" id="chatMenu" style="display:none"></div>
       <div class="k-chat-info" id="chatInfo" style="display:none"></div>
-      <div class="k-messages" id="messagesContainer"><div class="k-loader"></div></div>
-      <div class="k-typing-indicator" id="typingIndicator" style="display:none"></div>
-      <div class="k-reply-bar" id="replyBar" style="display:none">
+      <div class="k-messages k-hidden" id="messagesContainer"><div class="k-loader"></div></div>
+      <div class="k-typing-indicator k-hidden" id="typingIndicator" style="display:none"></div>
+      <div class="k-reply-bar k-hidden" id="replyBar" style="display:none">
         <div class="k-reply-info"><span class="k-reply-name" id="replyName">Replying</span><span class="k-reply-text" id="replyText"></span></div>
         <button class="k-icon-btn" onclick="K.chat.reply.cancel()"><i class="fas fa-times"></i></button>
       </div>
-      <div class="k-input-area">
+      <div class="k-input-area k-hidden" id="inputArea">
         <button class="k-icon-btn" onclick="document.getElementById('fileInput').click()"><i class="fas fa-paperclip"></i></button>
         <textarea class="k-message-input" id="messageInput" placeholder="Type a message..." rows="1" oninput="K.chat.input.handle()" onkeydown="K.chat.input.keydown(event)"></textarea>
         <button class="k-send-btn" id="sendBtn" onclick="K.chat.send()"><i class="fas fa-paper-plane"></i></button>
@@ -290,6 +331,14 @@
   </div>
 </div>
 
+<div class="k-webapp-overlay" id="webappOverlay" style="display:none">
+  <div class="k-webapp-header">
+    <span class="k-webapp-title" id="webappTitle">Web App</span>
+    <button class="k-icon-btn" style="font-size:20px" onclick="K.webapp.close()"><i class="fas fa-times"></i></button>
+  </div>
+  <iframe class="k-webapp-frame" id="webappFrame" sandbox="allow-scripts allow-forms allow-popups" allow="camera;microphone"></iframe>
+</div>
+
 <div class="k-story-viewer" id="storyViewer" style="display:none">
   <div class="k-story-progress" id="storyProgress"></div>
   <div class="k-story-header">
@@ -320,6 +369,7 @@
 <script src="{{ url_for('static', filename='js/k/saved.js') }}"></script>
 <script src="{{ url_for('static', filename='js/k/calls.js') }}"></script>
 <script src="{{ url_for('static', filename='js/k/music.js') }}"></script>
+<script src="{{ url_for('static', filename='js/k/webapp.js') }}"></script>
 <script src="{{ url_for('static', filename='js/k/search.js') }}"></script>
 <script src="{{ url_for('static', filename='js/k/settings.js') }}"></script>
 <script src="{{ url_for('static', filename='js/k/profile.js') }}"></script>

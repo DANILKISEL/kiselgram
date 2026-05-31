@@ -32,6 +32,7 @@ K.settings = {
     if (tab === 'themes') K.settings.renderSavedThemes();
     if (tab === 'privacy') K.settings.loadPrivacy();
     if (tab === 'sessions') K.settings.loadSessions();
+    if (tab === 'bots') K.settings.loadBots();
     K.state.saveURL();
   },
   setHero(url) {
@@ -254,5 +255,66 @@ K.settings = {
     };
     reader.readAsText(input.files[0]);
     input.value = '';
+  },
+  async loadBots() {
+    const el = $('myBotsList'); if (!el) return;
+    el.innerHTML = K.ui.loader();
+    try {
+      const d = await K.api.get(V2 + '/bots');
+      if (!d.success || !d.data?.bots?.length) {
+        el.innerHTML = '<div class="k-empty" style="padding:20px"><i class="fas fa-robot"></i><h3>No bots</h3><p>Create bots in Premium settings</p></div>';
+        return;
+      }
+      el.innerHTML = d.data.bots.map(b => `
+        <div class="k-settings-item" style="flex-direction:column;align-items:stretch;gap:6px;padding:12px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="width:44px;height:44px;flex-shrink:0;border-radius:50%;overflow:hidden">${K.ui.avatar(b.display_name||b.username, b.avatar_url)}</div>
+            <span style="font-weight:600;flex:1">${esc(b.display_name||b.username)} <span style="font-size:12px;color:var(--text-muted)">@${esc(b.username)}</span></span>
+          </div>
+          <div style="display:flex;gap:6px">
+            <input class="k-input" id="webappUrl_${b.bot_id}" value="${esc(b.bot_webapp_url||'')}" placeholder="https://your-web-app.com" style="flex:1;font-size:13px">
+            <button class="k-btn k-btn-primary" style="font-size:13px;padding:6px 12px;white-space:nowrap" onclick="K.settings.saveBotWebapp(${b.bot_id})">Save</button>
+          </div>
+        </div>`).join('');
+    } catch(e) { el.innerHTML = '<div class="k-empty"><p>Failed to load bots</p></div>'; }
+  },
+  async saveBotWebapp(botId) {
+    const input = $('webappUrl_' + botId);
+    if (!input) return;
+    let url = input.value.trim();
+    if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://' + url;
+      input.value = url;
+    }
+    try {
+      const d = await K.api.put(V2 + `/bot/${botId}/webapp`, {webapp_url: url});
+      if (d.success) { K.ui.toast('Web App URL saved', 'success'); }
+      else { K.ui.toast(d.error?.message || 'Failed', 'error'); }
+    } catch(e) { K.ui.toast('Error', 'error'); }
+  },
+  async createBot() {
+    const username = $('botUsername')?.value.trim();
+    const displayName = $('botDisplayName')?.value.trim();
+    const resultEl = $('botTokenResult');
+    if (!username) { K.ui.toast('Enter a bot username', 'error'); return; }
+    try {
+      const d = await K.api.post(V2 + '/bots', {username, display_name: displayName || undefined});
+      if (d.success) {
+        $('botUsername').value = '';
+        $('botDisplayName').value = '';
+        if (resultEl) {
+          resultEl.style.display = 'block';
+          resultEl.innerHTML = '<div style="font-weight:600;margin-bottom:4px">Bot created! Token (save this):</div><code style="font-size:12px;word-break:break-all">' + esc(d.data.bot_token) + '</code>';
+        }
+        K.ui.toast('Bot created', 'success');
+        this.loadBots();
+      } else {
+        const msg = d.error?.fields?.username || d.error?.message || 'Failed';
+        K.ui.toast(msg, 'error');
+      }
+    } catch(e) {
+      const msg = e.body?.error?.fields?.username || e.body?.error?.message || 'Error creating bot';
+      K.ui.toast(msg, 'error');
+    }
   }
 };

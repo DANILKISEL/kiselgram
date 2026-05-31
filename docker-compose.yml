@@ -48,6 +48,17 @@ services:
         condition: service_healthy
     restart: always
 
+  mailadmin:
+    build: mailadmin
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./mailserver/config:/mailconfig:rw
+    environment:
+      MAILADMIN_SECRET: "${MAILADMIN_SECRET:-change-me-in-production}"
+      MAILADMIN_ADMINS: "${MAILADMIN_ADMINS:-postmaster@kiselgram.ru,postmaster@mail.kiselgram.ru}"
+      MAILADMIN_DOMAINS: "${MAILADMIN_DOMAINS:-kiselgram.ru,mail.kiselgram.ru}"
+    restart: always
+
   nginx:
     image: nginx:alpine
     ports:
@@ -60,6 +71,7 @@ services:
     depends_on:
       - app
       - video
+      - mailadmin
     restart: always
 
 volumes:

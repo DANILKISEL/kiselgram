@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.env
+.venv/
+.git/
+.gitignore
+.dockerignore
+uploads/
+instance/
+logs/
+status/
+*.db
+*.sh
+*.md
+.idea/

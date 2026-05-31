@@ -73,11 +73,18 @@ K.chat = {
   async open(type, id) {
     K.state.activeChat = { type, id };
     K.state.saveURL();
+    K.chat._lastMsgId = {};
     K.chat.reply.cancel();
     const _sb = $('sidebar'), _mb = $('menuBtn'), _bd = $('sidebarBackdrop'); _sb?.classList.remove('open'); _mb?.classList.remove('active'); _bd?.classList.remove('open');
     document.querySelectorAll('.k-chat-item').forEach(i => i.classList.remove('active'));
     const sel = document.querySelector(`.k-chat-item[data-type="${type}"][data-id="${id}"]`);
     if (sel) sel.classList.add('active');
+    $('chatPlaceholder')?.classList.add('k-hidden');
+    $('chatHeader')?.classList.remove('k-hidden');
+    $('messagesContainer')?.classList.remove('k-hidden');
+    $('inputArea')?.classList.remove('k-hidden');
+    $('replyBar')?.classList.remove('k-hidden');
+    $('typingIndicator')?.classList.remove('k-hidden');
     $('chatView').classList.add('active');
     document.querySelectorAll('.k-panel').forEach(p => p.classList.remove('active'));
     if (window.innerWidth > 768) { const cp = $('panel-chats'); if (cp) cp.classList.add('active'); }
@@ -91,6 +98,13 @@ K.chat = {
   close() {
     K.state.activeChat = null;
     $('chatView').classList.remove('active');
+    $('chatPlaceholder')?.classList.remove('k-hidden');
+    $('chatHeader')?.classList.add('k-hidden');
+    $('messagesContainer')?.classList.add('k-hidden');
+    $('inputArea')?.classList.add('k-hidden');
+    $('replyBar')?.classList.add('k-hidden');
+    $('typingIndicator')?.classList.add('k-hidden');
+    if (window.innerWidth <= 768) $('chatView').classList.remove('active');
   },
   async loadHeader(type, id) {
     const nameEl = $('chatName'), statusEl = $('chatStatus'), avatarEl = $('chatAvatar');
@@ -101,6 +115,8 @@ K.chat = {
     });
     const cb = $('callBtn');
     if (cb) cb.style.display = (type === 'personal') ? 'flex' : 'none';
+    const wb = $('webappBtn');
+    if (wb) wb.style.display = 'none';
     if (chat) {
       const peer = chat.peer || chat.group || chat.channel;
       if (peer) {
@@ -109,6 +125,7 @@ K.chat = {
         if (nameEl) nameEl.textContent = pname + (emoji ? ' ' + emoji : '');
         if (avatarEl) { avatarEl.innerHTML = K.ui.avatar(pname, peer.avatar_url); avatarEl.className = 'k-chat-avatar-sm'+(type==='group'?' group':type==='channel'?' channel':''); }
         if (statusEl) { statusEl.textContent = peer.is_online ? 'online' : ''; statusEl.className = 'k-chat-header-status'+(peer.is_online?' online':''); }
+        if (wb && peer.is_bot && peer.bot_webapp_url) { wb.style.display = 'flex'; wb.dataset.url = peer.bot_webapp_url; }
         return;
       }
     }
@@ -123,6 +140,7 @@ K.chat = {
             if (nameEl) nameEl.textContent = (u.display_name || u.username) + (emoji ? ' ' + emoji : '');
             if (avatarEl) { avatarEl.className = 'k-chat-avatar-sm'; avatarEl.innerHTML = K.ui.avatar(u.display_name||u.username, u.avatar_url); }
             if (statusEl) { statusEl.textContent = u.is_online ? 'online' : ''; statusEl.className = 'k-chat-header-status'+(u.is_online?' online':''); }
+            if (wb && u.is_bot && u.bot_webapp_url) { wb.style.display = 'flex'; wb.dataset.url = u.bot_webapp_url; }
           }
           const cb = $('callBtn'); if (cb) cb.style.display = 'flex';
         }
@@ -149,8 +167,11 @@ K.chat = {
   async loadMessages(type, id, append=false) {
     const mc = $('messagesContainer'); if (!mc) return;
     const after = append ? (K.chat._cursor || 0) : 0;
-    if (!append) { K.chat._cursor = 0; K.chat._hasMore = true; mc.innerHTML = K.ui.loader(); }
+    if (!append) { K.chat._cursor = 0; K.chat._hasMore = true; }
     if (!K.chat._hasMore && append) return;
+    const key = type+':'+id;
+    const firstLoad = !K.chat._lastMsgId?.[key];
+    if (!append && firstLoad) mc.innerHTML = K.ui.loader();
     try {
       let url;
       if (type === 'personal') url = V2 + `/messages/${id}`;
@@ -167,10 +188,14 @@ K.chat = {
         mc.insertAdjacentHTML('afterbegin', msgs.map(m => K.chat.renderMessage(m)).join(''));
         mc.scrollTop = mc.scrollHeight - prevScroll;
       } else {
+        const newestId = msgs.length ? (msgs[msgs.length-1].id || msgs[msgs.length-1].message_id) : null;
+        if (!firstLoad && newestId && newestId === K.chat._lastMsgId?.[key]) { return; }
+        K.chat._lastMsgId = {...K.chat._lastMsgId, [key]: newestId};
+        mc.innerHTML = '';
         K.chat.renderMessages(msgs);
         if (K.chat._hasMore) mc.insertAdjacentHTML('afterend', '<div id="loadMoreTrigger" style="text-align:center;padding:8px"><button class="k-btn k-btn-secondary" onclick="K.chat.loadMore()">Load older messages</button></div>');
       }
-    } catch(e) { if (!append) mc.innerHTML = '<div class="k-empty"><i class="fas fa-exclamation-triangle"></i><h3>Error</h3><p onclick="K.chat.loadMessages(type,id)" style="color:var(--accent-blue);cursor:pointer">Tap to retry</p></div>'; }
+    } catch(e) { if (!append && firstLoad) mc.innerHTML = '<div class="k-empty"><i class="fas fa-exclamation-triangle"></i><h3>Error</h3><p onclick="K.chat.loadMessages(type,id)" style="color:var(--accent-blue);cursor:pointer">Tap to retry</p></div>'; }
   },
   async loadMore() {
     if (!K.state.activeChat) return;
@@ -389,9 +414,8 @@ K.chat = {
     const peerId = K.state.activeChat.id;
     try {
       const d = await K.api.post(V2 + '/video/create-room', {user_id: peerId});
-      if (d.success && d.data?.room_id) {
-        const url = 'http://localhost:5001/video/join/' + d.data.room_id;
-        K.calls.start(url, peerId);
+      if (d.success && d.data?.room_url) {
+        K.calls.start(d.data.room_url, peerId);
       } else K.ui.toast('Failed to create call', 'error');
     } catch(e) { K.ui.toast('Call failed', 'error'); }
   },

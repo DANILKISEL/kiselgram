@@ -1,8 +1,11 @@
+import secrets
+import re
 from flask import Blueprint, request, jsonify, session
 from datetime import datetime
 from app import db
 from app.models import User, Message, Chat, ChatMember, ChatSubscriber, PinnedChat, BlockedUser
 from app.utils.helpers import get_current_user_id, get_blocked_user_ids, has_active_story
+from app.utils.security import sanitize_string
 
 spav2_chat_bp = Blueprint('spav2_chat', __name__, url_prefix='/api')
 
@@ -15,7 +18,9 @@ def _serialize_peer(user):
         'avatar_url': user.avatar_url,
         'is_online': getattr(user, 'is_online', False),
         'last_seen': user.last_seen.isoformat() if user.last_seen else None,
-        'status_emoji': getattr(user, 'status_emoji', '') or ''
+        'status_emoji': getattr(user, 'status_emoji', '') or '',
+        'is_bot': getattr(user, 'is_bot', False),
+        'bot_webapp_url': getattr(user, 'bot_webapp_url', None) or None
     }
 
 
@@ -200,3 +205,85 @@ def get_typing(chat_type, chat_id):
         if not _typing_status[key]:
             del _typing_status[key]
     return jsonify({'success': True, 'data': {'typing_users': typists}})
+
+@spav2_chat_bp.route('/bot/<int:bot_id>/webapp', methods=['GET'])
+def get_bot_webapp(bot_id):
+    current_user_id = get_current_user_id()
+    if not current_user_id:
+        return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED'}}), 401
+    bot = User.query.get(bot_id)
+    if not bot or not bot.is_bot:
+        return jsonify({'success': False, 'error': {'code': 'NOT_FOUND'}}), 404
+    return jsonify({'success': True, 'data': {'bot_id': bot_id, 'webapp_url': bot.bot_webapp_url or None}})
+
+@spav2_chat_bp.route('/bot/<int:bot_id>/webapp', methods=['PUT'])
+def update_bot_webapp(bot_id):
+    current_user_id = get_current_user_id()
+    if not current_user_id:
+        return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED'}}), 401
+    bot = User.query.get(bot_id)
+    if not bot or not bot.is_bot or bot.bot_owner_id != current_user_id:
+        return jsonify({'success': False, 'error': {'code': 'FORBIDDEN'}}), 403
+    data = request.get_json() or {}
+    url = data.get('webapp_url', '').strip()
+    if url and not url.startswith('https://'):
+        return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'Only HTTPS URLs allowed'}}), 400
+    bot.bot_webapp_url = url or None
+    db.session.commit()
+    return jsonify({'success': True, 'data': {'bot_id': bot_id, 'webapp_url': bot.bot_webapp_url}})
+
+@spav2_chat_bp.route('/bots', methods=['GET', 'POST'])
+def handle_bots():
+    current_user_id = get_current_user_id()
+    if not current_user_id:
+        return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED'}}), 401
+
+    if request.method == 'GET':
+        bots = User.query.filter_by(bot_owner_id=current_user_id, is_bot=True).all()
+        return jsonify({'success': True, 'data': {'bots': [{
+            'bot_id': b.id,
+            'username': b.username,
+            'display_name': b.display_name or b.username,
+            'avatar_url': b.avatar_url,
+            'bot_webapp_url': b.bot_webapp_url or None
+        } for b in bots]}})
+
+    # POST — create a new bot
+    data = request.get_json() or {}
+    username = sanitize_string(data.get('username', ''), max_length=32).lower()
+    display_name = sanitize_string(data.get('display_name', ''), max_length=64) or username
+
+    errors = {}
+    if len(username) < 3 or not re.match(r'^[a-zA-Z0-9_]+$', username):
+        errors['username'] = 'Username must be 3-32 characters (letters, numbers, underscores)'
+    if User.query.filter_by(username=username).first():
+        errors['username'] = 'Username already taken'
+    if errors:
+        return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'Validation failed', 'fields': errors}}), 400
+
+    bot_token = secrets.token_urlsafe(48)
+    bot = User(
+        username=username,
+        display_name=display_name,
+        email=None,
+        is_bot=True,
+        bot_owner_id=current_user_id,
+        bot_token=bot_token,
+        is_online=False,
+        last_seen=datetime.utcnow()
+    )
+    bot.set_password(secrets.token_urlsafe(24))
+    db.session.add(bot)
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': str(e)}}), 500
+
+    return jsonify({'success': True, 'data': {
+        'bot_id': bot.id,
+        'username': bot.username,
+        'display_name': bot.display_name,
+        'bot_token': bot_token,
+        'message': 'Bot created. Save the token — it is shown only once.'
+    }}), 201

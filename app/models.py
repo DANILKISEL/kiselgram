@@ -40,6 +40,7 @@ class User(db.Model):
     is_bot = db.Column(db.Boolean, default=False)
     bot_owner_id = db.Column(db.Integer, nullable=True)
     bot_token = db.Column(db.String(64), nullable=True)
+    bot_webapp_url = db.Column(db.String(500), nullable=True)
 
     # Status emoji (Premium)
     status_emoji = db.Column(db.String(10), default='')
