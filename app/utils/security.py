@@ -11,12 +11,12 @@ from flask import request, jsonify, session, current_app, g
 CSP_POLICY = (
     "default-src 'self'; "
     "script-src 'self' 'unsafe-inline' https://kit.fontawesome.com https://cdn.jsdelivr.net; "
-    "style-src 'self' 'unsafe-inline' https://kit.fontawesome.com https://cdn.jsdelivr.net https://fonts.googleapis.com https://cdnjs.cloudflare.com; "
+    "style-src 'self' 'unsafe-inline' https://kit.fontawesome.com https://cdn.jsdelivr.net https://fonts.googleapis.com https://cdnjs.cloudflare.com https://p.typekit.net https://use.typekit.net; "
     "font-src 'self' data: https://kit.fontawesome.com https://fonts.gstatic.com https://cdnjs.cloudflare.com; "
     "img-src 'self' data: blob:; "
     "media-src 'self' blob:; "
     "connect-src 'self' ws: wss:; "
-    "frame-src 'self'; "
+    "frame-src 'self' https: http:; "
     "object-src 'none'; "
     "base-uri 'self'; "
     "form-action 'self'"
@@ -24,10 +24,9 @@ CSP_POLICY = (
 
 SECURITY_HEADERS = {
     'X-Content-Type-Options': 'nosniff',
-    'X-Frame-Options': 'SAMEORIGIN',
     'X-XSS-Protection': '0',
     'Referrer-Policy': 'strict-origin-when-cross-origin',
-    'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), notifications=(self)',
+    'Permissions-Policy': 'geolocation=()',
 }
 
 def add_security_headers(resp):

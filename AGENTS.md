@@ -1,149 +1,100 @@
-# Kiselgram Development Guide
+# Kiselgram
 
-## Essential Commands
+Flask messaging platform (Python). WebRTC video calls via a separate SocketIO server.
 
-**Start Services (Python Version):**
-- `python manage.py start` - Start main app (port 5000) + video server (port 5001)
-- `python manage.py start --port 3000` - Custom port for main app
-- `python manage.py start --no-video` - Main app only
-- `python manage.py video start` - Video server only
+## Essential commands
 
-**Build & Run (Java Version):**
-- `./gradlew bootRun` - Start the Java application
-- `./gradlew clean bootJar` - Build executable JAR
-- `java -jar build/libs/kiselgram-0.0.1-SNAPSHOT.jar` - Run the built JAR
-- `./gradlew test` - Run tests
+```bash
+python3 manage.py start [--port PORT] [--no-video]   # start services
+python3 manage.py stop                                 # graceful shutdown
+python3 manage.py restart                              # stop + start
+python3 manage.py setup                                # create dirs + default config
+python3 manage.py reset-db                             # deletes ALL data
+python3 manage.py status                               # check running ports
+```
 
-**Database & Maintenance (Python Version):**
-- `python manage.py setup` - Initial setup (run first)
-- `python manage.py reset-db` - Delete all data (use with caution)
-- `python manage.py clean` - Clear temp files
-- `python manage.py test` - Run tests
+Config lives in `config/kis.toml` (not `.env`). The start command writes runner scripts to `/tmp/run_kiselgram.py` and forks background processes.
 
-**Service Management (Python Version):**
-- `python manage.py stop` - Graceful shutdown
-- `python manage.py status` - Check service status
-- `python manage.py restart` - Restart services
+## Testing
 
-## Project Structure
+```bash
+.venv/bin/python -m pytest tests/ -v                        # all
+.venv/bin/python -m pytest tests/test_models.py -v           # one file
+.venv/bin/python -m pytest tests/test_models.py::TestUserModel::test_create_user -v  # one test
+```
 
-**Core Directories (Python Version):**
-- `app/` - Main Flask application
-  - `models.py` - SQLAlchemy database models
-  - `routes/` - Feature blueprints (chats, groups, video_integration, api)
-  - `templates/` - HTML templates
-  - `uploads/` - User uploaded files
-- `video_server/` - WebRTC signaling server
-  - `app.py` - SocketIO + WebRTC signaling
-  - `templates/video/` - Video room UIs
-  - `static/js/` - WebRTC client logic
-- `instance/` - SQLite database (`kiselgram.db`)
-- `logs/` - Application logs
+In-memory SQLite, tables truncated per test. Fixtures: `app` (session), `client`, `session` (function). Tests use `app.test_client()` and check JSON `success` field.
 
-**Core Directories (Java Version):**
-- `src/main/java/com/kiselgram/kiselgram/` - Main application code
-  - `KiselgramApplication.java` - Spring Boot entry point
-  - `config/` - Security and application configuration
-  - `controller/` - REST API endpoints
-  - `dto/` - Data Transfer Objects for API responses
-  - `model/` - JPA entities/database models
-  - `repository/` - Spring Data JPA repositories
-  - `service/` - Business logic services
-  - `util/` - Utility classes (file handling, media processing)
-- `src/main/resources/` - Configuration and static resources
-  - `application.properties` - Database, file upload, and JWT settings
-  - `templates/` - Thymeleaf HTML templates (for future SSR)
+Test files are flat under `tests/` (one module per area: `test_auth.py`, `test_chats.py`, `test_models.py`, etc.). The `conftest.py` provides `user`, `user2`, `admin_user`, `premium_user` fixtures and session-based `logged_in_client` helpers.
 
-## Key Integration Points
+## Architecture
 
-**Video Chat Flow:**
-1. Chat → Video Icon → POST `/video/create-room`
-2. Redirect → `http://localhost:5001/video/join/{room_id}`
-3. WebRTC → `getUserMedia()` → SocketIO signaling → P2P streams
-4. UI → `video_server/templates/video/room.html`
+**Two parallel route systems:**
+- OLD (`app/routes/spa/`) — session-based, returns HTML redirects. Login route (`/auth/login` → redirects to `/app`) is still active; most other features migrated to V2.
+- V2 (`app/routes/spav2/`) — JSON API, Bearer-token auth. All endpoints under `/api.v2/api/...`. Response shape: `{success: bool, data: {...}}` or `{success: false, error: {code, message}}`.
 
-**File Uploads:**
-- Storage: `app/uploads/` and `uploads/` directories
-- Max size: 16MB for all file types
-- Types: Images (png,jpg,gif,webp), Documents (pdf,docx,txt), Video (mp4,webm,mov), Audio (mp3,wav,m4a)
+**Auth flow:** Bearer token (from `UserSession.session_token`) checked first; falls back to Flask `session['user_id']`. Helper: `get_current_user()` / `get_current_user_id()` in `app/utils/helpers.py`.
 
-## Development Notes
+**Frontend SPA** — `templates/k.html` (single monolithic HTML shell). 17 JS modules in `static/js/k/` extending `window.K`. Load order matters:
+```
+init → api → ui → auth → views → chat → contacts → modals → groups
+→ stories → saved → calls → music → webapp → search → settings → profile
+```
 
-**Environment (Python Version):**
-- Python 3.10+ required
-- Virtual environment recommended (`.venv`)
-- Environment variables managed via `manage.py setup`
+JS globals: `$('id')` = `document.getElementById`, `esc()` for HTML escaping, `fmtTime()` for relative timestamps, `V2 = '/api.v2/api'`. No sockets, no SSR — pure `fetch()`-based.
 
-**Environment (Java Version):**
-- Java 17+ required
-- Application properties in src/main/resources/application.properties
-- JWT secret and expiration configurable
-- File upload directory configurable
+**Security** (`app/utils/security.py`):
+- CSP, security headers injected via `after_request` in `create_app()`
+- Rate limiter is in-memory (not Redis), cleaned up on `teardown_appcontext`
+- `X-Frame-Options` deliberately **not** set (webapp iframes need cross-origin framing)
+- `frame-src` CSP allows `https:` and `http:` (for bot webapp iframes)
+- Iframe sandbox uses `allow-scripts allow-forms allow-popups` (no `allow-same-origin`)
 
-**Testing (Python Version):**
-- Run tests with `python manage.py test` (basic dependency check only)
-- Run pytest with `.venv/bin/python -m pytest tests/ -v` (comprehensive)
-- Run specific file: `.venv/bin/python -m pytest tests/test_models.py -v`
-- Run specific test: `.venv/bin/python -m pytest tests/test_models.py::TestUserModel::test_create_user -v`
-- Test coverage includes: all 32 models, auth flows (register/login/logout/verify), groups CRUD, channels CRUD, messaging (send/receive/reactions/search), stories (create/view/like/reply), contacts (add/rename/block), calls (make/answer/end), video rooms (create/join/end), profile (get/update/avatar/settings/privacy), global search, pinned chats, favorites, sessions, premium behavior
+## Docker / Deployment
 
-**Testing (Java Version):**
-- Run tests with ./gradlew test
-- Currently minimal test coverage (add more)
+```bash
+docker compose build --no-cache && docker compose up -d   # full rebuild
+docker compose restart nginx                               # nginx upstream cache fix
+deploy.sh                                                   # local → server rsync + docker compose
+```
 
-**Code Organization (Python Version):**
-- Feature routes in `app/routes/` as blueprints
-- Database models in `app/models.py`
-- Video integration in `app/routes/video_integration.py`
-- Template inheritance in `app/templates/`
+`deploy.sh` does rsync → docker compose on root@kiselgram.ru. nginx proxies `/room/`, `/socket.io/`, `/join` to video server (`video:5001`), `/mailadmin/` to mailadmin (`mailadmin:5002`), everything else to app (`app:5000`). SSL via Let's Encrypt (`ssl/` dir, certbot webroot in `certbot/www/`).
 
-**Code Organization (Java Version):**
-- REST controllers in src/main/java/com/kiselgram/kiselgram/controller/
-- JPA entities in src/main/java/com/kiselgram/kiselgram/model/
-- Spring Data repositories in src/main/java/com/kiselgram/kiselgram/repository/
-- Business services in src/main/java/com/kiselgram/kiselgram/service/
-- Utility classes in src/main/java/com/kiselgram/kiselgram/util/
+**Docker Compose services:**
+- `db` — postgres:15-alpine (persistent `pgdata` volume)
+- `app` — gunicorn `wsgi:app --workers 4` (port 5000)
+- `video` — `python video_server/app.py` (port 5001)
+- `mailadmin` — standalone Flask app (mailadmin/Dockerfile, port 5002, Docker socket + mail config volumes)
+- `mailserver` — docker-mailserver (Postfix/Dovecot/OpenDKIM, ports 25/465/587/993)
+- `nginx` — nginx:alpine (ports 80/443)
 
-## Common Tasks
+Production detection: `DATABASE_URL` env var activates PostgreSQL; otherwise SQLite (local dev).
 
-**View Nexgram app**
-1. CD into ~/Downloads/nexgram-main
-2. Here you are in the app
+## Mail Admin GUI
 
-**View Sputnk app**
-1. CD into ~/Downloads/sputnik-main
-2. Here you are in the app
+Standalone container at `mailadmin/` for managing mail accounts on the mail server. Accessible at `https://kiselgram.ru/mailadmin/` (login password set via `MAILADMIN_PASSWORD` env var in docker-compose.yml).
 
+**API endpoints** (all require session auth):
+- `GET /api/accounts` — list accounts
+- `POST /api/accounts` — create (`{email, password}`)
+- `DELETE /api/accounts/<email>` — delete
+- `POST /api/accounts/<email>/password` — reset password (`{password}`)
 
-**Adding New Features (Python Version):**
-1. Create/update models in `app/models.py` if needed
-2. Add routes in appropriate file under `app/routes/`
-3. Create templates in `app/templates/` or extend existing ones
-4. Update navigation in base templates if needed
-5. Test with `python manage.py test`
+After changes, the mail container is restarted in a background thread. The container has:
+- Docker socket mounted (`:ro`) to exec into the mail container
+- `mailserver/config` mounted (`:rw`) to read/write `postfix-accounts.cf`
+- Nginx routes `/mailadmin/` → mailadmin:5002; a `PrefixMiddleware` in `app.py` sets `SCRIPT_NAME` from the `X-Forwarded-Prefix` header so redirects use the correct path.
 
-**Adding New Features (Java Version):**
-1. Create/update JPA entities in model/ if needed
-2. Create/update repository interfaces in repository/
-3. Implement business logic in service/ layer
-4. Create REST endpoints in controller/ layer
-5. Add DTOs in dto/ for API responses if needed
-6. Test with ./gradlew test
+Rebuild after code changes: `docker compose build mailadmin && docker compose up -d mailadmin`
 
-**Authentication (Java Version):**
-- JWT tokens generated in AuthController.login()
-- Token validation handled by JwtAuthenticationFilter
-- User details loaded by UserDetailsServiceImpl
-- Passwords encoded with BCrypt via AuthService
+## Key gotchas
 
-**File Handling (Java Version):**
-- Uploads processed in MessageController.upload()
-- Files stored using FileUtil.saveFile()
-- Thumbnails created using MediaUtil.createThumbnail()
-- File type detection via MediaUtil.getFileType()
-
-**Video Features:**
-1. Signaling logic in `video_server/app.py`
-2. UI templates in `video_server/templates/video/`
-3. Client logic in `video_server/static/js/`
-4. Integration points in `app/routes/video_integration.py`
+- `manage.py start` kills whatever is on the target port first
+- The V2 API prefix is `/api.v2/api` (parent `/api.v2` + child `/api`)
+- V1 SPA login route (`app/routes/spa/auth.py`) redirects to `/app` on success; the flat `app/routes/auth.py` is dead code
+- JS uses `K.chat._lastMsgId` cache to skip re-render when newest message hasn't changed
+- 16MB upload limit for all file types (images, docs, video, audio)
+- `.env` is local dev only (contains OPENROUTER_API_KEY); production secrets in `config/kis.toml`
+- Video server `video_server/app.py` uses absolute `template_folder` path (derived from `__file__`) — Flask's `root_path` differs when run as `python video_server/app.py` vs via gunicorn
+- Video server's `_ensure_db()` creates the main Flask app for DB access but does NOT push its context globally (uses `with _main_app.app_context():` in `_resolve_user()` instead)
+- `docker compose up -d --build` recreates app and video containers but does NOT restart nginx; run `docker compose restart nginx` if nginx returns 502 (stale upstream)

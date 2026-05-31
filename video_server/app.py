@@ -8,7 +8,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__, template_folder='templates')
+app = Flask(__name__, template_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates'))
 app.config.update(
     SECRET_KEY=os.environ.get('SECRET_KEY', os.urandom(24).hex()),
     HOST=os.environ.get('VIDEO_HOST') or os.environ.get('HOST', '0.0.0.0'),
@@ -32,7 +32,6 @@ def _ensure_db():
     if root not in sys.path: sys.path.insert(0, root)
     from app import create_app
     _main_app = create_app()
-    _main_app.app_context().push()
     logger.info("Production DB connected")
 
 def _resolve_user(user_id):
@@ -197,6 +196,9 @@ def end_call(cid):
     return jsonify({'success':True})
 
 # ---- Pages ----
+@app.route('/favicon.ico')
+def favicon(): return '', 204
+
 @app.route('/join')
 def join_page():
     return render_template('join.html')

@@ -153,13 +153,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 </div>
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <script>
-const rid='{{room_id}}', u='{{username|e}}'||new URLSearchParams(location.search).get('username')||'Anonymous',
-      uid=new URLSearchParams(location.search).get('user_id')||'usr_'+Math.random().toString(36).slice(2,8),
-      isCallee={{ 'true' if is_callee else 'false' }};
-const io2=io(window.location.origin,{transports:['websocket','polling']});
-let ls,p={},mike=true,cam=true,face='user',act=false,ti=null,sec=0,cid=null;
-const ice={iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}]};
-const $=x=>document.getElementById(x);
+var rid={{ room_id|tojson }}, u={{ username|tojson }}, uid=new URLSearchParams(location.search).get('user_id')||'usr_'+Math.random().toString(36).slice(2,8),
+    isCallee={{ 'true' if is_callee else 'false' }};
+if(!u)u=new URLSearchParams(location.search).get('username')||'Anonymous';
+var io2=io(window.location.origin,{transports:['websocket','polling']});
+var ls,p={},mike=true,cam=true,face='user',act=false,ti=null,sec=0,cid=null;
+var ice={iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}]};
+function $(x){return document.getElementById(x)}
 io2.emit('identify',{user_id:uid});
 
 function show(s){
@@ -176,10 +176,9 @@ function show(s){
 // Callee: show incoming overlay. Caller: auto-start.
 if(isCallee){
   show('incoming');
-  // Play ringtone
-  try{new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACAf39/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9/f3+AgH9//8=')).play().catch(()=>{})
+  try{var ac=new(window.AudioContext||window.webkitAudioContext)(),osc=ac.createOscillator(),gn=ac.createGain();gn.gain.value=0.3;osc.connect(gn);gn.connect(ac.destination);osc.frequency.value=800;osc.start();gn.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+1.5);setTimeout(function(){osc.stop();ac.close()},2000)}catch(e){}
 } else {
-  setTimeout(()=>start(),100);
+  setTimeout(function(){start()},100);
 }
 
 async function start(){

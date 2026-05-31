@@ -150,6 +150,10 @@ def create_app():
         session.clear()
         return redirect('/auth/login')
 
+    @app.route('/webapp/static')
+    def webapp_static():
+        return '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Web App</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif;background:#1e1e2e;color:#f1f5f9;text-align:center}p{font-size:24px;opacity:0.6}</style></head><body><p>This is a web app &#127760;</p></body></html>', 200, {'Content-Type': 'text/html'}
+
     # Create tables if they don't exist (safe for concurrent workers)
     try:
         with app.app_context():
