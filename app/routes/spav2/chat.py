@@ -58,13 +58,42 @@ def chat_list():
     blocked_ids = get_blocked_user_ids(current_user_id)
     chats = []
 
+    # Self / Saved Messages chat
+    self_msgs = Message.query.filter(
+        (Message.sender_id == current_user_id) & (Message.receiver_id == current_user_id)
+    ).order_by(Message.timestamp.desc()).first()
+    current_user = User.query.get(current_user_id)
+    chats.append({
+        'chat_type': 'personal',
+        'is_saved': True,
+        'peer': {
+            'user_id': current_user_id,
+            'username': 'saved_messages',
+            'display_name': 'Saved Messages',
+            'avatar_url': None,
+            'is_online': False,
+            'last_seen': None,
+            'status_emoji': '',
+            'is_bot': False,
+            'bot_webapp_url': None
+        },
+        'last_message': {
+            'message_id': self_msgs.id,
+            'content': self_msgs.content,
+            'sender_id': self_msgs.sender_id,
+            'timestamp': self_msgs.timestamp.isoformat() if self_msgs.timestamp else None,
+            'is_read': True
+        } if self_msgs else None,
+        'unread_count': 0
+    })
+
     # Personal chats
-    sent = db.session.query(Message.receiver_id).filter_by(sender_id=current_user_id).distinct().all()
-    recv = db.session.query(Message.sender_id).filter_by(receiver_id=current_user_id).distinct().all()
+    sent = db.session.query(Message.receiver_id).filter_by(sender_id=current_user_id).filter(Message.receiver_id != current_user_id).distinct().all()
+    recv = db.session.query(Message.sender_id).filter_by(receiver_id=current_user_id).filter(Message.sender_id != current_user_id).distinct().all()
     chat_user_ids = set([r[0] for r in sent] + [r[0] for r in recv])
 
     for uid in chat_user_ids:
-        if uid in blocked_ids or uid == current_user_id:
+        if uid in blocked_ids:
             continue
         user = User.query.get(uid)
         if not user:
@@ -157,10 +186,15 @@ def get_personal_messages(user_id):
     if not peer:
         return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'User not found'}}), 404
 
-    messages = Message.query.filter(
-        ((Message.sender_id == current_user_id) & (Message.receiver_id == user_id)) |
-        ((Message.sender_id == user_id) & (Message.receiver_id == current_user_id))
-    ).filter(Message.id > after_id).order_by(Message.timestamp.asc()).limit(limit).all()
+    if user_id == current_user_id:
+        messages = Message.query.filter(
+            (Message.sender_id == current_user_id) & (Message.receiver_id == current_user_id)
+        ).filter(Message.id > after_id).order_by(Message.timestamp.asc()).limit(limit).all()
+    else:
+        messages = Message.query.filter(
+            ((Message.sender_id == current_user_id) & (Message.receiver_id == user_id)) |
+            ((Message.sender_id == user_id) & (Message.receiver_id == current_user_id))
+        ).filter(Message.id > after_id).order_by(Message.timestamp.asc()).limit(limit).all()
 
     has_more = len(messages) == limit
     next_cursor = messages[-1].id if messages else None

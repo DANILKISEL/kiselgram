@@ -272,9 +272,31 @@
           </div>
         </div>
       </div>
+      <div class="k-chat-music-player" id="chatMusicPlayer" style="display:none">
+        <div class="k-cmp-track">
+          <i class="fas fa-music"></i>
+          <div class="k-cmp-track-info">
+            <span id="cmpTrackName" class="k-cmp-track-name">Track</span>
+            <span id="cmpTrackArtist" class="k-cmp-track-artist">Artist</span>
+          </div>
+        </div>
+        <div class="k-cmp-progress">
+          <div class="k-cmp-bar-track"><div class="k-cmp-bar-fill" id="cmpProgressFill" style="width:0%"></div></div>
+          <span class="k-cmp-time" id="cmpTime">0:00 / 0:00</span>
+        </div>
+        <div class="k-cmp-volume">
+          <i class="fas fa-volume-up"></i>
+          <input type="range" id="cmpVolume" min="0" max="1" step="0.05" value="1" oninput="K.music.setVolume(this.value)">
+        </div>
+        <div class="k-cmp-actions">
+          <button class="k-icon-btn" id="cmpPlayBtn" onclick="K.music.playPause()" title="Play/Pause"><i class="fas fa-play"></i></button>
+          <button class="k-icon-btn" onclick="K.music.addCurrentToPlaylist()" title="Add to playlist"><i class="fas fa-plus"></i></button>
+          <button class="k-icon-btn" onclick="K.music.hidePlayer()" title="Close"><i class="fas fa-times"></i></button>
+        </div>
+      </div>
       <div class="k-chat-header k-hidden" id="chatHeader">
-        <div class="k-chat-header-left">
-          <button class="k-back-btn k-mobile-back" onclick="K.chat.close()"><i class="fas fa-arrow-left"></i></button>
+        <div class="k-chat-header-left" onclick="K.chat.headerClick()" style="cursor:pointer">
+          <button class="k-back-btn k-mobile-back" onclick="event.stopPropagation();K.chat.close()"><i class="fas fa-arrow-left"></i></button>
           <div class="k-chat-avatar-sm" id="chatAvatar">?</div>
           <div class="k-chat-header-info">
             <div class="k-chat-header-name" id="chatName">Name</div>
@@ -299,7 +321,14 @@
       <div class="k-input-area k-hidden" id="inputArea">
         <button class="k-icon-btn" onclick="document.getElementById('fileInput').click()"><i class="fas fa-paperclip"></i></button>
         <textarea class="k-message-input" id="messageInput" placeholder="Type a message..." rows="1" oninput="K.chat.input.handle()" onkeydown="K.chat.input.keydown(event)"></textarea>
+        <button class="k-icon-btn" id="voiceBtn" onclick="K.chat.voice.toggle()" title="Voice message"><i class="fas fa-microphone"></i></button>
         <button class="k-send-btn" id="sendBtn" onclick="K.chat.send()"><i class="fas fa-paper-plane"></i></button>
+      </div>
+      <div class="k-voice-recorder" id="voiceRecorder" style="display:none">
+        <button class="k-icon-btn" onclick="K.chat.voice.cancel()" title="Cancel" style="color:var(--accent-red)"><i class="fas fa-times"></i></button>
+        <span class="k-voice-timer" id="voiceTimer">0:00</span>
+        <div class="k-voice-wave" id="voiceWave"><span></span><span></span><span></span><span></span><span></span></div>
+        <button class="k-send-btn" onclick="K.chat.voice.send()" title="Send"><i class="fas fa-check"></i></button>
       </div>
       <input type="file" id="fileInput" style="display:none" multiple onchange="K.chat.uploadFiles(this)">
     </div>

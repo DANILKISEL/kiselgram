@@ -57,12 +57,13 @@ def send_personal_message():
     if errors:
         return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'Validation failed', 'fields': errors}}), 400
 
-    if BlockedUser.query.filter_by(user_id=receiver_id, blocked_user_id=current_user_id).first():
-        return jsonify({'success': False, 'error': {'code': 'USER_BLOCKED', 'message': 'You cannot send messages to this user'}}), 403
+    if receiver_id != current_user_id:
+        if BlockedUser.query.filter_by(user_id=receiver_id, blocked_user_id=current_user_id).first():
+            return jsonify({'success': False, 'error': {'code': 'USER_BLOCKED', 'message': 'You cannot send messages to this user'}}), 403
 
-    receiver = User.query.get(receiver_id)
-    if not receiver:
-        return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'User not found'}}), 404
+        receiver = User.query.get(receiver_id)
+        if not receiver:
+            return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'User not found'}}), 404
 
     a, b = sorted([current_user_id, receiver_id])
     chat = Chat.query.filter_by(chat_type='personal', user1_id=a, user2_id=b).first()

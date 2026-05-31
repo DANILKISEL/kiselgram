@@ -48,6 +48,25 @@ services:
         condition: service_healthy
     restart: always
 
+  mailserver:
+    image: ghcr.io/docker-mailserver/docker-mailserver:latest
+    hostname: mail.kiselgram.ru
+    ports:
+      - "25:25"
+      - "465:465"
+      - "587:587"
+      - "143:143"
+      - "993:993"
+      - "110:110"
+      - "995:995"
+    volumes:
+      - maildata:/var/mail
+      - mailstate:/var/mail-state
+      - ./mailserver/config:/tmp/docker-mailserver
+      - ./ssl/mail:/etc/ssl/mail:ro
+    env_file: ./mailserver/mailserver.env
+    restart: always
+
   mailadmin:
     build: mailadmin
     volumes:
@@ -67,7 +86,7 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./ssl:/etc/nginx/ssl:ro
-      - ./certbot/www:/var/www/certbot
+      - /var/www/certbot:/var/www/certbot
     depends_on:
       - app
       - video
@@ -78,3 +97,5 @@ volumes:
   pgdata:
   uploads:
   instance:
+  maildata:
+  mailstate:
