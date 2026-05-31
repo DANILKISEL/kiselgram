@@ -340,7 +340,7 @@ K.chat = {
     const fd = new FormData();
     const msgText = $('messageInput')?.value?.trim();
     for (const f of input.files) fd.append('file', f);
-    if (msgText) fd.append('message_text', msgText);
+    if (msgText) fd.append('message', msgText);
     if (type === 'personal') fd.append('receiver_id', id);
     else if (type === 'group') fd.append('group_id', id);
     else if (type === 'channel') fd.append('channel_id', id);

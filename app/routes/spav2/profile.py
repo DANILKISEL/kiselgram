@@ -22,7 +22,7 @@ def get_profile():
         'display_name': current_user.display_name or current_user.username,
         'avatar_url': current_user.avatar_url,
         'bio': getattr(current_user, 'bio', None),
-        'is_premium': getattr(current_user, 'is_premium', False) or (current_user.premium.is_premium if current_user.premium else False),
+        'is_premium': current_user.premium.is_premium if current_user.premium else False,
         'is_admin': getattr(current_user, 'is_admin', False),
         'is_online': getattr(current_user, 'is_online', False),
         'last_seen': current_user.last_seen.isoformat() if current_user.last_seen else None,
