@@ -1,7 +1,7 @@
 from datetime import datetime
 from flask import Blueprint, request, jsonify, session
 from app import db
-from app.models import User, Chat, ChatMember, Contact, BlockedUser, Message
+from app.models import User, Chat, ChatMember, Contact, BlockedUser, Message, UserMusic
 from app.utils.helpers import get_current_user_id, get_current_user
 
 spav2_search_bp = Blueprint('spav2_search', __name__, url_prefix='/api')
@@ -106,6 +106,90 @@ def search_users():
         })
 
     return jsonify({'success': True, 'data': {'query': query, 'users': result, 'total': len(result)}})
+
+
+@spav2_search_bp.route('/users/<int:user_id>', methods=['GET'])
+def get_user_profile(user_id):
+    current_user_id = get_current_user_id()
+    if not current_user_id:
+        return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED', 'message': 'Not authenticated'}}), 401
+
+    u = User.query.get(user_id)
+    if not u:
+        return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'User not found'}}), 404
+
+    return jsonify({'success': True, 'data': {
+        'user_id': u.id,
+        'username': u.username,
+        'display_name': u.display_name or u.username,
+        'avatar_url': u.avatar_url,
+        'bio': getattr(u, 'bio', None),
+        'is_online': getattr(u, 'is_online', False),
+        'last_seen': u.last_seen.isoformat() if u.last_seen else None,
+        'status_emoji': getattr(u, 'status_emoji', '') or '',
+        'is_bot': getattr(u, 'is_bot', False),
+        'bot_webapp_url': getattr(u, 'bot_webapp_url', None) or None,
+        'is_contact': Contact.query.filter_by(user_id=current_user_id, contact_id=user_id).first() is not None
+    }})
+
+
+@spav2_search_bp.route('/users/<int:user_id>/music', methods=['GET'])
+def get_user_music(user_id):
+    current_user_id = get_current_user_id()
+    if not current_user_id:
+        return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED', 'message': 'Not authenticated'}}), 401
+
+    u = User.query.get(user_id)
+    if not u:
+        return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'User not found'}}), 404
+
+    tracks = UserMusic.query.filter_by(user_id=user_id).order_by(UserMusic.added_at.desc()).limit(100).all()
+    return jsonify({'success': True, 'data': {
+        'tracks': [{
+            'id': t.id,
+            'file_url': t.file_url,
+            'file_name': t.file_name,
+            'artist': t.artist,
+            'title': t.title,
+            'duration': t.duration,
+            'added_at': t.added_at.isoformat() if t.added_at else None
+        } for t in tracks]
+    }})
+
+
+@spav2_search_bp.route('/users/<int:user_id>/files', methods=['GET'])
+def get_user_files(user_id):
+    current_user_id = get_current_user_id()
+    if not current_user_id:
+        return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED', 'message': 'Not authenticated'}}), 401
+
+    u = User.query.get(user_id)
+    if not u:
+        return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'User not found'}}), 404
+
+    messages = (Message.query
+        .filter(
+            ((Message.sender_id == current_user_id) & (Message.receiver_id == user_id)) |
+            ((Message.sender_id == user_id) & (Message.receiver_id == current_user_id)),
+            Message.has_attachment == True,
+            Message.file_path.isnot(None)
+        )
+        .order_by(Message.timestamp.desc())
+        .limit(50)
+        .all())
+
+    return jsonify({'success': True, 'data': {
+        'files': [{
+            'message_id': m.id,
+            'file_path': m.file_path,
+            'file_name': m.file_name,
+            'file_type': m.file_type,
+            'file_size': m.file_size,
+            'thumbnail_path': m.thumbnail_path,
+            'timestamp': m.timestamp.isoformat() if m.timestamp else None,
+            'sender_id': m.sender_id
+        } for m in messages]
+    }})
 
 
 @spav2_search_bp.route('/search_in_chat', methods=['POST'])

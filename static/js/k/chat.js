@@ -38,12 +38,12 @@ K.chat = {
       return 0;
     });
     c.innerHTML = sorted.map(chat => {
-      if (chat.chat_type === 'saved' || chat.chat_type === 'saved_messages') return '';
-      const id = chat.chat_type === 'personal' ? (chat.peer?.user_id || chat.peer?.id) : (chat.group?.group_id || chat.channel?.channel_id);
-      const name = chat.peer?.display_name || chat.peer?.username || chat.group?.name || chat.channel?.name || 'Unknown';
-      const statusEmoji = chat.peer?.status_emoji || '';
-      const avatar = chat.peer?.avatar_url || chat.group?.avatar_url || chat.channel?.avatar_url;
-      const type = chat.chat_type;
+      const isSaved = chat.is_saved;
+      const id = isSaved ? (K.state.user?.user_id || chat.peer?.user_id) : (chat.chat_type === 'personal' ? (chat.peer?.user_id || chat.peer?.id) : (chat.group?.group_id || chat.channel?.channel_id));
+      const name = isSaved ? 'Saved Messages' : (chat.peer?.display_name || chat.peer?.username || chat.group?.name || chat.channel?.name || 'Unknown');
+      const statusEmoji = isSaved ? '' : (chat.peer?.status_emoji || '');
+      const avatar = isSaved ? null : (chat.peer?.avatar_url || chat.group?.avatar_url || chat.channel?.avatar_url);
+      const type = isSaved ? 'personal' : chat.chat_type;
       const isActive = K.state.activeChat?.type === type && K.state.activeChat?.id === id;
       const isPinned = K.state.pinned?.includes(type+':'+id);
       let preview = '';
@@ -56,9 +56,9 @@ K.chat = {
       }
       const time = chat.last_message?.timestamp ? fmtTime(chat.last_message.timestamp) : '';
       const unread = chat.unread_count || 0;
-      const isOnline = type === 'personal' && chat.peer?.is_online;
+      const isOnline = !isSaved && type === 'personal' && chat.peer?.is_online;
       return `<div class="k-chat-item ${isActive?'active':''} ${isPinned?'pinned':''}" onclick="K.chat.open('${type}',${id})" data-type="${type}" data-id="${id}">
-        <div class="k-chat-avatar ${type}">${K.ui.avatar(name, avatar)}${isOnline ? '<span class="k-online-dot"></span>' : ''}</div>
+        <div class="k-chat-avatar personal">${isSaved ? '<i class="fas fa-bookmark" style="font-size:20px;color:var(--accent-blue)"></i>' : K.ui.avatar(name, avatar)}${isOnline ? '<span class="k-online-dot"></span>' : ''}</div>
         <div class="k-chat-info">
           <div class="k-chat-name-row"><span class="k-chat-name">${esc(name)}${statusEmoji ? ' ' + esc(statusEmoji) : ''}${isPinned ? ' <i class="fas fa-thumbtack" style="font-size:10px;color:var(--accent-blue);transform:rotate(45deg);margin-left:2px"></i>' : ''}</span><span class="k-chat-time">${time}</span></div>
           <div class="k-chat-preview"><span>${preview}</span>${unread ? `<span class="k-unread">${unread>99?'99+':unread}</span>` : ''}</div>
@@ -95,6 +95,15 @@ K.chat = {
     $('messageInput').focus();
     if (type === 'personal') { try { await K.api.post(V2 + `/mark_read/${id}`); K.chat.loadList(); } catch(e) {} }
   },
+  headerClick() {
+    if (!K.state.activeChat || K.state.activeChat.type !== 'personal') return;
+    const id = K.state.activeChat.id;
+    if (id === K.state.user?.user_id) {
+      K.modals.show('editProfile');
+    } else {
+      K.modals.viewProfile(id);
+    }
+  },
   close() {
     K.state.activeChat = null;
     $('chatView').classList.remove('active');
@@ -108,15 +117,20 @@ K.chat = {
   },
   async loadHeader(type, id) {
     const nameEl = $('chatName'), statusEl = $('chatStatus'), avatarEl = $('chatAvatar');
+    const cb = $('callBtn'); if (cb) cb.style.display = 'none';
+    const wb = $('webappBtn'); if (wb) wb.style.display = 'none';
+    const isSelf = id === K.state.user?.user_id;
+    if (isSelf) {
+      if (nameEl) nameEl.textContent = 'Saved Messages';
+      if (avatarEl) { avatarEl.innerHTML = '<i class="fas fa-bookmark" style="font-size:20px;color:var(--accent-blue)"></i>'; avatarEl.className = 'k-chat-avatar-sm'; }
+      if (statusEl) { statusEl.textContent = ''; statusEl.className = 'k-chat-header-status'; }
+      return;
+    }
     const chat = K.state.chats?.find(c => {
       if (type === 'personal') return (c.peer?.user_id || c.peer?.id) === id;
       if (type === 'group') return c.group?.group_id === id;
       if (type === 'channel') return c.channel?.channel_id === id;
     });
-    const cb = $('callBtn');
-    if (cb) cb.style.display = (type === 'personal') ? 'flex' : 'none';
-    const wb = $('webappBtn');
-    if (wb) wb.style.display = 'none';
     if (chat) {
       const peer = chat.peer || chat.group || chat.channel;
       if (peer) {
@@ -125,6 +139,7 @@ K.chat = {
         if (nameEl) nameEl.textContent = pname + (emoji ? ' ' + emoji : '');
         if (avatarEl) { avatarEl.innerHTML = K.ui.avatar(pname, peer.avatar_url); avatarEl.className = 'k-chat-avatar-sm'+(type==='group'?' group':type==='channel'?' channel':''); }
         if (statusEl) { statusEl.textContent = peer.is_online ? 'online' : ''; statusEl.className = 'k-chat-header-status'+(peer.is_online?' online':''); }
+        if (cb && type === 'personal') cb.style.display = 'flex';
         if (wb && peer.is_bot && peer.bot_webapp_url) { wb.style.display = 'flex'; wb.dataset.url = peer.bot_webapp_url; }
         return;
       }
@@ -142,7 +157,7 @@ K.chat = {
             if (statusEl) { statusEl.textContent = u.is_online ? 'online' : ''; statusEl.className = 'k-chat-header-status'+(u.is_online?' online':''); }
             if (wb && u.is_bot && u.bot_webapp_url) { wb.style.display = 'flex'; wb.dataset.url = u.bot_webapp_url; }
           }
-          const cb = $('callBtn'); if (cb) cb.style.display = 'flex';
+          if (cb) cb.style.display = 'flex';
         }
         if (nameEl && !nameEl.textContent) nameEl.textContent = 'User #'+id;
       } else if (type === 'group') {
@@ -243,7 +258,7 @@ K.chat = {
       } else if (isVid && fileUrl) {
         att = `<div class="k-msg-attachment"><video src="${fileUrl}" controls preload="metadata" style="max-width:260px;max-height:200px;border-radius:12px"></video></div>`;
       } else if (isAud && fileUrl) {
-        att = `<div class="k-msg-attachment"><audio src="${fileUrl}" controls style="max-width:220px;height:36px;border-radius:8px"></audio><button class="k-icon-btn" onclick="event.stopPropagation();K.music.likeMusic(${m.message_id||m.id})" title="Add to My Music" style="font-size:14px;width:28px;height:28px;display:inline-flex;vertical-align:middle"><i class="fas fa-heart"></i></button></div>`;
+        att = `<div class="k-msg-attachment k-audio-msg" onclick="event.stopPropagation();K.music.playUrl('${esc(fileUrl)}','${esc(fileName||'Audio')}','${esc(m.sender_username||'')}',${m.message_id||m.id})"><i class="fas fa-music"></i><span class="k-audio-name">${esc(fileName||'Audio message')}</span><span class="k-audio-play"><i class="fas fa-play"></i></span><button class="k-icon-btn" onclick="event.stopPropagation();K.music.likeMusic(${m.message_id||m.id})" title="Add to My Music" style="font-size:14px;width:28px;height:28px;margin-left:auto;flex-shrink:0"><i class="fas fa-heart"></i></button></div>`;
       } else if (fileUrl) {
         const icon = fileName.match(/\.pdf$/i) ? 'fa-file-pdf' : fileName.match(/\.(doc|docx)$/i) ? 'fa-file-word' : 'fa-file';
         att = `<div class="k-msg-file"><i class="fas ${icon}"></i> <a href="${fileUrl}" target="_blank" rel="noopener">${esc(fileName||'File')}</a></div>`;
@@ -375,6 +390,60 @@ K.chat = {
       else K.ui.toast('Upload failed', 'error');
     } catch(e) { K.ui.toast('Upload error', 'error'); }
     input.value = '';
+  },
+  voice: {
+    _mediaRecorder: null, _stream: null, _chunks: [], _timer: null, _seconds: 0,
+    toggle() {
+      const r = $('voiceRecorder'), i = $('inputArea');
+      if (r.style.display === 'flex') { K.chat.voice.cancel(); return; }
+      if (!navigator.mediaDevices?.getUserMedia) { K.ui.toast('Voice recording not supported', 'error'); return; }
+      navigator.mediaDevices.getUserMedia({audio: true}).then(stream => {
+        K.chat.voice._stream = stream;
+        const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
+        K.chat.voice._mediaRecorder = new MediaRecorder(stream, {mimeType: mime});
+        K.chat.voice._chunks = []; K.chat.voice._seconds = 0;
+        K.chat.voice._mediaRecorder.ondataavailable = e => { if (e.data.size) K.chat.voice._chunks.push(e.data); };
+        K.chat.voice._mediaRecorder.start();
+        i.style.display = 'none'; r.style.display = 'flex';
+        $('voiceTimer').textContent = '0:00';
+        K.chat.voice._timer = setInterval(() => {
+          K.chat.voice._seconds++;
+          $('voiceTimer').textContent = Math.floor(K.chat.voice._seconds/60) + ':' + String(K.chat.voice._seconds%60).padStart(2,'0');
+        }, 1000);
+      }).catch(() => K.ui.toast('Microphone access denied', 'error'));
+    },
+    _stopTracks() {
+      if (K.chat.voice._stream) { K.chat.voice._stream.getTracks().forEach(t => t.stop()); K.chat.voice._stream = null; }
+    },
+    cancel() {
+      if (K.chat.voice._mediaRecorder && K.chat.voice._mediaRecorder.state !== 'inactive') K.chat.voice._mediaRecorder.stop();
+      K.chat.voice._stopTracks();
+      clearInterval(K.chat.voice._timer); K.chat.voice._timer = null;
+      K.chat.voice._chunks = []; K.chat.voice._seconds = 0;
+      $('voiceRecorder').style.display = 'none'; $('inputArea').style.display = 'flex';
+    },
+    async send() {
+      if (!K.chat.voice._mediaRecorder || K.chat.voice._mediaRecorder.state === 'inactive') { K.chat.voice.cancel(); return; }
+      K.chat.voice._mediaRecorder.stop();
+      clearInterval(K.chat.voice._timer); K.chat.voice._timer = null;
+      await new Promise(r => { const c = K.chat.voice; c._mediaRecorder.onstop = () => { c._stopTracks(); r(); }; });
+      const blob = new Blob(K.chat.voice._chunks, {type: 'audio/webm'});
+      K.chat.voice._chunks = []; K.chat.voice._seconds = 0;
+      if (!K.state.activeChat) { $('voiceRecorder').style.display = 'none'; $('inputArea').style.display = 'flex'; return; }
+      const { type, id } = K.state.activeChat;
+      const fd = new FormData(); fd.append('file', blob, 'voice_'+Date.now()+'.ogg');
+      const msgText = $('messageInput')?.value?.trim();
+      if (msgText) fd.append('message', msgText);
+      if (type === 'personal') fd.append('receiver_id', id);
+      else if (type === 'group') fd.append('group_id', id);
+      else if (type === 'channel') fd.append('channel_id', id);
+      try {
+        const d = await K.api.post('/files/upload_file', fd);
+        if (d.success) { K.ui.toast('Voice sent', 'success'); K.chat.loadMessages(type, id); }
+        else K.ui.toast('Upload failed', 'error');
+      } catch(e) { K.ui.toast('Upload error', 'error'); }
+      $('voiceRecorder').style.display = 'none'; $('inputArea').style.display = 'flex';
+    }
   },
   async delete(msgId) {
     if (!msgId || !await K.ui.confirm('Delete this message?')) return;

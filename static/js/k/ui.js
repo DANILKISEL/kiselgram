@@ -30,6 +30,7 @@ K.ui = {
     setTimeout(() => document.getElementById(mid)?.focus(), 100);
     K.ui._promptRes = resolve;
   })},
+  formatSize(bytes) { if (!bytes || bytes <= 0) return ''; const u = ['B','KB','MB','GB']; let i = 0; let s = bytes; while (s >= 1024 && i < u.length-1) { s /= 1024; i++; } return s.toFixed(i===0?0:1) + ' ' + u[i]; },
   loader() { return '<div class="k-loader"></div>'; },
   avatar(name='?', url='') {
     const l = (name||'?')[0].toUpperCase();
