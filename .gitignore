@@ -25,3 +25,12 @@ tmp/
 .gradle
 app/config.py
 /config/kis.toml
+
+.rsync-exclude
+/docs
+/kiselgram_flutter
+/desktop-site
+/deploy.sh
+/in
+
+
