@@ -1,0 +1,354 @@
+.story-viewer-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #000;
+    z-index: 3000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+.story-viewer-modal.active {
+    display: flex;
+}
+
+.story-viewer-content {
+    width: 100%;
+    max-width: 450px;
+    height: 100%;
+    max-height: 800px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    background: #000;
+}
+
+.story-progress-bar {
+    display: flex;
+    gap: 4px;
+    padding: 12px 8px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+}
+
+.story-progress-segment {
+    flex: 1;
+    height: 3px;
+    background: rgba(255,255,255,0.3);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.story-progress-fill {
+    height: 100%;
+    background: white;
+    width: 0%;
+    transition: width 0.1s linear;
+}
+
+.story-header {
+    position: absolute;
+    top: 20px;
+    left: 0;
+    right: 0;
+    padding: 0 16px;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: white;
+}
+
+.story-user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 600;
+    overflow: hidden;
+    border: 2px solid white;
+    cursor: pointer;
+    flex-shrink: 0;
+    color: white;
+}
+
+.story-user-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.story-user-avatar span {
+    font-size: 18px;
+    font-weight: 600;
+    color: white;
+}
+
+.story-user-info {
+    flex: 1;
+}
+
+.story-user-name {
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.story-user-name:hover {
+    text-decoration: underline;
+}
+
+.story-time {
+    font-size: 11px;
+    opacity: 0.8;
+}
+
+.story-close-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.3);
+    transition: background 0.2s;
+}
+
+.story-close-btn:hover {
+    background: rgba(0,0,0,0.5);
+}
+
+.story-media-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.story-nav {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 50%;
+    z-index: 5;
+}
+
+.story-nav-left {
+    left: 0;
+}
+
+.story-nav-right {
+    right: 0;
+}
+
+.story-media {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.story-media img,
+.story-media video {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.story-caption {
+    position: absolute;
+    bottom: 100px;
+    left: 16px;
+    right: 16px;
+    color: white;
+    text-align: center;
+    font-size: 14px;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+/* Actions */
+.story-actions {
+    position: absolute;
+    bottom: 20px;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 30px;
+    padding: 16px;
+    z-index: 20;
+}
+
+.story-action-btn {
+    background: rgba(255,255,255,0.2);
+    border: none;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    backdrop-filter: blur(4px);
+}
+
+.story-action-btn:hover {
+    background: rgba(255,255,255,0.3);
+    transform: scale(1.1);
+}
+
+.story-action-btn.stats-btn {
+    background: rgba(0,0,0,0.7);
+    border: none;
+    border-radius: 30px;
+    padding: 10px 20px;
+    color: white;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    backdrop-filter: blur(4px);
+    width: auto;
+    height: auto;
+}
+
+.story-action-btn.stats-btn:hover {
+    background: rgba(0,0,0,0.9);
+    transform: scale(1.05);
+}
+
+.story-action-btn.stats-btn i {
+    font-size: 16px;
+}
+
+.story-reactions {
+    display: flex;
+    gap: 15px;
+    background: rgba(0,0,0,0.5);
+    padding: 8px 20px;
+    border-radius: 40px;
+    backdrop-filter: blur(4px);
+}
+
+.story-reaction {
+    font-size: 28px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.story-reaction:hover {
+    transform: scale(1.2);
+}
+
+/* Heart animation */
+@keyframes heartBeat {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.3); }
+    100% { transform: scale(1); }
+}
+
+@keyframes floatUp {
+    0% { opacity: 1; transform: translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateY(-100px) scale(1.5); }
+}
+
+/* Story Create Modal */
+.story-create-modal {
+    max-width: 400px;
+}
+
+.story-media-upload {
+    aspect-ratio: 9/16;
+    background: var(--bg-surface);
+    border: 2px dashed var(--border-color);
+    border-radius: 12px;
+    cursor: pointer;
+    overflow: hidden;
+    margin-bottom: 16px;
+}
+
+.upload-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+}
+
+.upload-placeholder span {
+    font-size: 48px;
+    margin-bottom: 8px;
+}
+
+.upload-placeholder p {
+    font-size: 14px;
+}
+
+/* Story avatar styles */
+.story-avatar {
+    position: relative;
+}
+
+.story-avatar.unviewed {
+    background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+}
+
+.story-avatar.viewed {
+    background: var(--border-color);
+}
+
+.story-avatar.add-story {
+    background: var(--bg-surface);
+    border: 2px dashed var(--border-color);
+}
+
+.add-story-btn {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    color: var(--text-muted);
+}
+
+.story-avatar-placeholder {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent-blue), var(--accent-green));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: 600;
+    color: white;
+    border: 2px solid var(--sidebar-bg);
+}
+
+/* Chat avatar with story indicator */

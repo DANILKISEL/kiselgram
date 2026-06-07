@@ -51,18 +51,23 @@ def create_app():
         app.config.from_object(Config())
     except Exception as e:
         print(f"⚠️ Error loading config: {e}")
-        app.config['SECRET_KEY'] = 'dev-key'
+        app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key')
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(app.instance_path, 'kiselgram.db')
 
     # Always enforce these
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-    # Override database for production (env var takes precedence)
+    # Override database for production (env var required)
     if production:
-        app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
-            'DATABASE_URL',
-            "postgresql://kiselgram_user:String-123@localhost:5432/kiselgram"
-        )
+        db_url = os.environ.get('DATABASE_URL')
+        if not db_url:
+            raise RuntimeError("DATABASE_URL environment variable is required in production mode")
+        app.config['SQLALCHEMY_DATABASE_URI'] = db_url
+        if not app.config.get('SECRET_KEY') or app.config['SECRET_KEY'] in ('dev-key', 'dev-secret-key-change-in-production'):
+            sk = os.environ.get('SECRET_KEY')
+            if not sk:
+                raise RuntimeError("SECRET_KEY environment variable is required in production mode")
+            app.config['SECRET_KEY'] = sk
 
     print(f"✅ Database URI: {app.config['SQLALCHEMY_DATABASE_URI']}")
 
@@ -114,6 +119,18 @@ def create_app():
     app.register_blueprint(files.files_bp)
     app.register_blueprint(utils_api_bp)
 
+    # Register admin and push blueprints (new features)
+    try:
+        from app.routes.spav2.admin import spav2_admin_bp
+        app.register_blueprint(spav2_admin_bp)
+    except ImportError:
+        pass
+    try:
+        from app.routes.spav2.push import spav2_push_bp
+        app.register_blueprint(spav2_push_bp)
+    except ImportError:
+        pass
+
     # Register video blueprint if enabled
     if app.config.get('VIDEO_ENABLED', False):
         try:
@@ -149,6 +166,10 @@ def create_app():
                 db.session.commit()
         session.clear()
         return redirect('/auth/login')
+
+    @app.route('/qr/<token>')
+    def qr_login_page(token):
+        return render_template('qr_login.html', token=token)
 
     @app.route('/webapp/static')
     def webapp_static():

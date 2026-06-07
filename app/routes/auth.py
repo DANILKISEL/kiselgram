@@ -40,10 +40,9 @@ def login():
         if not username or not password:
             return render_template('login.html', error="Username and password required", username=username)
 
-        password_hash = hash_password(password)
         user = User.query.filter_by(username=username).first()
 
-        if user and user.password_hash == password_hash:
+        if user and user.check_password(password):
             session['username'] = username
             session['user_id'] = user.id
             user.is_online = True
@@ -274,10 +273,9 @@ def api_login():
         if not username or not password:
             return jsonify({'error': 'Username and password required'}), 400
 
-        password_hash = hash_password(password)
         user = User.query.filter_by(username=username).first()
 
-        if user and user.password_hash == password_hash:
+        if user and user.check_password(password):
             session['username'] = username
             session['user_id'] = user.id
             user.is_online = True

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — Kiselgram</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    :root { --bg: #0f0f1a; --card: #1a1a2e; --text: #e0e0e0; --muted: #888; --accent: #667eea; --border: #2a2a3e; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); padding: 24px; }
+    h1 { font-size: 24px; margin-bottom: 24px; display: flex; align-items: center; gap: 12px; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 32px; }
+    .stat { background: var(--card); border-radius: 12px; padding: 20px; border: 1px solid var(--border); }
+    .stat-value { font-size: 32px; font-weight: 700; color: var(--accent); }
+    .stat-label { font-size: 13px; color: var(--muted); margin-top: 4px; }
+    .section { margin-bottom: 32px; }
+    .section h2 { font-size: 18px; margin-bottom: 12px; }
+    table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+    th, td { padding: 10px 16px; text-align: left; border-bottom: 1px solid var(--border); font-size: 14px; }
+    th { background: rgba(255,255,255,0.05); color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+    td { color: var(--text); }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+    .badge-pending { background: #f59e0b33; color: #f59e0b; }
+    .badge-resolved { background: #10b98133; color: #10b981; }
+    .btn { padding: 6px 14px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; background: var(--accent); color: #fff; }
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+    .btn-danger { background: #ef4444; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+    .tab { padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border); cursor: pointer; font-size: 13px; background: transparent; color: var(--muted); }
+    .tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .hidden { display: none; }
+    #loading { text-align: center; padding: 40px; color: var(--muted); }
+    select { background: var(--card); color: var(--text); border: 1px solid var(--border); padding: 6px 12px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+  <h1><i class="fas fa-shield-alt"></i> Kiselgram Admin</h1>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="reports"><i class="fas fa-flag"></i> Reports</button>
+    <button class="tab" data-tab="users"><i class="fas fa-users"></i> Users</button>
+  </div>
+
+  <div id="reports-tab">
+    <div class="section">
+      <h2>Reports</h2>
+      <select id="reportStatus">
+        <option value="pending">Pending</option>
+        <option value="resolved">Resolved</option>
+      </select>
+      <table><thead><tr><th>ID</th><th>Reporter</th><th>Reported User</th><th>Reason</th><th>Date</th><th>Actions</th></tr></thead><tbody id="reportsBody"></tbody></table>
+    </div>
+  </div>
+
+  <div id="users-tab" class="hidden">
+    <div class="section">
+      <h2>Users</h2>
+      <table><thead><tr><th>ID</th><th>Username</th><th>Email</th><th>Admin</th><th>Created</th></tr></thead><tbody id="usersBody"></tbody></table>
+    </div>
+  </div>
+
+  <div id="loading">Loading...</div>
+
+  <script>
+    const API = '/api/admin';
+
+    async function loadDashboard() {
+      const d = await fetch(API + '/dashboard').then(r => r.json());
+      if (!d.success) return;
+      const s = d.data;
+      document.getElementById('stats').innerHTML = `
+        <div class="stat"><div class="stat-value">${s.total_users}</div><div class="stat-label">Total Users</div></div>
+        <div class="stat"><div class="stat-value">${s.users_today}</div><div class="stat-label">Users Today</div></div>
+        <div class="stat"><div class="stat-value">${s.total_reports}</div><div class="stat-label">Total Reports</div></div>
+        <div class="stat"><div class="stat-value">${s.pending_reports}</div><div class="stat-label">Pending Reports</div></div>
+      `;
+    }
+
+    async function loadReports(status = 'pending') {
+      const d = await fetch(API + '/reports?status=' + status).then(r => r.json());
+      if (!d.success) return;
+      const rows = (d.data?.reports || []).map(r => `
+        <tr>
+          <td>${r.id}</td>
+          <td>${esc(r.reporter_username || r.reporter_id)}</td>
+          <td>${esc(r.reported_username || r.reported_user_id || '-')}</td>
+          <td>${esc(r.reason||'').substring(0,60)}</td>
+          <td>${r.created_at ? new Date(r.created_at).toLocaleDateString() : ''}</td>
+          <td>${status === 'pending' ? `<button class="btn btn-sm" onclick="resolveReport(${r.id})">Resolve</button>` : ''}</td>
+        </tr>
+      `).join('');
+      document.getElementById('reportsBody').innerHTML = rows || '<tr><td colspan="6" style="text-align:center;color:var(--muted)">No reports</td></tr>';
+    }
+
+    async function resolveReport(id) {
+      const d = await fetch(API + '/reports/' + id + '/resolve', { method: 'POST' }).then(r => r.json());
+      if (d.success) { loadReports(document.getElementById('reportStatus').value); }
+    }
+
+    async function loadUsers() {
+      const d = await fetch(API + '/users').then(r => r.json());
+      if (!d.success) return;
+      const rows = (d.data?.users || []).map(u => `
+        <tr>
+          <td>${u.id}</td>
+          <td>${esc(u.username)}</td>
+          <td>${esc(u.email||'-')}</td>
+          <td>${u.is_admin ? '<span class="badge badge-resolved">Yes</span>' : 'No'}</td>
+          <td>${u.created_at ? new Date(u.created_at).toLocaleDateString() : ''}</td>
+        </tr>
+      `).join('');
+      document.getElementById('usersBody').innerHTML = rows || '<tr><td colspan="5" style="text-align:center;color:var(--muted)">No users</td></tr>';
+    }
+
+    function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    document.getElementById('reportStatus').addEventListener('change', function() { loadReports(this.value); });
+
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', function() {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+        document.querySelectorAll('[id$="-tab"]').forEach(t => t.classList.add('hidden'));
+        document.getElementById(this.dataset.tab + '-tab').classList.remove('hidden');
+        if (this.dataset.tab === 'users') loadUsers();
+      });
+    });
+
+    Promise.all([loadDashboard(), loadReports()]).then(() => document.getElementById('loading').style.display = 'none');
+  </script>
+</body>
+</html>

@@ -7,7 +7,7 @@ K.calls = {
     const frame = $('videoFrame');
     if (overlay) overlay.style.display = 'flex';
     if (frame) {
-      frame.innerHTML = `<iframe src="${url}" allow="camera;microphone;display-capture" style="width:100%;height:100%;border:none"></iframe>`;
+      frame.innerHTML = `<iframe src="${esc(url)}" allow="camera;microphone;display-capture" style="width:100%;height:100%;border:none"></iframe>`;
     }
     $('videoCallPeer').textContent = 'In call';
     K.calls._started = Date.now();

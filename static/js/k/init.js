@@ -1,7 +1,7 @@
 'use strict';
 
 const $ = (id) => document.getElementById(id);
-const esc = (s) => { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
+const esc = (s) => { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML.replace(/'/g, '&#39;'); };
 const fmtTime = (ts) => { if (!ts) return ''; try { const d = new Date(ts), n = new Date(); const diff = n - d; if (diff < 6e4) return 'now'; if (diff < 36e5) return Math.floor(diff/6e4)+'m'; if (diff < 864e5) return Math.floor(diff/36e5)+'h'; return d.toLocaleDateString(); } catch(e) { return ''; } };
 const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
 

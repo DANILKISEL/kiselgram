@@ -32,10 +32,25 @@ K.ui = {
   })},
   formatSize(bytes) { if (!bytes || bytes <= 0) return ''; const u = ['B','KB','MB','GB']; let i = 0; let s = bytes; while (s >= 1024 && i < u.length-1) { s /= 1024; i++; } return s.toFixed(i===0?0:1) + ' ' + u[i]; },
   loader() { return '<div class="k-loader"></div>'; },
-  avatar(name='?', url='') {
+  avatar(name='?', url='', isBot=false) {
+    if (url) return `<img src="${esc(url)}" alt="" style="width:100%;height:100%;object-fit:cover" onerror="K.ui._avatarFallback(this,'${esc(name)}',${isBot})">`;
+    if (isBot) return `<span style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;border-radius:50%;color:white;font-weight:600;background:linear-gradient(135deg,#6c5ce7,#a29bfe);font-size:20px"><i class="fas fa-robot"></i></span>`;
     const l = (name||'?')[0].toUpperCase();
-    if (url) return `<img src="${url}" alt="" style="width:100%;height:100%;object-fit:cover">`;
     return `<span style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;border-radius:50%;color:white;font-weight:600;background:linear-gradient(135deg,var(--accent-blue),var(--accent-green))">${l}</span>`;
+  },
+  _avatarFallback(img, name, isBot) {
+    if (!img || img._fb) return; img._fb = true;
+    const p = img.parentElement;
+    if (!p) return;
+    img.style.display = 'none';
+    if (isBot) {
+      p.innerHTML = '<i class="fas fa-robot" style="font-size:20px"></i>';
+      p.style.background = 'linear-gradient(135deg,#6c5ce7,#a29bfe)';
+    } else {
+      const l = (name||'?')[0].toUpperCase();
+      p.textContent = l;
+      p.style.background = 'linear-gradient(135deg,var(--accent-blue),var(--accent-green))';
+    }
   },
   renderUser() {
     const u = K.state.user; if (!u) return;

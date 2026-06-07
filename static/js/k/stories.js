@@ -20,7 +20,7 @@ K.stories = {
       const hasUnviewed = s.has_unviewed;
       return `<div class="k-story-circle" onclick="K.stories.view(${s.user_id})">
         <div class="k-story-ring ${!hasUnviewed?'viewed':''}">
-          ${s.avatar_url ? `<img src="${s.avatar_url}">` : `<div style="width:100%;height:100%;border-radius:50%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--accent-blue),var(--accent-green));color:white;font-weight:600;font-size:20px;border:2px solid var(--sidebar-bg)">${(s.username||'?')[0].toUpperCase()}</div>`}
+          ${s.avatar_url ? `<img src="${esc(s.avatar_url)}">` : `<div style="width:100%;height:100%;border-radius:50%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--accent-blue),var(--accent-green));color:white;font-weight:600;font-size:20px;border:2px solid var(--sidebar-bg)">${(s.username||'?')[0].toUpperCase()}</div>`}
         </div>
         <span class="k-story-username">${esc((s.username||'').substring(0,8))}</span>
       </div>`;
@@ -34,7 +34,7 @@ K.stories = {
     grid.innerHTML = stories.map(s => {
       const first = s.stories?.[0]; if (!first) return '';
       return `<div class="k-story-card" onclick="K.stories.view(${s.user_id})">
-        ${first.media_type === 'video' ? `<video src="${first.media_path}"></video>` : `<img src="${first.media_path}" loading="lazy">`}
+        ${first.media_type === 'video' ? `<video src="${esc(first.media_path)}"></video>` : `<img src="${esc(first.media_path)}" loading="lazy">`}
         <div class="k-story-card-overlay"><span>${esc(s.username)}</span></div>
       </div>`;
     }).join('');
@@ -51,8 +51,8 @@ K.stories = {
       $('storyViewerName').textContent = storyGroup.username;
       $('storyViewerAvatar').innerHTML = K.ui.avatar(storyGroup.username);
       $('storyMedia').innerHTML = s.media_type === 'video'
-        ? `<video src="${s.media_path}" autoplay controls style="max-width:100%;max-height:80vh"></video>`
-        : `<img src="${s.media_path}" style="max-width:100%;max-height:80vh">`;
+        ? `<video src="${esc(s.media_path)}" autoplay controls style="max-width:100%;max-height:80vh"></video>`
+        : `<img src="${esc(s.media_path)}" style="max-width:100%;max-height:80vh">`;
       $('storyLikeCount').textContent = s.like_count || 0;
       $('storyProgress').innerHTML = stories.map((_, si) =>
         `<div class="k-story-progress-seg"><div class="k-story-progress-fill" style="width:${si<i?'100%':si===i?'0%':'0%'}"></div></div>`

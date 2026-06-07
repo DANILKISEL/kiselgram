@@ -235,7 +235,7 @@ def add_admin(channel_id):
     sub = ChatSubscriber.query.filter_by(user_id=user_id, chat_id=channel_id).first()
     if not sub:
         db.session.add(ChatSubscriber(user_id=user_id, chat_id=channel_id))
-        db.session.flush()
+        db.session.commit()
 
     return jsonify({'success': True, 'data': {
         'channel_id': channel_id, 'user_id': user_id,

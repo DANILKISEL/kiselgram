@@ -70,6 +70,33 @@ deploy.sh                                                   # local → server r
 
 Production detection: `DATABASE_URL` env var activates PostgreSQL; otherwise SQLite (local dev).
 
+## Domain Architecture
+
+```
+kiselgram.ru          ─ Main site (landing page)
+web.kiselgram.ru      ─ SPA (/k route)
+app.kiselgram.ru      ─ Redirect to web.kiselgram.ru
+api.kiselgram.ru      ─ API backend
+cdn.kiselgram.ru      ─ Uploaded files (served from volume)
+status.kiselgram.ru   ─ Service status page
+desktop.kiselgram.ru  ─ Desktop client downloads
+docs.kiselgram.ru     ─ Documentation (GitHub Pages)
+```
+
+All subdomains route to the same VPS (except docs which is on GitHub Pages). nginx handles routing:
+- `kiselgram.ru` — landing page at `/`, everything else → `web.kiselgram.ru`
+- `web.kiselgram.ru` — proxies to Flask; root redirects to `/auth/login`
+- `app.kiselgram.ru` — 301 redirect to `web.kiselgram.ru`
+- `api.kiselgram.ru` — proxies to Flask (API at `/api.v2/api/...`)
+- `cdn.kiselgram.ru` — serves `/uploads/` from Docker volume with long cache; proxies everything else to Flask
+- `desktop.kiselgram.ru` — static files from `/var/www/desktop`
+- `docs.kiselgram.ru` — CNAME to `kiselgram.github.io` (GitHub Pages)
+
+Single SSL cert SANs: `kiselgram.ru, web.kiselgram.ru, www.kiselgram.ru, api.kiselgram.ru, desktop.kiselgram.ru, app.kiselgram.ru, cdn.kiselgram.ru`
+Docs is on GitHub Pages (separate SSL via their CDN).
+
+See `docs/domain.md` for full details.
+
 ## Mail Admin GUI
 
 Standalone container at `mailadmin/` for managing mail accounts on the mail server. Accessible at `https://kiselgram.ru/mailadmin/` (login password set via `MAILADMIN_PASSWORD` env var in docker-compose.yml).
@@ -97,4 +124,19 @@ Rebuild after code changes: `docker compose build mailadmin && docker compose up
 - `.env` is local dev only (contains OPENROUTER_API_KEY); production secrets in `config/kis.toml`
 - Video server `video_server/app.py` uses absolute `template_folder` path (derived from `__file__`) — Flask's `root_path` differs when run as `python video_server/app.py` vs via gunicorn
 - Video server's `_ensure_db()` creates the main Flask app for DB access but does NOT push its context globally (uses `with _main_app.app_context():` in `_resolve_user()` instead)
+- V3-only endpoints (QR login, email/login_v3) are registered under `/api.v2/` as well so the desktop client's single base URL works for all login flows
 - `docker compose up -d --build` recreates app and video containers but does NOT restart nginx; run `docker compose restart nginx` if nginx returns 502 (stale upstream)
+
+## Desktop Client (moved)
+
+The JavaFX desktop app was moved to `~/PycharmProjects/kiselgram-desktop`. See its own `AGENTS.md` or README there for build/run instructions.
+
+**Distribution zips** at `desktop-site/download/` in this repo:
+- `Kiselgram-mac-arm64.zip` (38 MB, self-contained .app)
+- `Kiselgram-mac-intel.zip` (1.5 MB, needs Java 21)
+- `Kiselgram-windows.zip` (1.5 MB, needs Java 21)
+
+API notes (server-side, applies to all clients including desktop):
+- `AuthApi.pollQr()` -> server path: `/auth/qr/status/{token}`
+- `ChatApi.sendTyping()` -> server path: `/typing/{chatType}/{chatId}` (chatType=`personal`, not `private`)
+- QR login + email login endpoints are registered under both `/api.v2/` and `/api.v3/` (see `spav2/__init__.py`)

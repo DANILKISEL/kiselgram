@@ -204,15 +204,12 @@ def index():
 def k_version():
     """Kiselgram Web K - SPA v2 frontend"""
     current_user = get_current_user()
-    if not current_user:
-        return redirect(url_for('auth.login'))
-
-    is_premium = current_user.premium.is_premium if current_user.premium else False
+    is_premium = current_user.premium.is_premium if current_user and current_user.premium else False
     return render_template(
         'k.html',
         current_user=current_user,
         is_premium=is_premium,
-        session={'user_id': current_user.id}
+        session={'user_id': current_user.id if current_user else None}
     )
 
 @spa_chat_bp.route('/mobile')
