@@ -32,5 +32,6 @@ app/config.py
 /desktop-site
 /deploy.sh
 /in
+/mailadmin
 
 
