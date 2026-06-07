@@ -33,7 +33,7 @@ def get_toml_config():
     # App settings
     if 'app' in toml_config:
         app = toml_config['app']
-        config['SECRET_KEY'] = app.get('secret_key', 'dev-secret-key')
+        config['SECRET_KEY'] = app.get('secret_key', os.environ.get('SECRET_KEY', 'dev-secret-key'))
         config['DEBUG'] = app.get('debug', False)
         config['APP_NAME'] = app.get('name', 'Kiselgram')
         config['VERSION'] = app.get('version', '2.0.0')
@@ -113,8 +113,8 @@ def get_toml_config():
 class Config:
     """Base configuration"""
 
-    # Flask
-    SECRET_KEY = 'dev-secret-key-change-in-production'
+    # Flask (overridden by config file and env var in production)
+    SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 
     # Database
     SQLALCHEMY_TRACK_MODIFICATIONS = False
@@ -182,7 +182,7 @@ class Config:
     MAIL_PORT = 587
     MAIL_USE_TLS = True
     MAIL_USERNAME = 'auth@mail.kiselgram.ru'
-    MAIL_PASSWORD = '$uper$ecurePassWo_D'
+    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD', '')
     MAIL_DEFAULT_SENDER = ('Kiselgram', 'auth@mail.kiselgram.ru')
 
     def __init__(self):

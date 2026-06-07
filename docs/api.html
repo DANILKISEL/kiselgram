@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Reference — Kiselgram Docs</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+            background: #0d1117; color: #c9d1d9; line-height: 1.7;
+        }
+        .wrapper { display: flex; min-height: 100vh; }
+        .sidebar {
+            width: 260px; background: #161b22; padding: 24px 0;
+            border-right: 1px solid #30363d; position: sticky; top: 0; height: 100vh; overflow-y: auto;
+        }
+        .sidebar h2 { padding: 0 24px; font-size: 18px; color: #f0f6fc; margin-bottom: 16px; }
+        .sidebar a {
+            display: block; padding: 8px 24px; color: #8b949e; text-decoration: none;
+            font-size: 14px; border-left: 2px solid transparent;
+        }
+        .sidebar a:hover, .sidebar a.active { color: #58a6ff; background: #0d1117; border-left-color: #58a6ff; }
+        .content { flex: 1; padding: 40px 48px; max-width: 900px; }
+        h1 { font-size: 32px; color: #f0f6fc; margin-bottom: 8px; }
+        h2 { font-size: 24px; color: #f0f6fc; margin-top: 32px; margin-bottom: 12px; border-bottom: 1px solid #30363d; padding-bottom: 8px; }
+        h3 { font-size: 18px; color: #f0f6fc; margin-top: 24px; margin-bottom: 8px; }
+        p { margin-bottom: 16px; }
+        code { background: #161b22; padding: 2px 6px; border-radius: 4px; font-size: 14px; color: #f0f6fc; }
+        pre { background: #161b22; padding: 16px; border-radius: 8px; overflow-x: auto; margin-bottom: 16px; border: 1px solid #30363d; }
+        pre code { background: none; padding: 0; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+        th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #30363d; }
+        th { color: #8b949e; font-size: 13px; text-transform: uppercase; }
+        ul, ol { margin-bottom: 16px; padding-left: 24px; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+        .badge.get { background: #1f6feb; color: #fff; }
+        .badge.post { background: #238636; color: #fff; }
+        .badge.put { background: #d29922; color: #fff; }
+        .badge.delete { background: #da3633; color: #fff; }
+        .endpoint { margin-bottom: 16px; }
+        .endpoint-url { font-family: monospace; font-size: 16px; }
+        @media (max-width: 768px) { .sidebar { display: none; } .content { padding: 24px; } }
+    </style>
+</head>
+<body>
+<div class="wrapper">
+    <nav class="sidebar">
+        <h2>Kiselgram Docs</h2>
+        <a href="index.html">Home</a>
+        <a href="user-guide.html">User Guide</a>
+        <a href="api.html" class="active">API Reference</a>
+        <a href="desktop.html">Desktop Client</a>
+    </nav>
+    <main class="content">
+        <h1>API Reference</h1>
+        <p>Base URL: <code>https://api.kiselgram.ru/api.v2/api</code></p>
+        <p>Authentication: Bearer token via <code>Authorization: Bearer &lt;token&gt;</code> header.</p>
+        <p>Response shape: <code>{success: bool, data: {...}}</code> or <code>{success: false, error: {code, message}}</code></p>
+
+        <h2>Auth</h2>
+        <div class="endpoint">
+            <p><span class="badge post">POST</span> <span class="endpoint-url">/auth/register</span></p>
+            <p>Register a new user. Body: <code>{username, email, password}</code>.</p>
+        </div>
+        <div class="endpoint">
+            <p><span class="badge post">POST</span> <span class="endpoint-url">/auth/login</span></p>
+            <p>Log in with email/password. Body: <code>{email, password}</code>.</p>
+        </div>
+        <div class="endpoint">
+            <p><span class="badge get">GET</span> <span class="endpoint-url">/auth/verify?token=&lt;token&gt;</span></p>
+            <p>Verify email with token sent via email.</p>
+        </div>
+        <div class="endpoint">
+            <p><span class="badge post">POST</span> <span class="endpoint-url">/auth/login/google</span></p>
+            <p>Google OAuth login. Body: <code>{id_token}</code>.</p>
+        </div>
+
+        <h2>Chats</h2>
+        <div class="endpoint">
+            <p><span class="badge get">GET</span> <span class="endpoint-url">/chat_list</span></p>
+            <p>Get all chats for the current user.</p>
+        </div>
+        <div class="endpoint">
+            <p><span class="badge post">POST</span> <span class="endpoint-url">/chats/create</span></p>
+            <p>Create a personal chat. Body: <code>{user_id}</code>.</p>
+        </div>
+        <div class="endpoint">
+            <p><span class="badge delete">DELETE</span> <span class="endpoint-url">/chats/&lt;id&gt;</span></p>
+            <p>Delete a chat.</p>
+        </div>
+        <div class="endpoint">
+            <p><span class="badge post">POST</span> <span class="endpoint-url">/mark_read/&lt;chat_id&gt;</span></p>
+            <p>Mark a chat as read.</p>
+        </div>
+
+        <h2>Messages</h2>
+        <div class="endpoint">
+            <p><span class="badge get">GET</span> <span class="endpoint-url">/messages/&lt;chat_id&gt;?after=&lt;id&gt;&limit=50</span></p>
+            <p>Get messages for a chat (paginated).</p>
+        </div>
+        <div class="endpoint">
+            <p><span class="badge post">POST</span> <span class="endpoint-url">/messages/&lt;chat_id&gt;</span></p>
+            <p>Send a message. Body: <code>{text}</code> or multipart for files.</p>
+        </div>
+        <div class="endpoint">
+            <p><span class="badge put">PUT</span> <span class="endpoint-url">/messages/&lt;id&gt;</span></p>
+            <p>Edit a message. Body: <code>{text}</code>.</p>
+        </div>
+        <div class="endpoint">
+            <p><span class="badge delete">DELETE</span> <span class="endpoint-url">/messages/&lt;id&gt;</span></p>
+            <p>Delete a message.</p>
+        </div>
+        <div class="endpoint">
+            <p><span class="badge post">POST</span> <span class="endpoint-url">/reaction/&lt;message_id&gt;</span></p>
+            <p>Add/remove reaction. Body: <code>{emoji}</code>.</p>
+        </div>
+        <div class="endpoint">
+            <p><span class="badge post">POST</span> <span class="endpoint-url">/typing/&lt;chat_type&gt;/&lt;chat_id&gt;</span></p>
+            <p>Send typing indicator. Chat type: <code>personal</code> or <code>group</code>.</p>
+        </div>
+
+        <h2>Groups</h2>
+        <div class="endpoint">
+            <p><span class="badge post">POST</span> <span class="endpoint-url">/groups/create</span></p>
+            <p>Create a group. Body: <code>{name, member_ids[]}</code>.</p>
+        </div>
+        <div class="endpoint">
+            <p><span class="badge get">GET</span> <span class="endpoint-url">/groups/&lt;id&gt;</span></p>
+            <p>Get group info and members.</p>
+        </div>
+        <div class="endpoint">
+            <p><span class="badge put">PUT</span> <span class="endpoint-url">/groups/&lt;id&gt;</span></p>
+            <p>Update group settings (name, photo).</p>
+        </div>
+        <div class="endpoint">
+            <p><span class="badge post">POST</span> <span class="endpoint-url">/groups/&lt;id&gt;/add_member</span></p>
+            <p>Add member to group.</p>
+        </div>
+        <div class="endpoint">
+            <p><span class="badge post">POST</span> <span class="endpoint-url">/groups/&lt;id&gt;/remove_member</span></p>
+            <p>Remove member from group.</p>
+        </div>
+
+        <h2>Contacts</h2>
+        <div class="endpoint">
+            <p><span class="badge get">GET</span> <span class="endpoint-url">/contacts</span></p>
+            <p>Get contact list.</p>
+        </div>
+        <div class="endpoint">
+            <p><span class="badge post">POST</span> <span class="endpoint-url">/contacts/add</span></p>
+            <p>Add contact. Body: <code>{user_id}</code>.</p>
+        </div>
+        <div class="endpoint">
+            <p><span class="badge post">POST</span> <span class="endpoint-url">/contacts/remove</span></p>
+            <p>Remove contact. Body: <code>{user_id}</code>.</p>
+        </div>
+
+        <h2>Profile</h2>
+        <div class="endpoint">
+            <p><span class="badge get">GET</span> <span class="endpoint-url">/profile</span></p>
+            <p>Get current user profile.</p>
+        </div>
+        <div class="endpoint">
+            <p><span class="badge put">PUT</span> <span class="endpoint-url">/profile</span></p>
+            <p>Update profile. Body: <code>{username, bio, name}</code>.</p>
+        </div>
+        <div class="endpoint">
+            <p><span class="badge post">POST</span> <span class="endpoint-url">/profile/avatar</span></p>
+            <p>Upload avatar (multipart file).</p>
+        </div>
+
+        <h2>Stories</h2>
+        <div class="endpoint">
+            <p><span class="badge get">GET</span> <span class="endpoint-url">/stories</span></p>
+            <p>Get stories feed.</p>
+        </div>
+        <div class="endpoint">
+            <p><span class="badge post">POST</span> <span class="endpoint-url">/stories/upload</span></p>
+            <p>Upload a story (multipart file).</p>
+        </div>
+        <div class="endpoint">
+            <p><span class="badge post">POST</span> <span class="endpoint-url">/stories/&lt;id&gt;/view</span></p>
+            <p>Mark story as viewed.</p>
+        </div>
+        <div class="endpoint">
+            <p><span class="badge post">POST</span> <span class="endpoint-url">/stories/&lt;id&gt;/like</span></p>
+            <p>Like/unlike a story.</p>
+        </div>
+
+        <h2>Channels</h2>
+        <div class="endpoint">
+            <p><span class="badge post">POST</span> <span class="endpoint-url">/channels/create</span></p>
+            <p>Create a channel.</p>
+        </div>
+        <div class="endpoint">
+            <p><span class="badge post">POST</span> <span class="endpoint-url">/channels/&lt;id&gt;/subscribe</span></p>
+            <p>Subscribe to a channel.</p>
+        </div>
+        <div class="endpoint">
+            <p><span class="badge post">POST</span> <span class="endpoint-url">/channels/&lt;id&gt;/unsubscribe</span></p>
+            <p>Unsubscribe from a channel.</p>
+        </div>
+
+        <h2>Search</h2>
+        <div class="endpoint">
+            <p><span class="badge get">GET</span> <span class="endpoint-url">/search?q=&lt;query&gt;</span></p>
+            <p>Global search for users, groups, channels.</p>
+        </div>
+
+        <h2>Saved Messages</h2>
+        <div class="endpoint">
+            <p><span class="badge get">GET</span> <span class="endpoint-url">/saved_messages?limit=50</span></p>
+            <p>Get saved messages (cloud bookmark chat).</p>
+        </div>
+
+        <h2>Sessions</h2>
+        <div class="endpoint">
+            <p><span class="badge get">GET</span> <span class="endpoint-url">/sessions</span></p>
+            <p>List active sessions.</p>
+        </div>
+        <div class="endpoint">
+            <p><span class="badge delete">DELETE</span> <span class="endpoint-url">/sessions/&lt;id&gt;</span></p>
+            <p>Revoke a session.</p>
+        </div>
+
+        <h2>QR Login</h2>
+        <div class="endpoint">
+            <p><span class="badge post">POST</span> <span class="endpoint-url">/auth/qr/generate</span></p>
+            <p>Generate a QR login token. Returns <code>{token, expires_in}</code>.</p>
+        </div>
+        <div class="endpoint">
+            <p><span class="badge get">GET</span> <span class="endpoint-url">/auth/qr/status/&lt;token&gt;</span></p>
+            <p>Poll QR login status. Returns session token when scanned.</p>
+        </div>
+        <div class="endpoint">
+            <p><span class="badge post">POST</span> <span class="endpoint-url">/auth/qr/claim/&lt;token&gt;</span></p>
+            <p>Claim a QR token (scan from mobile).</p>
+        </div>
+
+        <p style="margin-top: 48px; color: #8b949e; font-size: 14px;"><a href="index.html" style="color:#58a6ff;">&larr; Back to Home</a></p>
+    </main>
+</div>
+</body>
+</html>

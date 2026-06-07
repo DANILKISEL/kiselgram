@@ -1,5 +1,14 @@
 /* static/css/desktop.css */
 
+/* Modular CSS imports — new feature modules */
+@import url('desktop/reset.css');
+@import url('desktop/layout.css');
+@import url('desktop/chat.css');
+@import url('desktop/profile.css');
+@import url('desktop/components.css');
+@import url('desktop/extras.css');
+@import url('desktop/stories.css');
+
 * {
     margin: 0;
     padding: 0;

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desktop Client — Kiselgram Docs</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+            background: #0d1117; color: #c9d1d9; line-height: 1.7;
+        }
+        .wrapper { display: flex; min-height: 100vh; }
+        .sidebar {
+            width: 260px; background: #161b22; padding: 24px 0;
+            border-right: 1px solid #30363d; position: sticky; top: 0; height: 100vh; overflow-y: auto;
+        }
+        .sidebar h2 { padding: 0 24px; font-size: 18px; color: #f0f6fc; margin-bottom: 16px; }
+        .sidebar a {
+            display: block; padding: 8px 24px; color: #8b949e; text-decoration: none;
+            font-size: 14px; border-left: 2px solid transparent;
+        }
+        .sidebar a:hover, .sidebar a.active { color: #58a6ff; background: #0d1117; border-left-color: #58a6ff; }
+        .content { flex: 1; padding: 40px 48px; max-width: 900px; }
+        h1 { font-size: 32px; color: #f0f6fc; margin-bottom: 8px; }
+        h2 { font-size: 24px; color: #f0f6fc; margin-top: 32px; margin-bottom: 12px; border-bottom: 1px solid #30363d; padding-bottom: 8px; }
+        h3 { font-size: 18px; color: #f0f6fc; margin-top: 24px; margin-bottom: 8px; }
+        p { margin-bottom: 16px; }
+        code { background: #161b22; padding: 2px 6px; border-radius: 4px; font-size: 14px; color: #f0f6fc; }
+        pre { background: #161b22; padding: 16px; border-radius: 8px; overflow-x: auto; margin-bottom: 16px; border: 1px solid #30363d; }
+        pre code { background: none; padding: 0; }
+        ul, ol { margin-bottom: 16px; padding-left: 24px; }
+        li { margin-bottom: 4px; }
+        .download-card {
+            background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+            padding: 20px; margin-bottom: 16px;
+        }
+        .download-card h3 { margin-top: 0; border: none; }
+        .download-card .btn {
+            display: inline-block; background: #238636; color: #fff; padding: 8px 20px;
+            border-radius: 6px; text-decoration: none; font-weight: 600; margin-top: 8px;
+        }
+        .download-card .btn:hover { background: #2ea043; }
+        @media (max-width: 768px) { .sidebar { display: none; } .content { padding: 24px; } }
+    </style>
+</head>
+<body>
+<div class="wrapper">
+    <nav class="sidebar">
+        <h2>Kiselgram Docs</h2>
+        <a href="index.html">Home</a>
+        <a href="user-guide.html">User Guide</a>
+        <a href="api.html">API Reference</a>
+        <a href="desktop.html" class="active">Desktop Client</a>
+    </nav>
+    <main class="content">
+        <h1>Desktop Client</h1>
+        <p>Kiselgram Desktop is a JavaFX application for macOS and Windows. It provides a full messaging experience outside the browser.</p>
+
+        <h2>Downloads</h2>
+        <p>Get the latest version from <a href="https://desktop.kiselgram.ru" style="color:#58a6ff;">desktop.kiselgram.ru</a>.</p>
+
+        <div class="download-card">
+            <h3>macOS (Apple Silicon)</h3>
+            <p>Self-contained .app bundle for M1/M2/M3/M4 Macs. Includes Java 21 runtime. No external dependencies needed.</p>
+            <a href="https://desktop.kiselgram.ru/download/Kiselgram-mac-arm64.zip" class="btn">Download (ARM64)</a>
+        </div>
+
+        <div class="download-card">
+            <h3>macOS (Intel)</h3>
+            <p>Lightweight launcher for Intel Macs. Requires Java 21.</p>
+            <a href="https://desktop.kiselgram.ru/download/Kiselgram-mac-intel.zip" class="btn">Download (Intel)</a>
+        </div>
+
+        <div class="download-card">
+            <h3>Windows</h3>
+            <p>Lightweight launcher for Windows. Requires Java 21.</p>
+            <a href="https://desktop.kiselgram.ru/download/Kiselgram-windows.zip" class="btn">Download (Windows)</a>
+        </div>
+
+        <h2>Features</h2>
+        <ul>
+            <li><strong>Login:</strong> password, QR code, email link</li>
+            <li><strong>Chat list</strong> with auto-refresh and search</li>
+            <li><strong>Chat detail</strong> with bubbles, reactions, timestamps, read receipts, edited labels</li>
+            <li><strong>File upload</strong> — images, audio recording, documents</li>
+            <li><strong>Image preview</strong> / lightbox</li>
+            <li><strong>Audio playback</strong></li>
+            <li><strong>Emoji picker</strong></li>
+            <li><strong>Reply, edit, delete, copy, save, forward</strong> messages</li>
+            <li><strong>In-chat search</strong></li>
+            <li><strong>Block user</strong> / unblock</li>
+            <li><strong>Pin/delete chat</strong></li>
+            <li><strong>Create/leave group</strong>, group info with member list</li>
+            <li><strong>Edit profile</strong> (name, bio)</li>
+            <li><strong>Global search</strong> — users, groups, channels</li>
+            <li><strong>Message date separators</strong></li>
+            <li><strong>Typing indicator</strong></li>
+            <li><strong>System tray notifications</strong></li>
+            <li><strong>Stories viewer</strong></li>
+            <li><strong>Saved Messages</strong></li>
+            <li><strong>Channels</strong> — subscribe/unsubscribe</li>
+            <li><strong>Settings</strong> — theme, font, bubble colors, hero image</li>
+        </ul>
+
+        <h2>Building from Source</h2>
+        <p>The desktop client is a Gradle project in the <code>kiselgram_desktop/</code> directory.</p>
+        <pre><code>export PATH="/opt/homebrew/opt/openjdk@21/bin:$PATH"
+./gradlew build   # compile + jar
+./gradlew run     # launch</code></pre>
+
+        <h2>API Compatibility</h2>
+        <p>The desktop client communicates with <code>https://api.kiselgram.ru/api.v2/api</code>. All API endpoints are shared with the web SPA.</p>
+
+        <p style="margin-top: 48px; color: #8b949e; font-size: 14px;"><a href="index.html" style="color:#58a6ff;">&larr; Back to Home</a></p>
+    </main>
+</div>
+</body>
+</html>

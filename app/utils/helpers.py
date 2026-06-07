@@ -1,6 +1,6 @@
 # Update utils/helpers.py
 
-import hashlib
+from werkzeug.security import generate_password_hash
 import secrets
 import os
 import re
@@ -10,7 +10,7 @@ from app.models import Story, BlockedUser, ChatMember, Message, Forward, Reply, 
 
 
 def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
+    return generate_password_hash(password)
 
 
 def get_current_user():

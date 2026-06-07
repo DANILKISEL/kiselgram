@@ -537,7 +537,8 @@ class EmailVerification(db.Model):
     __tablename__ = 'email_verifications'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    email = db.Column(db.String(128), nullable=True, index=True)
     token = db.Column(db.String(100), unique=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     expires_at = db.Column(db.DateTime, nullable=False)
@@ -569,3 +570,30 @@ class UserKSettings(db.Model):
             'user_id': self.user_id,
             'settings': self.settings or {}
         }
+
+
+class QrLoginToken(db.Model):
+    __tablename__ = 'qr_login_tokens'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=True)
+    token = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    consumed = db.Column(db.Boolean, default=False)
+    consumed_at = db.Column(db.DateTime, nullable=True)
+    authorized_by_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+
+    user = db.relationship('User', backref='qr_login_tokens', lazy=True, foreign_keys=[user_id])
+    authorized_by = db.relationship('User', backref='qr_authorized_tokens', lazy=True, foreign_keys=[authorized_by_id])
+
+
+class LoginOtp(db.Model):
+    __tablename__ = 'login_otps'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    code = db.Column(db.String(6), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    used = db.Column(db.Boolean, default=False)
+
+    user = db.relationship('User', backref='login_otps', lazy=True)

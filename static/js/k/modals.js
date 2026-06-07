@@ -147,7 +147,7 @@ K.modals = {
     userStories.stories.forEach(s => {
       const isVideo = s.media_type === 'video';
       html += `<div style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;background:var(--bg-secondary)">
-        <div style="width:40px;height:40px;border-radius:8px;overflow:hidden;background:var(--bg-primary);flex-shrink:0">${s.media_url ? (isVideo ? '<i class="fas fa-video" style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:var(--accent-blue)"></i>' : `<img src="${s.media_url}" style="width:100%;height:100%;object-fit:cover">`) : '<i class="fas fa-image" style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:var(--text-muted)"></i>'}</div>
+        <div style="width:40px;height:40px;border-radius:8px;overflow:hidden;background:var(--bg-primary);flex-shrink:0">${s.media_url ? (isVideo ? '<i class="fas fa-video" style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:var(--accent-blue)"></i>' : `<img src="${esc(s.media_url)}" style="width:100%;height:100%;object-fit:cover">`) : '<i class="fas fa-image" style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:var(--text-muted)"></i>'}</div>
         <div style="flex:1;text-align:left;font-size:12px"><div style="font-weight:500">${s.caption ? esc(s.caption).substring(0, 40) + (s.caption.length > 40 ? '...' : '') : (isVideo ? 'Video story' : 'Photo story')}</div><div style="font-size:11px;color:var(--text-muted)">${s.created_at ? fmtTime(s.created_at) : ''}</div></div>
         ${!s.is_viewed ? '<span style="width:8px;height:8px;border-radius:50%;background:var(--accent-blue);flex-shrink:0"></span>' : ''}
       </div>`;
@@ -162,7 +162,7 @@ K.modals = {
     files.forEach(f => {
       const icon = f.file_type === 'image' ? 'fa-image' : f.file_type === 'video' ? 'fa-video' : f.file_type === 'audio' ? 'fa-music' : 'fa-file';
       const iconColor = f.file_type === 'image' ? 'var(--accent-green)' : f.file_type === 'video' ? 'var(--accent-purple)' : f.file_type === 'audio' ? 'var(--accent-blue)' : 'var(--text-muted)';
-      const thumb = f.file_type === 'image' && f.thumbnail_path ? `<img src="${f.thumbnail_path}" style="width:100%;height:100%;object-fit:cover">` : `<i class="fas ${icon}" style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:${iconColor};font-size:18px"></i>`;
+      const thumb = f.file_type === 'image' && f.thumbnail_path ? `<img src="${esc(f.thumbnail_path)}" style="width:100%;height:100%;object-fit:cover">` : `<i class="fas ${icon}" style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:${iconColor};font-size:18px"></i>`;
       html += `<div style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;cursor:pointer" onmouseover="this.style.background='var(--bg-secondary)'" onmouseout="this.style.background=''" onclick="window.open('${esc(f.file_path)}','_blank')">
         <div style="width:40px;height:40px;border-radius:8px;overflow:hidden;background:var(--bg-primary);flex-shrink:0">${thumb}</div>
         <div style="flex:1;text-align:left;font-size:12px;overflow:hidden"><div style="font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${f.file_name ? esc(f.file_name) : 'Untitled'}</div><div style="font-size:11px;color:var(--text-muted)">${f.file_type || 'unknown'}${f.file_size ? ' · ' + K.ui.formatSize(f.file_size) : ''}</div></div>
@@ -185,7 +185,7 @@ K.modals = {
 
     const initial = (u.display_name||u.username)[0].toUpperCase();
     const avatarHtml = u.avatar_url
-      ? `<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover">`
+      ? `<img src="${esc(u.avatar_url)}" style="width:100%;height:100%;object-fit:cover">`
       : initial;
 
     content.innerHTML = `

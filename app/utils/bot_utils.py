@@ -1,12 +1,13 @@
 import time
 import threading
 import secrets
+import re
+from werkzeug.security import generate_password_hash
 
 
 def hash_password(password):
     """Helper function for hashing passwords"""
-    import hashlib
-    return hashlib.sha256(password.encode()).hexdigest()
+    return generate_password_hash(password)
 
 
 def setup_bots():
@@ -58,11 +59,18 @@ def simulate_bot_interaction(app):
                         elif bot.username == 'news_bot':
                             response = "📰 Breaking: Kiselgram now supports media sending! Stay tuned for more updates and also subscribe to our telegram channel: t.me/KiseIgram"
                         elif bot.username == 'calc_bot':
-                            try:
-                                result = eval(message.content)
-                                response = f"🧮 Result: {result}"
-                            except:
+                            safe = re.sub(r'[^0-9+\-*/().% ]', '', message.content)
+                            if not safe.strip():
                                 response = "❌ I can only do simple math calculations. Try something like '2+2' or '5*3'."
+                            else:
+                                try:
+                                    result = eval(safe, {'__builtins__': {}}, {})
+                                    if isinstance(result, (int, float)):
+                                        response = f"🧮 Result: {result}"
+                                    else:
+                                        response = "❌ I can only do simple math calculations. Try something like '2+2' or '5*3'."
+                                except:
+                                    response = "❌ I can only do simple math calculations. Try something like '2+2' or '5*3'."
                         elif bot.username == 'kiselgram_bot':
                             response = "🤖 Welcome to Kiselgram Help! I can assist you with using groups, channels, and other features. What do you need help with?"
                         else:

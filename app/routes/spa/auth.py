@@ -15,93 +15,16 @@ spa_auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 mail = Mail()
 
-# ========== LOGIN (username + password) ==========
-@spa_auth_bp.route('/login', methods=['GET', 'POST'])
+# ========== LOGIN — redirect to K SPA ==========
+@spa_auth_bp.route('/login', methods=['GET'])
 def login():
-    if get_current_user():
-        return redirect('/app')
-    if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        password = request.form.get('password', '')
-
-        if not username or not password:
-            return render_template('login.html', error="Username and password required", username=username)
-
-        user = User.query.filter_by(username=username).first()
-        if user and user.check_password(password):
-            if not user.email_verified:
-                return render_template('login.html', error="Please verify your email first", username=username)
-            session['username'] = username
-            session['user_id'] = user.id
-            session['display_name'] = user.display_name or user.username
-            user.is_online = True
-            user.last_seen = datetime.utcnow()
-            db.session.commit()
-            return redirect('/app')
-        else:
-            return render_template('login.html', error="Invalid username or password", username=username)
-
-    return render_template('login.html')
+    return redirect('/k#login')
 
 
-# ========== REGISTER (email + username + password + send verification email) ==========
-@spa_auth_bp.route('/register', methods=['GET', 'POST'])
+# ========== REGISTER — redirect to K SPA ==========
+@spa_auth_bp.route('/register', methods=['GET'])
 def register():
-    if get_current_user():
-        return redirect('/app')
-    if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        email = request.form.get('email', '').strip()
-        password = request.form.get('password', '')
-        confirm = request.form.get('confirm_password', '')
-
-        # Validation
-        if not username or not email or not password:
-            return render_template('register.html', error='All fields are required', username=username, email=email)
-        if password != confirm:
-            return render_template('register.html', error='Passwords do not match', username=username, email=email)
-        if len(password) < 6:
-            return render_template('register.html', error='Password must be at least 6 characters', username=username, email=email)
-        if len(username) < 3:
-            return render_template('register.html', error='Username must be at least 3 characters', username=username, email=email)
-        if not re.match(r'^[a-zA-Z0-9_]+$', username):
-            return render_template('register.html', error='Username can only contain letters, numbers, and underscores', username=username, email=email)
-
-        if User.query.filter_by(username=username).first():
-            return render_template('register.html', error='Username already taken', username=username, email=email)
-        if User.query.filter_by(email=email).first():
-            return render_template('register.html', error='Email already registered', username=username, email=email)
-
-        # Create user with email_verified=False
-        user = User(username=username, email=email, display_name=username)
-        user.set_password(password)
-        user.email_verified = False
-        db.session.add(user)
-        db.session.commit()
-
-        # Send verification email
-        try:
-            token = secrets.token_urlsafe(32)
-            expires = datetime.utcnow() + timedelta(hours=24)
-            verification = EmailVerification(user_id=user.id, token=token, expires_at=expires)
-            db.session.add(verification)
-            db.session.commit()
-
-            verify_url = url_for('auth.verify_email', token=token, _external=True)
-            msg = MailMessage(subject='Verify your email – Kiselgram',
-                          sender=current_app.config['MAIL_DEFAULT_SENDER'],
-                          recipients=[email])
-            msg.body = f'Welcome to Kiselgram!\n\nPlease verify your email by clicking the link below:\n{verify_url}\n\nThis link expires in 24 hours.'
-            mail.send(msg)
-        except Exception as e:
-            current_app.logger.error(f"Failed to send verification email: {e}")
-            # In production you might still proceed, but for now we'll just log it
-            flash('Could not send verification email. Please contact support.', 'warning')
-
-        session['pending_user_id'] = user.id
-        return redirect(url_for('auth.check_email'))
-
-    return render_template('register.html')
+    return redirect('/k#register')
 
 
 @spa_auth_bp.route('/check-email')
@@ -143,63 +66,20 @@ def verify_email(token):
     verification = EmailVerification.query.filter_by(token=token, verified=False).first()
     if not verification or verification.expires_at < datetime.utcnow():
         flash('Invalid or expired verification link.', 'error')
-        return redirect(url_for('auth.login'))
+        return redirect('/k#login')
 
     verification.verified = True
     user = User.query.get(verification.user_id)
     user.email_verified = True
     db.session.commit()
 
-    # Log the user in and send to complete registration
-    session['user_id'] = user.id
-    session['username'] = user.username
-    session['display_name'] = user.display_name or user.username
-    flash('Email verified! Please complete your profile.', 'success')
-    return redirect(url_for('auth.complete_registration'))
+    flash('Email verified! You can now log in.', 'success')
+    return redirect('/k#login')
 
 
-@spa_auth_bp.route('/complete-registration', methods=['GET', 'POST'])
+@spa_auth_bp.route('/complete-registration', methods=['GET'])
 def complete_registration():
-    if 'user_id' not in session:
-        return redirect(url_for('auth.login'))
-    user = User.query.get(session['user_id'])
-    if not user:
-        return redirect(url_for('auth.login'))
-
-    if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        display_name = request.form.get('display_name', '').strip()
-        avatar = request.form.get('avatar', '')
-
-        # Validate
-        if len(username) < 3:
-            flash('Username must be at least 3 characters.', 'error')
-            return redirect(url_for('auth.complete_registration'))
-        if not re.match(r'^[a-zA-Z0-9_]+$', username):
-            flash('Only letters, numbers, underscores.', 'error')
-            return redirect(url_for('auth.complete_registration'))
-        existing = User.query.filter(User.username == username, User.id != user.id).first()
-        if existing:
-            flash('Username taken.', 'error')
-            return redirect(url_for('auth.complete_registration'))
-
-        user.username = username
-        user.display_name = display_name or username
-        if avatar:
-            # avatar path resolution logic
-            preloaded_url = "/static/uploads/preloaded-avatars/"
-            ava_url = preloaded_url + avatar
-            user.avatar_url = ava_url
-        db.session.commit()
-
-        session['username'] = username
-        session['display_name'] = user.display_name
-        return redirect(url_for('chats.picker'))
-
-    # GET: show avatar selection
-    # avatars = PreloadedAvatar.query.filter(PreloadedAvatar.category != 'system').all()
-    avatars = ['avatar1.jpg', 'avatar2.jpg', 'avatar3.jpg', 'avatar4.jpg']
-    return render_template('chats/complete_registration.html', user=user, avatars=avatars)
+    return redirect('/k#register')
 
 
 # ========== GOOGLE OAUTH ==========
@@ -304,7 +184,7 @@ def logout():
             user.last_seen = datetime.utcnow()
             db.session.commit()
     session.clear()
-    return redirect('/auth/login')
+    return redirect('/k')
 
 
 # ========== API ROUTES (unchanged) ==========

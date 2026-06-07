@@ -131,6 +131,7 @@
         <button class="k-stab" data-tab="sessions" onclick="K.settings.switchTab('sessions')">Sessions</button>
         <button class="k-stab" data-tab="themes" onclick="K.settings.switchTab('themes')">Themes</button>
         <button class="k-stab" data-tab="bots" onclick="K.settings.switchTab('bots')">Bots</button>
+        <button class="k-stab" data-tab="qrlogin" onclick="K.settings.switchTab('qrlogin');K.qrlogin.showQR()">QR Login</button>
 
       </div>
       <div class="k-settings-tab-content" data-tab="appearance">
@@ -318,6 +319,13 @@
         <div class="k-reply-info"><span class="k-reply-name" id="replyName">Replying</span><span class="k-reply-text" id="replyText"></span></div>
         <button class="k-icon-btn" onclick="K.chat.reply.cancel()"><i class="fas fa-times"></i></button>
       </div>
+      <div class="k-format-bar" id="formatBar">
+        <button class="k-format-btn" onclick="K.chat.format.insert('**')" title="Bold (Ctrl+B)"><strong>B</strong></button>
+        <button class="k-format-btn" onclick="K.chat.format.insert('*')" title="Italic (Ctrl+I)"><em>I</em></button>
+        <button class="k-format-btn" onclick="K.chat.format.insert('~~')" title="Strikethrough"><del>S</del></button>
+        <button class="k-format-btn" onclick="K.chat.format.insert('`')" title="Code"><code>code</code></button>
+        <button class="k-format-btn" onclick="K.chat.format.link()" title="Link"><i class="fas fa-link"></i></button>
+      </div>
       <div class="k-input-area k-hidden" id="inputArea">
         <button class="k-icon-btn" onclick="document.getElementById('fileInput').click()"><i class="fas fa-paperclip"></i></button>
         <textarea class="k-message-input" id="messageInput" placeholder="Type a message..." rows="1" oninput="K.chat.input.handle()" onkeydown="K.chat.input.keydown(event)"></textarea>
@@ -389,6 +397,7 @@
 <script src="{{ url_for('static', filename='js/k/api.js') }}"></script>
 <script src="{{ url_for('static', filename='js/k/ui.js') }}"></script>
 <script src="{{ url_for('static', filename='js/k/auth.js') }}"></script>
+<script src="{{ url_for('static', filename='js/k/markdown.js') }}"></script>
 <script src="{{ url_for('static', filename='js/k/views.js') }}"></script>
 <script src="{{ url_for('static', filename='js/k/chat.js') }}"></script>
 <script src="{{ url_for('static', filename='js/k/contacts.js') }}"></script>
@@ -402,4 +411,7 @@
 <script src="{{ url_for('static', filename='js/k/search.js') }}"></script>
 <script src="{{ url_for('static', filename='js/k/settings.js') }}"></script>
 <script src="{{ url_for('static', filename='js/k/profile.js') }}"></script>
+<script src="{{ url_for('static', filename='js/lib/qrcode.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/k/qrlogin.js') }}"></script>
+<script src="{{ url_for('static', filename='js/k/login_v3.js') }}"></script>
 {% endblock %}

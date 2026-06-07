@@ -1,4 +1,16 @@
 K.chat = {
+  _initActions_ran: false,
+  _initActions() {
+    if (K.chat._initActions_ran) return;
+    K.chat._initActions_ran = true;
+    document.getElementById('messagesContainer')?.addEventListener('click', (e) => {
+      const code = e.target.closest('.k-copy-code');
+      if (code) {
+        const text = code.textContent;
+        navigator.clipboard?.writeText(text).then(() => K.ui.toast('Copied', 'success')).catch(() => {});
+      }
+    });
+  },
   async loadList() {
     const c = $('chatList'); if (!c) return;
     c.innerHTML = K.ui.loader();
@@ -58,7 +70,7 @@ K.chat = {
       const unread = chat.unread_count || 0;
       const isOnline = !isSaved && type === 'personal' && chat.peer?.is_online;
       return `<div class="k-chat-item ${isActive?'active':''} ${isPinned?'pinned':''}" onclick="K.chat.open('${type}',${id})" data-type="${type}" data-id="${id}">
-        <div class="k-chat-avatar personal">${isSaved ? '<i class="fas fa-bookmark" style="font-size:20px;color:var(--accent-blue)"></i>' : K.ui.avatar(name, avatar)}${isOnline ? '<span class="k-online-dot"></span>' : ''}</div>
+        <div class="k-chat-avatar personal">${isSaved ? '<i class="fas fa-bookmark" style="font-size:20px;color:var(--accent-blue)"></i>' : K.ui.avatar(name, avatar, chat.peer?.is_bot)}${isOnline ? '<span class="k-online-dot"></span>' : ''}</div>
         <div class="k-chat-info">
           <div class="k-chat-name-row"><span class="k-chat-name">${esc(name)}${statusEmoji ? ' ' + esc(statusEmoji) : ''}${isPinned ? ' <i class="fas fa-thumbtack" style="font-size:10px;color:var(--accent-blue);transform:rotate(45deg);margin-left:2px"></i>' : ''}</span><span class="k-chat-time">${time}</span></div>
           <div class="k-chat-preview"><span>${preview}</span>${unread ? `<span class="k-unread">${unread>99?'99+':unread}</span>` : ''}</div>
@@ -137,7 +149,7 @@ K.chat = {
         const pname = peer.display_name || peer.name || peer.username || 'User #'+id;
         const emoji = peer.status_emoji || '';
         if (nameEl) nameEl.textContent = pname + (emoji ? ' ' + emoji : '');
-        if (avatarEl) { avatarEl.innerHTML = K.ui.avatar(pname, peer.avatar_url); avatarEl.className = 'k-chat-avatar-sm'+(type==='group'?' group':type==='channel'?' channel':''); }
+        if (avatarEl) { avatarEl.innerHTML = K.ui.avatar(pname, peer.avatar_url, peer.is_bot); avatarEl.className = 'k-chat-avatar-sm'+(type==='group'?' group':type==='channel'?' channel':''); }
         if (statusEl) { statusEl.textContent = peer.is_online ? 'online' : ''; statusEl.className = 'k-chat-header-status'+(peer.is_online?' online':''); }
         if (cb && type === 'personal') cb.style.display = 'flex';
         if (wb && peer.is_bot && peer.bot_webapp_url) { wb.style.display = 'flex'; wb.dataset.url = peer.bot_webapp_url; }
@@ -153,7 +165,7 @@ K.chat = {
           if (u) {
             const emoji = u.status_emoji || '';
             if (nameEl) nameEl.textContent = (u.display_name || u.username) + (emoji ? ' ' + emoji : '');
-            if (avatarEl) { avatarEl.className = 'k-chat-avatar-sm'; avatarEl.innerHTML = K.ui.avatar(u.display_name||u.username, u.avatar_url); }
+            if (avatarEl) { avatarEl.className = 'k-chat-avatar-sm'; avatarEl.innerHTML = K.ui.avatar(u.display_name||u.username, u.avatar_url, u.is_bot); }
             if (statusEl) { statusEl.textContent = u.is_online ? 'online' : ''; statusEl.className = 'k-chat-header-status'+(u.is_online?' online':''); }
             if (wb && u.is_bot && u.bot_webapp_url) { wb.style.display = 'flex'; wb.dataset.url = u.bot_webapp_url; }
           }
@@ -254,14 +266,14 @@ K.chat = {
       const isVid = fileType === 'video' || fileName.match(/\.(mp4|webm|avi|mov|mkv)$/i);
       const isAud = fileType === 'audio' || fileType === 'voice' || fileName.match(/\.(mp3|wav|m4a|ogg)$/i);
       if (isImg && fileUrl) {
-        att = `<div class="k-msg-attachment"><img src="${fileUrl}" loading="lazy" onclick="K.chat.lightbox('${esc(fileUrl)}')"></div>`;
+        att = `<div class="k-msg-attachment"><img src="${esc(fileUrl)}" loading="lazy" onclick="K.chat.lightbox('${esc(fileUrl)}')"></div>`;
       } else if (isVid && fileUrl) {
-        att = `<div class="k-msg-attachment"><video src="${fileUrl}" controls preload="metadata" style="max-width:260px;max-height:200px;border-radius:12px"></video></div>`;
+        att = `<div class="k-msg-attachment"><video src="${esc(fileUrl)}" controls preload="metadata" style="max-width:260px;max-height:200px;border-radius:12px"></video></div>`;
       } else if (isAud && fileUrl) {
         att = `<div class="k-msg-attachment k-audio-msg" onclick="event.stopPropagation();K.music.playUrl('${esc(fileUrl)}','${esc(fileName||'Audio')}','${esc(m.sender_username||'')}',${m.message_id||m.id})"><i class="fas fa-music"></i><span class="k-audio-name">${esc(fileName||'Audio message')}</span><span class="k-audio-play"><i class="fas fa-play"></i></span><button class="k-icon-btn" onclick="event.stopPropagation();K.music.likeMusic(${m.message_id||m.id})" title="Add to My Music" style="font-size:14px;width:28px;height:28px;margin-left:auto;flex-shrink:0"><i class="fas fa-heart"></i></button></div>`;
       } else if (fileUrl) {
         const icon = fileName.match(/\.pdf$/i) ? 'fa-file-pdf' : fileName.match(/\.(doc|docx)$/i) ? 'fa-file-word' : 'fa-file';
-        att = `<div class="k-msg-file"><i class="fas ${icon}"></i> <a href="${fileUrl}" target="_blank" rel="noopener">${esc(fileName||'File')}</a></div>`;
+        att = `<div class="k-msg-file"><i class="fas ${icon}"></i> <a href="${esc(fileUrl)}" target="_blank" rel="noopener">${esc(fileName||'File')}</a></div>`;
       }
     }
     let reply = '';
@@ -271,15 +283,15 @@ K.chat = {
     if (m.reactions && typeof m.reactions === 'object') {
       const entries = Object.entries(m.reactions);
       if (entries.length) {
-        reactions = `<div class="k-msg-reactions">${entries.map(([t,c]) => `<span class="k-reaction-badge" onclick="event.stopPropagation();K.chat.react(${mid},'${t}')">${t} ${c}</span>`).join('')}</div>`;
+        reactions = `<div class="k-msg-reactions">${entries.map(([t,c]) => `<span class="k-reaction-badge" onclick="event.stopPropagation();K.chat.react(${mid},'${esc(t)}')">${esc(t)} ${c}</span>`).join('')}</div>`;
       }
     }
     const cls = isOwn ? 'outgoing' : 'incoming';
-    const content = m.content ? `<div class="k-msg-text">${esc(m.content).replace(/\n/g,'<br>')}</div>` : '';
+    const content = m.content ? `<div class="k-msg-text">${K.markdown.render(m.content)}</div>` : '';
     return `<div class="k-msg ${cls}" data-msg-id="${mid}">
       ${sName}${reply}${att}${content ? `<div class="k-msg-bubble">${content}<div class="k-msg-meta">${time} ${statusIcon}</div></div>` : (att ? `<div class="k-msg-bubble"><div class="k-msg-meta">${time} ${statusIcon}</div></div>` : '')}${reactions}
       <div class="k-msg-actions">
-        <button class="k-msg-action-btn" onclick="K.chat.reply.set(${mid},'${esc((m.content||'').substring(0,40))}')" title="Reply"><i class="fas fa-reply"></i></button>
+        <button class="k-msg-action-btn" onclick="K.chat.reply.set(${mid},'${esc(K.markdown.strip(m.content||'').substring(0,40))}')" title="Reply"><i class="fas fa-reply"></i></button>
         <button class="k-msg-action-btn" onclick="K.chat.react(${mid})" title="React"><i class="fas fa-smile"></i></button>
         <button class="k-msg-action-btn" onclick="K.chat.copy(${mid})" title="Copy"><i class="fas fa-copy"></i></button>
         ${isOwn ? `<button class="k-msg-action-btn" onclick="K.chat.edit(${mid})" title="Edit"><i class="fas fa-pen"></i></button>
@@ -324,7 +336,51 @@ K.chat = {
       clearTimeout(K.chat.input._typingTimer);
       K.chat.input._typingTimer = setTimeout(() => K.chat._sendTyping(), 500);
     },
-    keydown(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); K.chat.send(); } }
+    keydown(e) {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); K.chat.send(); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'b') { e.preventDefault(); K.chat.format.insert('**'); }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'i') { e.preventDefault(); K.chat.format.insert('*'); }
+    }
+  },
+  format: {
+    insert(delim) {
+      const input = $('messageInput'); if (!input) return;
+      const start = input.selectionStart, end = input.selectionEnd;
+      const val = input.value;
+      const selected = val.substring(start, end);
+      let replacement;
+      if (selected) {
+        // Wrap selected text
+        replacement = delim + selected + delim;
+      } else {
+        // Insert placeholder, select placeholder on next char
+        const placeholders = {'**': 'bold text', '*': 'italic text', '~~': 'strikethrough', '`': 'code'};
+        const placeholder = placeholders[delim] || 'text';
+        replacement = delim + placeholder + delim;
+        // TODO: select the placeholder
+      }
+      input.value = val.substring(0, start) + replacement + val.substring(end);
+      const newPos = start + replacement.length;
+      input.selectionStart = input.selectionEnd = newPos;
+      input.focus();
+      K.chat.input.handle();
+    },
+    link() {
+      const input = $('messageInput'); if (!input) return;
+      const start = input.selectionStart, end = input.selectionEnd;
+      const val = input.value;
+      const selected = val.substring(start, end);
+      if (selected && selected.includes('://')) {
+        // Selected text looks like a URL → wrap with [text](url)
+        input.value = val.substring(0, start) + '[' + selected + '](' + selected + ')' + val.substring(end);
+      } else if (selected) {
+        input.value = val.substring(0, start) + '[' + selected + '](url)' + val.substring(end);
+      } else {
+        input.value = val.substring(0, start) + '[link text](url)' + val.substring(end);
+      }
+      input.focus();
+      K.chat.input.handle();
+    }
   },
   _typingSent: false,
   async _sendTyping() {

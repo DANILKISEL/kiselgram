@@ -320,6 +320,24 @@
 .k-typing-indicator .k-typing-dots span:nth-child(3) { animation-delay: 0.4s; }
 @keyframes typingDot { 0%, 60%, 100% { opacity: 0.3; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-3px); } }
 
+/* Format bar */
+.k-format-bar { display: flex; gap: 2px; padding: 4px 20px 0; background: var(--bg-surface); flex-shrink: 0; }
+.k-format-btn { background: none; border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer; color: var(--text-muted); font-size: 13px; transition: 0.15s; }
+.k-format-btn:hover { background: var(--hover-bg); color: var(--text-primary); }
+.k-format-btn strong { font-weight: 700; }
+.k-format-btn em { font-style: italic; }
+
+/* Formatted message text */
+.k-msg-text strong { font-weight: 700; }
+.k-msg-text em { font-style: italic; }
+.k-msg-text del { text-decoration: line-through; opacity: 0.7; }
+.k-msg-text code { background: rgba(0,0,0,0.08); padding: 1px 5px; border-radius: 4px; font-family: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace; font-size: 12px; }
+.k-msg-text pre { background: rgba(0,0,0,0.06); padding: 10px; border-radius: 8px; overflow-x: auto; margin: 4px 0; }
+.k-msg-text pre code { background: none; padding: 0; border-radius: 0; font-size: 12px; line-height: 1.5; }
+.k-msg-text a { color: var(--accent-blue); text-decoration: underline; }
+.k-msg.outgoing .k-msg-text a { color: rgba(255,255,255,0.9); }
+.k-msg-text mark { background: rgba(255,255,0,0.3); padding: 0 2px; border-radius: 2px; }
+
 .k-list { flex: 1; overflow-y: auto; }
 .k-contact-item { display: flex; align-items: center; gap: 12px; padding: 12px 20px; cursor: pointer; transition: background 0.15s; }
 .k-contact-item:hover { background: var(--hover-bg); }
@@ -348,6 +366,17 @@
 .k-profile-tab-active { color: var(--accent-blue); border-bottom-color: var(--accent-blue); }
 .k-input { width: 100%; padding: 10px 14px; border: 2px solid var(--border-color); border-radius: 12px; font-size: 14px; background: var(--bg-surface); color: var(--text-primary); margin-bottom: 12px; outline: none; }
 .k-input:focus { border-color: var(--accent-blue); }
+
+.k-oauth-divider { display: flex; align-items: center; gap: 12px; margin: 12px 0; color: var(--text-muted); font-size: 12px; }
+.k-oauth-divider::before, .k-oauth-divider::after { content: ''; flex: 1; height: 1px; background: var(--border-color); }
+.k-oauth-buttons { display: flex; flex-direction: column; gap: 8px; }
+.k-oauth-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 12px; font-size: 13px; font-weight: 600; cursor: pointer; transition: 0.2s; background: var(--bg-surface); color: var(--text-primary); }
+.k-oauth-btn:hover { border-color: var(--accent-blue); background: var(--active-bg); }
+.k-oauth-btn svg { flex-shrink: 0; }
+
+.k-avatar-option { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; cursor: pointer; border: 3px solid transparent; transition: 0.2s; }
+.k-avatar-option:hover { border-color: var(--accent-blue); }
+.k-avatar-option.selected { border-color: var(--accent-blue); }
 .k-btn { padding: 10px 20px; border-radius: 12px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; transition: 0.2s; }
 .k-btn-primary { background: var(--accent-blue); color: white; }
 .k-btn-primary:hover { background: var(--accent-blue-dark); }
