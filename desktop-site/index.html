@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kiselgram — Desktop App</title>
+    <meta name="description" content="Download Kiselgram Desktop for Windows and macOS. Native clients with full messaging, calls, and more.">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+            line-height: 1.7;
+            -webkit-font-smoothing: antialiased;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .container { max-width: 960px; margin: 0 auto; padding: 0 24px; flex: 1; }
+
+        nav {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 20px 24px; max-width: 960px; margin: 0 auto;
+        }
+        .logo { font-size: 22px; font-weight: 800; color: #f0f6fc; letter-spacing: -0.5px; text-decoration: none; }
+        .logo span { color: #fb6340; }
+        .nav-links a {
+            text-decoration: none; font-size: 14px; font-weight: 500;
+            padding: 8px 18px; border-radius: 8px; transition: all 0.2s;
+            color: #c9d1d9;
+        }
+        .nav-links a:hover { color: #f0f6fc; background: #21262d; }
+
+        .hero {
+            text-align: center; padding: 80px 0 60px;
+        }
+        .hero-badge {
+            display: inline-block; padding: 6px 16px;
+            background: rgba(251,99,64,0.12); border: 1px solid rgba(251,99,64,0.25);
+            border-radius: 30px; font-size: 13px; color: #fb6340; font-weight: 500;
+            margin-bottom: 24px;
+        }
+        .hero h1 {
+            font-size: 52px; font-weight: 800; color: #f0f6fc;
+            line-height: 1.1; letter-spacing: -1.5px; margin-bottom: 16px;
+        }
+        .hero h1 span { background: linear-gradient(135deg, #fb6340, #f093fb); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .hero p {
+            font-size: 18px; color: #8b949e; max-width: 600px; margin: 0 auto 36px;
+        }
+
+        .download-area { text-align: center; margin: 40px 0; }
+
+        #primary-download {
+            display: inline-flex; align-items: center; gap: 12px;
+            background: #fb6340; color: white; border: none;
+            font-size: 18px; font-weight: 600;
+            padding: 16px 48px; border-radius: 12px; text-decoration: none;
+            transition: all 0.2s;
+        }
+        #primary-download:hover { background: #e5532d; transform: translateY(-2px); }
+        #detected-os { color: #484f58; font-size: 14px; margin-top: 12px; }
+
+        .platforms {
+            display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-top: 32px;
+        }
+        .platform-card {
+            background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+            padding: 24px 32px; text-align: center; text-decoration: none;
+            color: #c9d1d9; transition: all 0.3s; min-width: 180px;
+        }
+        .platform-card:hover { border-color: #fb6340; transform: translateY(-4px); background: #1c2128; }
+        .platform-card .icon { font-size: 32px; margin-bottom: 10px; }
+        .platform-card .fa-apple { color: #8b949e; }
+        .platform-card .fa-windows { color: #8b949e; }
+        .platform-card .name { font-size: 15px; font-weight: 600; color: #f0f6fc; }
+        .platform-card .note { font-size: 12px; color: #484f58; margin-top: 4px; }
+        .platform-card .badge {
+            display: inline-block; background: rgba(251,99,64,0.15); color: #fb6340;
+            font-size: 11px; font-weight: 600; padding: 2px 10px; border-radius: 4px;
+            margin-top: 8px;
+        }
+
+        section { padding: 60px 0; }
+        .section-header { text-align: center; margin-bottom: 40px; }
+        .section-header h2 { font-size: 32px; font-weight: 700; color: #f0f6fc; margin-bottom: 8px; }
+        .section-header p { color: #8b949e; font-size: 15px; }
+
+        .features-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+        }
+        .feature-card {
+            background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+            padding: 24px; transition: all 0.3s; text-align: center;
+        }
+        .feature-card:hover { border-color: #fb6340; transform: translateY(-4px); background: #1c2128; }
+        .feature-card i { font-size: 24px; margin-bottom: 12px; }
+        .feature-card i.orange { color: #fb6340; }
+        .feature-card i.green { color: #2dce89; }
+        .feature-card i.blue { color: #5e72e4; }
+        .feature-card i.pink { color: #f093fb; }
+        .feature-card i.teal { color: #2dceb9; }
+        .feature-card i.yellow { color: #ffc107; }
+        .feature-card h4 { font-size: 15px; font-weight: 600; color: #f0f6fc; margin-bottom: 6px; }
+        .feature-card p { font-size: 13px; color: #8b949e; }
+
+        .reqs-section { padding: 40px 0; }
+        .reqs-section h2 { font-size: 24px; font-weight: 700; color: #f0f6fc; margin-bottom: 20px; text-align: center; }
+        .reqs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+        .req-item {
+            background: #161b22; border: 1px solid #30363d; border-radius: 10px;
+            padding: 16px 20px; display: flex; align-items: center; gap: 12px;
+        }
+        .req-item i { color: #2dce89; font-size: 14px; width: 20px; text-align: center; }
+        .req-item span { font-size: 14px; color: #c9d1d9; }
+
+        .cta {
+            text-align: center; padding: 60px 0;
+        }
+        .cta h2 { font-size: 32px; font-weight: 700; color: #f0f6fc; margin-bottom: 8px; }
+        .cta p { color: #8b949e; margin-bottom: 24px; font-size: 16px; }
+        .cta a {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: transparent; color: #c9d1d9; border: 1px solid #30363d;
+            padding: 12px 28px; font-size: 14px; font-weight: 600;
+            border-radius: 10px; text-decoration: none; transition: all 0.2s;
+        }
+        .cta a:hover { border-color: #fb6340; color: #f0f6fc; }
+
+        footer {
+            border-top: 1px solid #21262d; padding: 32px 0; margin-top: 20px;
+        }
+        .footer-content {
+            display: flex; justify-content: space-between; align-items: center;
+            flex-wrap: wrap; gap: 16px; max-width: 960px; margin: 0 auto; padding: 0 24px;
+        }
+        .footer-links { display: flex; gap: 24px; }
+        .footer-links a { color: #8b949e; text-decoration: none; font-size: 13px; }
+        .footer-links a:hover { color: #f0f6fc; }
+        .footer-copy { color: #484f58; font-size: 13px; }
+
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 32px; }
+            .features-grid { grid-template-columns: 1fr 1fr; }
+            nav { flex-direction: column; gap: 12px; }
+        }
+        @media (max-width: 480px) {
+            .features-grid { grid-template-columns: 1fr; }
+            .platform-card { min-width: 140px; padding: 20px 24px; }
+        }
+    </style>
+</head>
+<body>
+
+<nav>
+    <a href="https://kiselgram.ru" class="logo">Kisel<span>gram</span></a>
+    <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#download">Download</a>
+        <a href="https://kiselgram.ru/">Main Site</a>
+    </div>
+</nav>
+
+<div class="container">
+
+    <div class="hero">
+        <div class="hero-badge"><i class="fas fa-circle" style="font-size:8px;margin-right:6px;color:#3fb950;"></i> v1.0.0</div>
+        <h1>Kiselgram for <span>Desktop</span></h1>
+        <p>Native clients for Windows and macOS. Chat, call, and share with the full Kiselgram experience — right on your desktop.</p>
+    </div>
+
+    <div class="download-area" id="download">
+        <a id="primary-download" href="#">
+            <i class="fas fa-download"></i>
+            <span id="download-label">Download</span>
+        </a>
+        <p id="detected-os"></p>
+
+        <div class="platforms">
+            <a class="platform-card" href="/download/kiselgram-setup.exe" data-platform="win">
+                <div class="icon"><i class="fab fa-windows"></i></div>
+                <div class="name">Windows</div>
+                <div class="note">10+ · 64-bit</div>
+                <div class="badge" id="win-badge">Recommended</div>
+            </a>
+            <a class="platform-card" href="/download/Kiselgram-mac-intel.zip" data-platform="mac-intel">
+                <div class="icon"><i class="fab fa-apple"></i></div>
+                <div class="name">macOS Intel</div>
+                <div class="note">12+ · Intel chip</div>
+                <div class="badge" id="intel-badge">Recommended</div>
+            </a>
+            <a class="platform-card" href="/download/Kiselgram-mac-arm64.zip" data-platform="mac-silicon">
+                <div class="icon"><i class="fab fa-apple"></i></div>
+                <div class="name">macOS Apple Silicon</div>
+                <div class="note">12+ · M1–M4</div>
+                <div class="badge" id="silicon-badge">Recommended</div>
+            </a>
+        </div>
+    </div>
+
+    <section id="features">
+        <div class="section-header">
+            <h2>Everything you love, on your desktop</h2>
+            <p>The same full-featured Kiselgram experience as a native app.</p>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card">
+                <i class="fas fa-bolt orange"></i>
+                <h4>Instant Messaging</h4>
+                <p>Real-time messages with typing indicators, read receipts, and reactions.</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-video green"></i>
+                <h4>Video Calls</h4>
+                <p>Peer-to-peer WebRTC video calls directly from your desktop.</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-bell blue"></i>
+                <h4>Desktop Notifications</h4>
+                <p>Native OS notifications so you never miss a message.</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-music pink"></i>
+                <h4>Music Sharing</h4>
+                <p>Browse, play, and share music with friends in-chat.</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-folder-open teal"></i>
+                <h4>File Sharing</h4>
+                <p>Drag-and-drop file sharing with full preview support.</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-palette yellow"></i>
+                <h4>Dark Mode</h4>
+                <p>System-aware themes with full customization support.</p>
+            </div>
+        </div>
+    </section>
+
+    <div class="reqs-section">
+        <h2>System Requirements</h2>
+        <div class="reqs-grid">
+            <div class="req-item"><i class="fas fa-check"></i> <span>Windows 10 (17763+) or macOS 12+</span></div>
+            <div class="req-item"><i class="fas fa-check"></i> <span>64-bit processor</span></div>
+            <div class="req-item"><i class="fas fa-check"></i> <span>4 GB RAM minimum</span></div>
+            <div class="req-item"><i class="fas fa-check"></i> <span>200 MB storage</span></div>
+            <div class="req-item"><i class="fas fa-check"></i> <span>Internet connection required</span></div>
+        </div>
+    </div>
+
+    <div class="cta">
+        <h2>Try Kiselgram in your browser</h2>
+        <p>No download? No problem. The full experience works in any modern browser.</p>
+        <a href="https://kiselgram.ru/"><i class="fas fa-arrow-right"></i> Open Web App</a>
+    </div>
+
+</div>
+
+<footer>
+    <div class="footer-content">
+        <div class="footer-copy">&copy; 2026 Kiselgram</div>
+        <div class="footer-links">
+            <a href="https://kiselgram.ru/">Home</a>
+            <a href="https://kiselgram.ru/">Web App</a>
+            <a href="mailto:admin@kiselgram.ru">Contact</a>
+        </div>
+    </div>
+</footer>
+
+<script>
+    (function() {
+        var ua = navigator.userAgent;
+        var isWin = /Windows/i.test(ua);
+        var isMac = /Mac OS X|macOS/i.test(ua);
+        var isArm = /arm|aarch64/i.test(ua) || navigator.platform === 'MacARM';
+        var url, label;
+
+        if (isWin) {
+            url = '/download/kiselgram-setup.exe';
+            label = 'Download for Windows';
+            document.getElementById('win-badge').textContent = 'Your platform';
+        } else if (isMac && isArm) {
+            url = '/download/Kiselgram-mac-arm64.zip';
+            label = 'Download for macOS (Apple Silicon)';
+            document.getElementById('silicon-badge').textContent = 'Your platform';
+        } else if (isMac) {
+            url = '/download/Kiselgram-mac-intel.zip';
+            label = 'Download for macOS (Intel)';
+            document.getElementById('intel-badge').textContent = 'Your platform';
+        }
+
+        if (url) {
+            document.getElementById('primary-download').href = url;
+            document.getElementById('download-label').textContent = label;
+        } else {
+            document.getElementById('primary-download').style.display = 'none';
+            document.getElementById('detected-os').textContent = 'Could not detect your OS — pick a version above.';
+        }
+    })();
+</script>
+
+</body>
+</html>

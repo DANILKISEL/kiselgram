@@ -42,6 +42,7 @@
   <div class="tabs">
     <button class="tab active" data-tab="reports"><i class="fas fa-flag"></i> Reports</button>
     <button class="tab" data-tab="users"><i class="fas fa-users"></i> Users</button>
+    <button class="tab" data-tab="twofa"><i class="fas fa-shield-alt"></i> 2FA</button>
   </div>
 
   <div id="reports-tab">
@@ -59,6 +60,18 @@
     <div class="section">
       <h2>Users</h2>
       <table><thead><tr><th>ID</th><th>Username</th><th>Email</th><th>Admin</th><th>Created</th></tr></thead><tbody id="usersBody"></tbody></table>
+    </div>
+  </div>
+
+  <div id="twofa-tab" class="hidden">
+    <div class="stats" id="twofaStats"></div>
+    <div class="section">
+      <h2>OTP Codes</h2>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button class="btn btn-sm" onclick="loadTwofaOtps()"><i class="fas fa-sync-alt"></i> Refresh</button>
+        <button class="btn btn-sm btn-danger" onclick="cleanupOtps()"><i class="fas fa-trash-alt"></i> Cleanup Expired/Used</button>
+      </div>
+      <table><thead><tr><th>ID</th><th>User</th><th>Code</th><th>Created</th><th>Expires</th><th>Status</th></tr></thead><tbody id="twofaBody"></tbody></table>
     </div>
   </div>
 
@@ -119,6 +132,50 @@
 
     document.getElementById('reportStatus').addEventListener('change', function() { loadReports(this.value); });
 
+    async function loadTwofaOverview() {
+      const d = await fetch(API + '/2fa/overview').then(r => r.json());
+      if (!d.success) return;
+      const s = d.data;
+      document.getElementById('twofaStats').innerHTML = `
+        <div class="stat"><div class="stat-value">${s.total}</div><div class="stat-label">Total OTPs</div></div>
+        <div class="stat"><div class="stat-value">${s.active}</div><div class="stat-label">Active</div></div>
+        <div class="stat"><div class="stat-value" style="color:#f59e0b">${s.expired}</div><div class="stat-label">Expired</div></div>
+        <div class="stat"><div class="stat-value" style="color:#10b981">${s.used}</div><div class="stat-label">Used</div></div>
+        <div class="stat"><div class="stat-value">${s.sent_today}</div><div class="stat-label">Sent Today</div></div>
+      `;
+    }
+
+    async function loadTwofaOtps() {
+      const d = await fetch(API + '/2fa/otps?per_page=50').then(r => r.json());
+      if (!d.success) return;
+      const rows = (d.data?.otps || []).map(o => {
+        const status = o.used ? '<span class="badge badge-resolved">Used</span>'
+                     : o.expired ? '<span class="badge badge-pending">Expired</span>'
+                     : '<span class="badge" style="background:#667eea33;color:#667eea">Active</span>';
+        return `<tr>
+          <td>${o.id}</td>
+          <td>${esc(o.username||'User #'+o.user_id)}</td>
+          <td style="font-family:monospace;letter-spacing:1px">${esc(o.code)}</td>
+          <td>${o.created_at ? new Date(o.created_at).toLocaleString() : '-'}</td>
+          <td>${o.expires_at ? new Date(o.expires_at).toLocaleString() : '-'}</td>
+          <td>${status}</td>
+        </tr>`;
+      }).join('');
+      document.getElementById('twofaBody').innerHTML = rows || '<tr><td colspan="6" style="text-align:center;color:var(--muted)">No OTPs</td></tr>';
+    }
+
+    async function cleanupOtps() {
+      if (!confirm('Delete all expired and used OTP codes?')) return;
+      const d = await fetch(API + '/2fa/cleanup', {method:'POST'}).then(r => r.json());
+      if (d.success) {
+        alert('Deleted ' + d.data.deleted + ' OTP codes');
+        loadTwofaOverview();
+        loadTwofaOtps();
+      } else {
+        alert('Cleanup failed');
+      }
+    }
+
     document.querySelectorAll('.tab').forEach(tab => {
       tab.addEventListener('click', function() {
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -126,6 +183,7 @@
         document.querySelectorAll('[id$="-tab"]').forEach(t => t.classList.add('hidden'));
         document.getElementById(this.dataset.tab + '-tab').classList.remove('hidden');
         if (this.dataset.tab === 'users') loadUsers();
+        if (this.dataset.tab === 'twofa') { loadTwofaOverview(); loadTwofaOtps(); }
       });
     });
 

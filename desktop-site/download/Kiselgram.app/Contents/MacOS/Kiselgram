@@ -1,0 +1,9 @@
+#!/bin/bash
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+JAR="$DIR/Java/kiselgram-desktop-0.2.0.jar"
+JAVAFX="$DIR/Java/javafx-lib"
+
+exec java \
+    --module-path "$JAVAFX" \
+    --add-modules javafx.controls,javafx.web \
+    -jar "$JAR"

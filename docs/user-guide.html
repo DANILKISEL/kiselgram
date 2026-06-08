@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Guide — Kiselgram Docs</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+            background: #0d1117; color: #c9d1d9; line-height: 1.7;
+        }
+        .wrapper { display: flex; min-height: 100vh; }
+        .sidebar {
+            width: 260px; background: #161b22; padding: 24px 0;
+            border-right: 1px solid #30363d; position: sticky; top: 0; height: 100vh; overflow-y: auto;
+        }
+        .sidebar h2 { padding: 0 24px; font-size: 18px; color: #f0f6fc; margin-bottom: 16px; }
+        .sidebar a {
+            display: block; padding: 8px 24px; color: #8b949e; text-decoration: none;
+            font-size: 14px; border-left: 2px solid transparent;
+        }
+        .sidebar a:hover, .sidebar a.active { color: #58a6ff; background: #0d1117; border-left-color: #58a6ff; }
+        .content { flex: 1; padding: 40px 48px; max-width: 900px; }
+        h1 { font-size: 32px; color: #f0f6fc; margin-bottom: 8px; }
+        h2 { font-size: 24px; color: #f0f6fc; margin-top: 32px; margin-bottom: 12px; border-bottom: 1px solid #30363d; padding-bottom: 8px; }
+        h3 { font-size: 18px; color: #f0f6fc; margin-top: 24px; margin-bottom: 8px; }
+        p { margin-bottom: 16px; }
+        code { background: #161b22; padding: 2px 6px; border-radius: 4px; font-size: 14px; color: #f0f6fc; }
+        pre { background: #161b22; padding: 16px; border-radius: 8px; overflow-x: auto; margin-bottom: 16px; border: 1px solid #30363d; }
+        ul, ol { margin-bottom: 16px; padding-left: 24px; }
+        li { margin-bottom: 4px; }
+        a { color: #58a6ff; }
+        @media (max-width: 768px) { .sidebar { display: none; } .content { padding: 24px; } }
+    </style>
+</head>
+<body>
+<div class="wrapper">
+    <nav class="sidebar">
+        <h2>Kiselgram Docs</h2>
+        <a href="index.html">Home</a>
+        <a href="user-guide.html" class="active">User Guide</a>
+        <a href="api.html">API Reference</a>
+        <a href="desktop.html">Desktop Client</a>
+    </nav>
+    <main class="content">
+        <h1>User Guide</h1>
+
+        <h2>Registration & Login</h2>
+        <p>Go to <a href="https://web.kiselgram.ru" style="color:#58a6ff;">web.kiselgram.ru</a> to register a new account or log in.</p>
+        <h3>Registration methods</h3>
+        <ul>
+            <li><strong>Email + password</strong> — standard registration with email verification</li>
+            <li><strong>Google OAuth</strong> — sign in with your Google account</li>
+            <li><strong>QR code</strong> — scan from the desktop client to link your session</li>
+        </ul>
+
+        <h2>Messaging</h2>
+        <p>Start a chat by clicking on a contact or searching for a user. You can send text messages, images, documents, videos, and audio recordings.</p>
+        <h3>Message features</h3>
+        <ul>
+            <li><strong>Edit</strong> — fix a typo after sending</li>
+            <li><strong>Delete</strong> — remove a message for everyone or just yourself</li>
+            <li><strong>Reply</strong> — respond directly to a specific message</li>
+            <li><strong>Forward</strong> — send a message to another chat</li>
+            <li><strong>Pin</strong> — highlight important messages</li>
+            <li><strong>React</strong> — add emoji reactions to messages</li>
+            <li><strong>Read receipts</strong> — see when your message was read</li>
+        </ul>
+
+        <h2>Groups</h2>
+        <p>Create groups to chat with multiple people at once. Group admins can add/remove members and manage group settings.</p>
+
+        <h2>Channels</h2>
+        <p>Channels are broadcast-style one-way communication. Users subscribe to channels to receive updates from the channel owner.</p>
+
+        <h2>Stories</h2>
+        <p>Share photos and videos that disappear after 24 hours. View who has seen your story and react to others' stories.</p>
+
+        <h2>Video Calls</h2>
+        <p>Start a WebRTC video call with any user. The video server runs on a separate SocketIO-based Python server.</p>
+
+        <h2>Saved Messages</h2>
+        <p>Your private cloud — send messages, files, and links here to bookmark them for later. Only you can see this chat.</p>
+
+        <h2>Settings</h2>
+        <p>Customize your experience:</p>
+        <ul>
+            <li><strong>Theme</strong> — dark/light mode</li>
+            <li><strong>Font size</strong> — small, medium, large</li>
+            <li><strong>Bubble colors</strong> — customize your message bubble and their message bubble colors</li>
+            <li><strong>Privacy</strong> — last seen, profile photo, and online status visibility</li>
+            <li><strong>Sessions</strong> — manage active sessions and log out remotely</li>
+        </ul>
+
+        <h2>Email on Kiselgram</h2>
+        <p>Every user gets a <code>@mail.kiselgram.ru</code> email address. Access your email via:</p>
+        <ul>
+            <li><strong>IMAP</strong> — <code>mail.kiselgram.ru:993</code> (SSL)</li>
+            <li><strong>POP3</strong> — <code>mail.kiselgram.ru:995</code> (SSL)</li>
+            <li><strong>SMTP</strong> — <code>mail.kiselgram.ru:587</code> (STARTTLS)</li>
+        </ul>
+        <p>Manage your email account password and settings from the <a href="https://kiselgram.ru/mailadmin/" style="color:#58a6ff;">Mail Admin</a> panel.</p>
+
+        <h2>Security</h2>
+        <ul>
+            <li>Bearer token authentication for API requests</li>
+            <li>Session management — view and revoke active sessions</li>
+            <li>Rate limiting on auth endpoints</li>
+            <li>CSP and security headers on all responses</li>
+        </ul>
+
+        <p style="margin-top: 48px; color: #8b949e; font-size: 14px;"><a href="index.html" style="color:#58a6ff;">&larr; Back to Home</a></p>
+    </main>
+</div>
+</body>
+</html>
