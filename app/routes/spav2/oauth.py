@@ -52,7 +52,7 @@ CALLBACK_HTML = '''<!DOCTYPE html>
 (function() {
   var data = {{DATA}};
   if (window.opener) {
-    window.opener.postMessage(data, 'https://kiselgram.ru');
+    window.opener.postMessage(data, '*');
     window.close();
   } else {
     document.body.innerHTML = '<p>' + (data.error || 'Account added! You can close this window.') + '</p>';
