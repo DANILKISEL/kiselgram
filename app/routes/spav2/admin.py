@@ -19,9 +19,30 @@ def admin_required(f):
     return wrapper
 
 @spav2_admin_bp.route('/', methods=['GET'])
-@admin_required
 def admin_page():
-    return render_template('admin.html')
+    user = get_current_user()
+    return render_template('admin.html', current_user=user)
+
+
+@spav2_admin_bp.route('/login', methods=['POST'])
+def admin_login():
+    data = request.get_json() or {}
+    username = data.get('username', '').strip()
+    password = data.get('password', '')
+    user = User.query.filter_by(username=username).first()
+    if not user or not user.is_admin or not user.check_password(password):
+        return jsonify({'success': False, 'error': {'code': 'INVALID_CREDENTIALS', 'message': 'Invalid credentials'}}), 401
+    session['user_id'] = user.id
+    session['username'] = user.username
+    session.permanent = True
+    return jsonify({'success': True, 'data': {'username': user.username}})
+
+
+@spav2_admin_bp.route('/logout', methods=['POST'])
+def admin_logout():
+    session.pop('user_id', None)
+    session.pop('username', None)
+    return jsonify({'success': True})
 
 @spav2_admin_bp.route('/dashboard', methods=['GET'])
 @admin_required
