@@ -73,7 +73,7 @@
     <div id="users-tab" class="hidden">
       <div class="section">
         <h2>Users</h2>
-        <table><thead><tr><th>ID</th><th>Username</th><th>Email</th><th>Admin</th><th>Created</th></tr></thead><tbody id="usersBody"></tbody></table>
+        <table><thead><tr><th>ID</th><th>Username</th><th>Email</th><th>Admin</th><th>Created</th><th>Actions</th></tr></thead><tbody id="usersBody"></tbody></table>
       </div>
     </div>
 
@@ -138,9 +138,17 @@
           <td>${esc(u.email||'-')}</td>
           <td>${u.is_admin ? '<span class="badge badge-resolved">Yes</span>' : 'No'}</td>
           <td>${u.created_at ? new Date(u.created_at).toLocaleDateString() : ''}</td>
+          <td><button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id},'${esc(u.username)}')">Delete</button></td>
         </tr>
       `).join('');
-      document.getElementById('usersBody').innerHTML = rows || '<tr><td colspan="5" style="text-align:center;color:var(--muted)">No users</td></tr>';
+      document.getElementById('usersBody').innerHTML = rows || '<tr><td colspan="6" style="text-align:center;color:var(--muted)">No users</td></tr>';
+    }
+
+    async function deleteUser(id, username) {
+      if (!confirm('Delete user "' + username + '" (#' + id + ')? This soft-deletes the account.')) return;
+      const d = await fetch(API + '/users/' + id + '/delete', {method:'POST'}).then(r => r.json());
+      if (d.success) { loadUsers(); }
+      else { alert(d.error?.message || 'Failed'); }
     }
 
     function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }

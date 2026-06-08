@@ -174,6 +174,20 @@ def toggle_admin(user_id):
     return jsonify({'success': True, 'data': {'is_admin': user.is_admin}})
 
 
+@spav2_admin_bp.route('/users/<int:user_id>/delete', methods=['POST'])
+@admin_required
+def delete_user(user_id):
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'User not found'}}), 404
+    if user.id == get_current_user().id:
+        return jsonify({'success': False, 'error': {'code': 'FORBIDDEN', 'message': 'Cannot delete yourself'}}), 403
+    user.is_deleted = True
+    user.deleted_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    db.session.commit()
+    return jsonify({'success': True, 'data': {'message': f'User {user.username} deleted'}})
+
+
 # ── 2FA Management ──────────────────────────────────────────
 
 @spav2_admin_bp.route('/2fa/overview', methods=['GET'])
