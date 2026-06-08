@@ -155,7 +155,7 @@ def oauth_login(provider):
     if provider not in PROVIDERS:
         return jsonify({'success': False, 'error': {'code': 'INVALID_PROVIDER', 'message': f'Unknown provider: {provider}'}}), 400
 
-    redirect_uri = url_for('spav2_oauth.oauth_callback', provider=provider, _external=True)
+    redirect_uri = url_for('spav2_master.spav2_oauth.oauth_callback', provider=provider, _external=True)
     try:
         client = oauth.create_client(provider)
         return client.authorize_redirect(redirect_uri)
