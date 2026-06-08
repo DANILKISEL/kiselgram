@@ -108,21 +108,31 @@
       const password = document.getElementById('loginPass').value;
       const errEl = document.getElementById('loginError');
       errEl.style.display = 'none';
-      const d = await fetch(API + '/login', {
+      const r = await fetch(API + '/login', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({username, password})
-      }).then(r => r.json());
+      });
+      const d = await r.json();
       if (d.success) {
-        location.reload();
+        document.getElementById('loginOverlay').classList.add('hidden');
+        document.getElementById('adminContent').classList.remove('hidden');
+        document.getElementById('userInfo').innerHTML = '<span><i class="fas fa-user"></i> ' + esc(d.data.username) + '</span><button class="btn btn-sm" onclick="doLogout()">Logout</button>';
+        document.getElementById('loading').style.display = '';
+        Promise.all([loadDashboard(), loadReports()]).then(() => document.getElementById('loading').style.display = 'none');
+      } else if (r.status === 401) {
+        errEl.style.display = 'block';
       } else {
+        errEl.textContent = 'Server error (' + r.status + ')';
         errEl.style.display = 'block';
       }
     }
 
     async function doLogout() {
       await fetch(API + '/logout', {method:'POST'});
-      location.reload();
+      document.getElementById('loginOverlay').classList.remove('hidden');
+      document.getElementById('adminContent').classList.add('hidden');
+      document.getElementById('userInfo').innerHTML = '';
     }
 
     async function loadDashboard() {
