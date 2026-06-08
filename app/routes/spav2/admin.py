@@ -188,6 +188,50 @@ def delete_user(user_id):
     return jsonify({'success': True, 'data': {'message': f'User {user.username} deleted'}})
 
 
+@spav2_admin_bp.route('/users/<int:user_id>/update', methods=['POST'])
+@admin_required
+def update_user(user_id):
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'User not found'}}), 404
+    data = request.get_json() or {}
+    if 'username' in data:
+        val = data['username'].strip()
+        if val and len(val) >= 3:
+            existing = User.query.filter_by(username=val).first()
+            if existing and existing.id != user_id:
+                return jsonify({'success': False, 'error': {'code': 'CONFLICT', 'message': 'Username taken'}}), 409
+            user.username = val
+    if 'email' in data:
+        val = data['email'].strip().lower() if data['email'] else None
+        if val:
+            existing = User.query.filter_by(email=val).first()
+            if existing and existing.id != user_id:
+                return jsonify({'success': False, 'error': {'code': 'CONFLICT', 'message': 'Email taken'}}), 409
+        user.email = val
+    if 'display_name' in data:
+        user.display_name = data['display_name'].strip() or None
+    if 'bio' in data:
+        user.bio = data['bio'].strip() or None
+    db.session.commit()
+    return jsonify({'success': True, 'data': {'message': 'Profile updated'}})
+
+
+@spav2_admin_bp.route('/users/<int:user_id>/set-password', methods=['POST'])
+@admin_required
+def set_user_password(user_id):
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'User not found'}}), 404
+    data = request.get_json() or {}
+    password = data.get('password', '')
+    if len(password) < 6:
+        return jsonify({'success': False, 'error': {'code': 'VALIDATION', 'message': 'Password must be at least 6 characters'}}), 400
+    user.set_password(password)
+    db.session.commit()
+    return jsonify({'success': True, 'data': {'message': 'Password updated'}})
+
+
 # ── 2FA Management ──────────────────────────────────────────
 
 @spav2_admin_bp.route('/2fa/overview', methods=['GET'])

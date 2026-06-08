@@ -138,7 +138,11 @@
           <td>${esc(u.email||'-')}</td>
           <td>${u.is_admin ? '<span class="badge badge-resolved">Yes</span>' : 'No'}</td>
           <td>${u.created_at ? new Date(u.created_at).toLocaleDateString() : ''}</td>
-          <td><button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id},'${esc(u.username)}')">Delete</button></td>
+          <td>
+            <button class="btn btn-sm" onclick="editUser(${u.id},'${esc(u.username)}','${esc(u.email||'')}')">Edit</button>
+            <button class="btn btn-sm" onclick="setUserPassword(${u.id},'${esc(u.username)}')">Password</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id},'${esc(u.username)}')">Delete</button>
+          </td>
         </tr>
       `).join('');
       document.getElementById('usersBody').innerHTML = rows || '<tr><td colspan="6" style="text-align:center;color:var(--muted)">No users</td></tr>';
@@ -148,6 +152,32 @@
       if (!confirm('Delete user "' + username + '" (#' + id + ')? This soft-deletes the account.')) return;
       const d = await fetch(API + '/users/' + id + '/delete', {method:'POST'}).then(r => r.json());
       if (d.success) { loadUsers(); }
+      else { alert(d.error?.message || 'Failed'); }
+    }
+
+    async function editUser(id, username, email) {
+      const newUsername = prompt('Username for ' + username + ':', username);
+      if (newUsername === null) return;
+      const newEmail = prompt('Email:', email || '');
+      if (newEmail === null) return;
+      const d = await fetch(API + '/users/' + id + '/update', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({username:newUsername, email:newEmail})
+      }).then(r => r.json());
+      if (d.success) { loadUsers(); }
+      else { alert(d.error?.message || 'Failed'); }
+    }
+
+    async function setUserPassword(id, username) {
+      const pwd = prompt('New password for ' + username + ' (min 6 chars):');
+      if (!pwd || pwd.length < 6) { alert('Password must be at least 6 characters'); return; }
+      const d = await fetch(API + '/users/' + id + '/set-password', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({password:pwd})
+      }).then(r => r.json());
+      if (d.success) { alert('Password updated for ' + username); }
       else { alert(d.error?.message || 'Failed'); }
     }
 
