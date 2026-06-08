@@ -24,25 +24,27 @@ def admin_page():
     return render_template('admin.html', current_user=user)
 
 
-@spav2_admin_bp.route('/login', methods=['POST'])
+@spav2_admin_bp.route('/login', methods=['GET', 'POST'])
 def admin_login():
-    data = request.get_json() or {}
-    username = data.get('username', '').strip()
-    password = data.get('password', '')
+    if request.method == 'GET':
+        return redirect(url_for('spav2_admin.admin_page'))
+    username = (request.form.get('username') or '').strip()
+    password = request.form.get('password', '')
     user = User.query.filter_by(username=username).first()
-    if not user or not user.is_admin or not user.check_password(password):
-        return jsonify({'success': False, 'error': {'code': 'INVALID_CREDENTIALS', 'message': 'Invalid credentials'}}), 401
-    session['user_id'] = user.id
-    session['username'] = user.username
-    session.permanent = True
-    return jsonify({'success': True, 'data': {'username': user.username}})
+    if user and user.is_admin and user.check_password(password):
+        session['user_id'] = user.id
+        session['username'] = user.username
+        session.permanent = True
+        return redirect(url_for('spav2_admin.admin_page'))
+    current_user = get_current_user()
+    return render_template('admin.html', current_user=current_user, login_error='Invalid credentials')
 
 
-@spav2_admin_bp.route('/logout', methods=['POST'])
+@spav2_admin_bp.route('/logout', methods=['GET'])
 def admin_logout():
     session.pop('user_id', None)
     session.pop('username', None)
-    return jsonify({'success': True})
+    return redirect(url_for('spav2_admin.admin_page'))
 
 @spav2_admin_bp.route('/dashboard', methods=['GET'])
 @admin_required
