@@ -144,9 +144,7 @@ def take_action(report_id):
 @spav2_admin_bp.route('/users', methods=['GET'])
 @admin_required
 def list_users():
-    page = request.args.get('page', 1, type=int)
-    per_page = 20
-    users = User.query.order_by(User.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    users = User.query.order_by(User.created_at.desc()).all()
     return jsonify({'success': True, 'data': {
         'users': [{
             'id': u.id,
@@ -157,10 +155,8 @@ def list_users():
             'is_online': u.is_online,
             'email_verified': u.email_verified,
             'created_at': u.created_at.isoformat() if u.created_at else None
-        } for u in users.items],
-        'page': page,
-        'total_pages': users.pages,
-        'total': users.total
+        } for u in users],
+        'total': len(users)
     }})
 
 @spav2_admin_bp.route('/users/<int:user_id>/toggle-admin', methods=['POST'])
