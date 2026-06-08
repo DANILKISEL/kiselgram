@@ -30,25 +30,27 @@
     .tab { padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border); cursor: pointer; font-size: 13px; background: transparent; color: var(--muted); }
     .tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
     .hidden { display: none; }
-    #loading { text-align: center; padding: 40px; color: var(--muted); }
     select { background: var(--card); color: var(--text); border: 1px solid var(--border); padding: 6px 12px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; }
     .login-overlay { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 100; }
     .login-box { background: var(--card); border-radius: 16px; padding: 32px; width: 320px; border: 1px solid var(--border); }
     .login-box h2 { margin-bottom: 20px; font-size: 20px; text-align: center; }
-    .login-box input { width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 14px; margin-bottom: 12px; outline: none; }
+    .login-box input { width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 14px; margin-bottom: 12px; outline: none; box-sizing:border-box; }
     .login-box input:focus { border-color: var(--accent); }
     .login-box .btn { width: 100%; padding: 10px; font-size: 15px; }
-    .login-error { color: #ef4444; font-size: 13px; text-align: center; margin-top: 8px; display: none; }
+    .login-error { color: #ef4444; font-size: 13px; text-align: center; margin-top: 8px; }
     .user-info { display: flex; align-items: center; gap: 12px; margin-left: auto; font-size: 13px; color: var(--muted); }
   </style>
 </head>
 <body>
   <div style="display:flex;align-items:center">
     <h1><i class="fas fa-shield-alt"></i> Kiselgram Admin</h1>
-    <div class="user-info" id="userInfo"></div>
+    {% if current_user and current_user.is_admin %}
+    <div class="user-info"><i class="fas fa-user"></i> {{ current_user.username }} <a href="{{ url_for('spav2_admin.admin_logout') }}" class="btn btn-sm">Logout</a></div>
+    {% endif %}
   </div>
 
-  <div id="adminContent"{% if not current_user or not current_user.is_admin %} class="hidden"{% endif %}>
+{% if current_user and current_user.is_admin %}
+  <div id="adminContent">
     <div class="stats" id="stats"></div>
 
     <div class="tabs">
@@ -90,50 +92,8 @@
 
   <div id="loading">Loading...</div>
 
-  <div class="login-overlay" id="loginOverlay">
-    <div class="login-box">
-      <h2><i class="fas fa-shield-alt"></i> Admin Login</h2>
-      <input type="text" id="loginUser" placeholder="Username" autocomplete="username">
-      <input type="password" id="loginPass" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
-      <button class="btn" onclick="doLogin()">Sign In</button>
-      <div class="login-error" id="loginError">Invalid credentials</div>
-    </div>
-  </div>
-
   <script>
     const API = '/api/admin';
-
-    async function doLogin() {
-      const username = document.getElementById('loginUser').value.trim();
-      const password = document.getElementById('loginPass').value;
-      const errEl = document.getElementById('loginError');
-      errEl.style.display = 'none';
-      const r = await fetch(API + '/login', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({username, password})
-      });
-      const d = await r.json();
-      if (d.success) {
-        document.getElementById('loginOverlay').classList.add('hidden');
-        document.getElementById('adminContent').classList.remove('hidden');
-        document.getElementById('userInfo').innerHTML = '<span><i class="fas fa-user"></i> ' + esc(d.data.username) + '</span><button class="btn btn-sm" onclick="doLogout()">Logout</button>';
-        document.getElementById('loading').style.display = '';
-        Promise.all([loadDashboard(), loadReports()]).then(() => document.getElementById('loading').style.display = 'none');
-      } else if (r.status === 401) {
-        errEl.style.display = 'block';
-      } else {
-        errEl.textContent = 'Server error (' + r.status + ')';
-        errEl.style.display = 'block';
-      }
-    }
-
-    async function doLogout() {
-      await fetch(API + '/logout', {method:'POST'});
-      document.getElementById('loginOverlay').classList.remove('hidden');
-      document.getElementById('adminContent').classList.add('hidden');
-      document.getElementById('userInfo').innerHTML = '';
-    }
 
     async function loadDashboard() {
       const d = await fetch(API + '/dashboard').then(r => r.json());
@@ -242,14 +202,23 @@
       });
     });
 
-    {% if current_user and current_user.is_admin %}
-      document.getElementById('loginOverlay').classList.add('hidden');
-      document.getElementById('adminContent').classList.remove('hidden');
-      document.getElementById('userInfo').innerHTML = '<span><i class="fas fa-user"></i> {{ current_user.username }}</span><button class="btn btn-sm" onclick="doLogout()">Logout</button>';
-      Promise.all([loadDashboard(), loadReports()]).then(() => document.getElementById('loading').style.display = 'none');
-    {% else %}
-      document.getElementById('loading').style.display = 'none';
-    {% endif %}
+    Promise.all([loadDashboard(), loadReports()]).then(() => document.getElementById('loading').style.display = 'none');
   </script>
+
+{% else %}
+
+  <div class="login-overlay" id="loginOverlay">
+    <div class="login-box">
+      <h2><i class="fas fa-shield-alt"></i> Admin Login</h2>
+      <form method="post" action="{{ url_for('spav2_admin.admin_login') }}">
+        <input type="text" name="username" placeholder="Username" autocomplete="username">
+        <input type="password" name="password" placeholder="Password" autocomplete="current-password">
+        <button type="submit" class="btn">Sign In</button>
+        {% if login_error %}<div class="login-error">{{ login_error }}</div>{% endif %}
+      </form>
+    </div>
+  </div>
+
+{% endif %}
 </body>
 </html>
