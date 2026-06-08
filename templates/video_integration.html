@@ -79,7 +79,7 @@
             <div class="room-card" onclick="window.location.href='{{ url_for('video.join_room', room_id=room.id) }}'">
                 <div class="room-info">
                     <h3>{{ room.name }}</h3>
-                    <p>Created by {{ room.created_by }} &middot; <i class="fas fa-clock"></i> {{ room.created_at[:19]|replace('T', ' ') }}</p>
+                    <p>Created by {{ room.created_by }}{% if room.created_at %} &middot; <i class="fas fa-clock"></i> {{ room.created_at[:19]|replace('T', ' ') }}{% endif %}</p>
                 </div>
                 <div class="room-meta">
                     <span class="badge"><i class="fas fa-users"></i> {{ room.participants }}/{{ room.max_participants }}</span>
