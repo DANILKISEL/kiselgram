@@ -32,53 +32,98 @@
     .hidden { display: none; }
     #loading { text-align: center; padding: 40px; color: var(--muted); }
     select { background: var(--card); color: var(--text); border: 1px solid var(--border); padding: 6px 12px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; }
+    .login-overlay { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 100; }
+    .login-box { background: var(--card); border-radius: 16px; padding: 32px; width: 320px; border: 1px solid var(--border); }
+    .login-box h2 { margin-bottom: 20px; font-size: 20px; text-align: center; }
+    .login-box input { width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 14px; margin-bottom: 12px; outline: none; }
+    .login-box input:focus { border-color: var(--accent); }
+    .login-box .btn { width: 100%; padding: 10px; font-size: 15px; }
+    .login-error { color: #ef4444; font-size: 13px; text-align: center; margin-top: 8px; display: none; }
+    .user-info { display: flex; align-items: center; gap: 12px; margin-left: auto; font-size: 13px; color: var(--muted); }
   </style>
 </head>
 <body>
-  <h1><i class="fas fa-shield-alt"></i> Kiselgram Admin</h1>
-
-  <div class="stats" id="stats"></div>
-
-  <div class="tabs">
-    <button class="tab active" data-tab="reports"><i class="fas fa-flag"></i> Reports</button>
-    <button class="tab" data-tab="users"><i class="fas fa-users"></i> Users</button>
-    <button class="tab" data-tab="twofa"><i class="fas fa-shield-alt"></i> 2FA</button>
+  <div style="display:flex;align-items:center">
+    <h1><i class="fas fa-shield-alt"></i> Kiselgram Admin</h1>
+    <div class="user-info" id="userInfo"></div>
   </div>
 
-  <div id="reports-tab">
-    <div class="section">
-      <h2>Reports</h2>
-      <select id="reportStatus">
-        <option value="pending">Pending</option>
-        <option value="resolved">Resolved</option>
-      </select>
-      <table><thead><tr><th>ID</th><th>Reporter</th><th>Reported User</th><th>Reason</th><th>Date</th><th>Actions</th></tr></thead><tbody id="reportsBody"></tbody></table>
+  <div id="adminContent"{% if not current_user or not current_user.is_admin %} class="hidden"{% endif %}>
+    <div class="stats" id="stats"></div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="reports"><i class="fas fa-flag"></i> Reports</button>
+      <button class="tab" data-tab="users"><i class="fas fa-users"></i> Users</button>
+      <button class="tab" data-tab="twofa"><i class="fas fa-shield-alt"></i> 2FA</button>
     </div>
-  </div>
 
-  <div id="users-tab" class="hidden">
-    <div class="section">
-      <h2>Users</h2>
-      <table><thead><tr><th>ID</th><th>Username</th><th>Email</th><th>Admin</th><th>Created</th></tr></thead><tbody id="usersBody"></tbody></table>
-    </div>
-  </div>
-
-  <div id="twofa-tab" class="hidden">
-    <div class="stats" id="twofaStats"></div>
-    <div class="section">
-      <h2>OTP Codes</h2>
-      <div style="display:flex;gap:8px;margin-bottom:12px">
-        <button class="btn btn-sm" onclick="loadTwofaOtps()"><i class="fas fa-sync-alt"></i> Refresh</button>
-        <button class="btn btn-sm btn-danger" onclick="cleanupOtps()"><i class="fas fa-trash-alt"></i> Cleanup Expired/Used</button>
+    <div id="reports-tab">
+      <div class="section">
+        <h2>Reports</h2>
+        <select id="reportStatus">
+          <option value="pending">Pending</option>
+          <option value="resolved">Resolved</option>
+        </select>
+        <table><thead><tr><th>ID</th><th>Reporter</th><th>Reported User</th><th>Reason</th><th>Date</th><th>Actions</th></tr></thead><tbody id="reportsBody"></tbody></table>
       </div>
-      <table><thead><tr><th>ID</th><th>User</th><th>Code</th><th>Created</th><th>Expires</th><th>Status</th></tr></thead><tbody id="twofaBody"></tbody></table>
+    </div>
+
+    <div id="users-tab" class="hidden">
+      <div class="section">
+        <h2>Users</h2>
+        <table><thead><tr><th>ID</th><th>Username</th><th>Email</th><th>Admin</th><th>Created</th></tr></thead><tbody id="usersBody"></tbody></table>
+      </div>
+    </div>
+
+    <div id="twofa-tab" class="hidden">
+      <div class="stats" id="twofaStats"></div>
+      <div class="section">
+        <h2>OTP Codes</h2>
+        <div style="display:flex;gap:8px;margin-bottom:12px">
+          <button class="btn btn-sm" onclick="loadTwofaOtps()"><i class="fas fa-sync-alt"></i> Refresh</button>
+          <button class="btn btn-sm btn-danger" onclick="cleanupOtps()"><i class="fas fa-trash-alt"></i> Cleanup Expired/Used</button>
+        </div>
+        <table><thead><tr><th>ID</th><th>User</th><th>Code</th><th>Created</th><th>Expires</th><th>Status</th></tr></thead><tbody id="twofaBody"></tbody></table>
+      </div>
     </div>
   </div>
 
   <div id="loading">Loading...</div>
 
+  <div class="login-overlay" id="loginOverlay">
+    <div class="login-box">
+      <h2><i class="fas fa-shield-alt"></i> Admin Login</h2>
+      <input type="text" id="loginUser" placeholder="Username" autocomplete="username">
+      <input type="password" id="loginPass" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+      <button class="btn" onclick="doLogin()">Sign In</button>
+      <div class="login-error" id="loginError">Invalid credentials</div>
+    </div>
+  </div>
+
   <script>
     const API = '/api/admin';
+
+    async function doLogin() {
+      const username = document.getElementById('loginUser').value.trim();
+      const password = document.getElementById('loginPass').value;
+      const errEl = document.getElementById('loginError');
+      errEl.style.display = 'none';
+      const d = await fetch(API + '/login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username, password})
+      }).then(r => r.json());
+      if (d.success) {
+        location.reload();
+      } else {
+        errEl.style.display = 'block';
+      }
+    }
+
+    async function doLogout() {
+      await fetch(API + '/logout', {method:'POST'});
+      location.reload();
+    }
 
     async function loadDashboard() {
       const d = await fetch(API + '/dashboard').then(r => r.json());
@@ -187,7 +232,14 @@
       });
     });
 
-    Promise.all([loadDashboard(), loadReports()]).then(() => document.getElementById('loading').style.display = 'none');
+    {% if current_user and current_user.is_admin %}
+      document.getElementById('loginOverlay').classList.add('hidden');
+      document.getElementById('adminContent').classList.remove('hidden');
+      document.getElementById('userInfo').innerHTML = '<span><i class="fas fa-user"></i> {{ current_user.username }}</span><button class="btn btn-sm" onclick="doLogout()">Logout</button>';
+      Promise.all([loadDashboard(), loadReports()]).then(() => document.getElementById('loading').style.display = 'none');
+    {% else %}
+      document.getElementById('loading').style.display = 'none';
+    {% endif %}
   </script>
 </body>
 </html>
