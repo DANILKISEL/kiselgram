@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify, render_template, session
 from functools import wraps
 from datetime import datetime, timezone
 from app import db
-from app.models import User, Report, Message
+from app.models import User, Report, Message, LoginOtp
 from app.utils.helpers import get_current_user
 from app.utils.security import rate_limit
 
@@ -149,3 +149,64 @@ def toggle_admin(user_id):
     user.is_admin = not user.is_admin
     db.session.commit()
     return jsonify({'success': True, 'data': {'is_admin': user.is_admin}})
+
+
+# ── 2FA Management ──────────────────────────────────────────
+
+@spav2_admin_bp.route('/2fa/overview', methods=['GET'])
+@admin_required
+def twofa_overview():
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    total = LoginOtp.query.count()
+    active = LoginOtp.query.filter_by(used=False).filter(LoginOtp.expires_at > now).count()
+    expired = LoginOtp.query.filter(LoginOtp.expires_at <= now).count()
+    used = LoginOtp.query.filter_by(used=True).count()
+    start_of_day = now.replace(hour=0, minute=0, second=0)
+    sent_today = LoginOtp.query.filter(LoginOtp.created_at >= start_of_day).count()
+    return jsonify({'success': True, 'data': {
+        'total': total,
+        'active': active,
+        'expired': expired,
+        'used': used,
+        'sent_today': sent_today
+    }})
+
+
+@spav2_admin_bp.route('/2fa/otps', methods=['GET'])
+@admin_required
+def twofa_list_otps():
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+    per_page = min(per_page, 200)
+    query = LoginOtp.query.order_by(LoginOtp.id.desc())
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+
+    user_ids = {o.user_id for o in pagination.items}
+    users = {u.id: u for u in User.query.filter(User.id.in_(user_ids)).all()} if user_ids else {}
+
+    return jsonify({'success': True, 'data': {
+        'otps': [{
+            'id': o.id,
+            'user_id': o.user_id,
+            'username': users.get(o.user_id).username if users.get(o.user_id) else None,
+            'code': o.code,
+            'created_at': o.created_at.isoformat() if o.created_at else None,
+            'expires_at': o.expires_at.isoformat() if o.expires_at else None,
+            'used': o.used,
+            'expired': o.expires_at < datetime.now(timezone.utc).replace(tzinfo=None) if o.expires_at else False
+        } for o in pagination.items],
+        'page': page,
+        'total_pages': pagination.pages,
+        'total': pagination.total
+    }})
+
+
+@spav2_admin_bp.route('/2fa/cleanup', methods=['POST'])
+@admin_required
+def twofa_cleanup():
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    deleted = LoginOtp.query.filter(
+        (LoginOtp.expires_at <= now) | (LoginOtp.used == True)
+    ).delete()
+    db.session.commit()
+    return jsonify({'success': True, 'data': {'deleted': deleted}}) 
