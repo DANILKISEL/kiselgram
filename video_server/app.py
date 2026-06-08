@@ -72,6 +72,7 @@ def health():
 def list_rooms():
     return jsonify({'success':True,'rooms':[
         {'id':rid,'name':r.get('name'),'created_by':r.get('created_by'),
+         'created_at':r.get('created_at'),
          'participants':len(participants.get(rid,{})),'max_participants':r.get('max_participants',10)}
         for rid,r in rooms.items() if r.get('active')]})
 
