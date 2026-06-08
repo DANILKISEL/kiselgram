@@ -17,9 +17,9 @@ app.config.update(
     MAX_ROOM_AGE=7200, TRUSTED_PROXIES=int(os.environ.get('TRUSTED_PROXIES', '1')),
     PRODUCTION=os.environ.get('VIDEO_PRODUCTION', '').lower() in ('1', 'true', 'yes'),
 )
-CORS(app, origins=['https://kiselgram.ru', 'http://localhost:5500'])
+CORS(app, origins=['https://kiselgram.ru', 'https://web.kiselgram.ru', 'http://localhost:5500'])
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=app.config['TRUSTED_PROXIES'], x_proto=1, x_host=1)
-socketio = SocketIO(app, cors_allowed_origins="https://kiselgram.ru", ping_timeout=60, ping_interval=25)
+socketio = SocketIO(app, cors_allowed_origins=["https://kiselgram.ru", "https://web.kiselgram.ru"], ping_timeout=60, ping_interval=25)
 
 rooms, participants, calls, user_socks = {}, {}, {}, {}
 

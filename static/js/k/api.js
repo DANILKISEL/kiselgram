@@ -1,8 +1,10 @@
 K.api = {
   _headers(extra) {
     const h = {...extra};
-    const acc = K.auth.accounts[K.auth.activeIdx];
-    if (acc && acc.token) h['Authorization'] = 'Bearer ' + acc.token;
+    try {
+      const acc = K.auth.accounts[K.auth.activeIdx];
+      if (acc && acc.token) h['Authorization'] = 'Bearer ' + acc.token;
+    } catch(e) {}
     return h;
   },
   async _fetch(url, opts) {

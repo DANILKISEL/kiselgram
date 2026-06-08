@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify, render_template, session, redirec
 from functools import wraps
 from datetime import datetime, timezone
 from app import db
-from app.models import User, Report, Message, LoginOtp
+from app.models import User, Report, Message, LoginOtp, Chat, ChatMember
 from app.utils.helpers import get_current_user
 from app.utils.security import rate_limit
 
@@ -286,4 +286,172 @@ def twofa_cleanup():
         (LoginOtp.expires_at <= now) | (LoginOtp.used == True)
     ).delete()
     db.session.commit()
-    return jsonify({'success': True, 'data': {'deleted': deleted}}) 
+    return jsonify({'success': True, 'data': {'deleted': deleted}})
+
+
+# ── User Creation ───────────────────────────────────────────
+
+@spav2_admin_bp.route('/users/create', methods=['POST'])
+@admin_required
+def create_user():
+    data = request.get_json() or {}
+    username = (data.get('username') or '').strip()
+    email = (data.get('email') or '').strip().lower() or None
+    password = data.get('password', '')
+    is_admin = data.get('is_admin', False)
+
+    if not username or len(username) < 3:
+        return jsonify({'success': False, 'error': {'code': 'VALIDATION', 'message': 'Username must be at least 3 characters'}}), 400
+    if User.query.filter_by(username=username).first():
+        return jsonify({'success': False, 'error': {'code': 'CONFLICT', 'message': 'Username taken'}}), 409
+    if email and User.query.filter_by(email=email).first():
+        return jsonify({'success': False, 'error': {'code': 'CONFLICT', 'message': 'Email taken'}}), 409
+    if len(password) < 6:
+        return jsonify({'success': False, 'error': {'code': 'VALIDATION', 'message': 'Password must be at least 6 characters'}}), 400
+
+    user = User(username=username, email=email, is_admin=is_admin)
+    user.set_password(password)
+    db.session.add(user)
+    db.session.commit()
+    return jsonify({'success': True, 'data': {
+        'user': {
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'is_admin': user.is_admin,
+            'created_at': user.created_at.isoformat() if user.created_at else None
+        },
+        'message': f'User {user.username} created'
+    }})
+
+
+# ── Chat Management ─────────────────────────────────────────
+
+@spav2_admin_bp.route('/chats', methods=['GET'])
+@admin_required
+def list_chats():
+    chat_type = request.args.get('chat_type') or None
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+    per_page = min(per_page, 200)
+
+    query = Chat.query
+    if chat_type in ('personal', 'group', 'channel'):
+        query = query.filter_by(chat_type=chat_type)
+    query = query.order_by(Chat.created_at.desc())
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+
+    admin = get_current_user()
+    chats_data = []
+    for chat in pagination.items:
+        member_count = ChatMember.query.filter_by(chat_id=chat.id).count()
+        msg_count = Message.query.filter_by(chat_id=chat.id).count()
+        last_msg = Message.query.filter_by(chat_id=chat.id).order_by(Message.timestamp.desc()).first()
+
+        chat_name = chat.name or ''
+        if not chat_name and chat.chat_type == 'personal':
+            peer_id = chat.user2_id if chat.user1_id == admin.id else chat.user1_id
+            peer = User.query.get(peer_id)
+            chat_name = f'{peer.username} (personal)' if peer else f'personal #{chat.id}'
+
+        chats_data.append({
+            'id': chat.id,
+            'chat_type': chat.chat_type,
+            'name': chat_name or f'{chat.chat_type} #{chat.id}',
+            'owner_id': chat.owner_id,
+            'is_public': chat.is_public,
+            'created_at': chat.created_at.isoformat() if chat.created_at else None,
+            'member_count': member_count,
+            'message_count': msg_count,
+            'last_activity': last_msg.timestamp.isoformat() if last_msg else None
+        })
+
+    return jsonify({'success': True, 'data': {
+        'chats': chats_data,
+        'page': page,
+        'per_page': per_page,
+        'total': pagination.total,
+        'total_pages': pagination.pages
+    }})
+
+
+@spav2_admin_bp.route('/chats/<int:chat_id>', methods=['GET'])
+@admin_required
+def chat_detail(chat_id):
+    chat = Chat.query.get_or_404(chat_id)
+    members = ChatMember.query.filter_by(chat_id=chat_id).all()
+    member_ids = [m.user_id for m in members]
+    member_users = User.query.filter(User.id.in_(member_ids)).all() if member_ids else []
+    msg_count = Message.query.filter_by(chat_id=chat_id).count()
+
+    chat_name = chat.name or f'{chat.chat_type} #{chat.id}'
+    return jsonify({'success': True, 'data': {
+        'id': chat.id,
+        'chat_type': chat.chat_type,
+        'name': chat_name,
+        'description': chat.description,
+        'owner_id': chat.owner_id,
+        'is_public': chat.is_public,
+        'invite_link': chat.invite_link,
+        'created_at': chat.created_at.isoformat() if chat.created_at else None,
+        'message_count': msg_count,
+        'members': [{'user_id': m.user_id, 'role': m.role, 'joined_at': m.joined_at.isoformat() if m.joined_at else None} for m in members],
+        'member_users': [{'id': u.id, 'username': u.username, 'email': u.email} for u in member_users]
+    }})
+
+
+@spav2_admin_bp.route('/chats/<int:chat_id>/messages', methods=['GET'])
+@admin_required
+def chat_messages(chat_id):
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+    per_page = min(per_page, 200)
+    chat = Chat.query.get_or_404(chat_id)
+    pagination = Message.query.filter_by(chat_id=chat_id).order_by(Message.timestamp.desc()).paginate(page=page, per_page=per_page, error_out=False)
+
+    sender_ids = {m.sender_id for m in pagination.items}
+    senders = {u.id: u.username for u in User.query.filter(User.id.in_(sender_ids)).all()} if sender_ids else {}
+
+    return jsonify({'success': True, 'data': {
+        'chat': {'id': chat.id, 'chat_type': chat.chat_type, 'name': chat.name or f'{chat.chat_type} #{chat.id}'},
+        'messages': [{
+            'id': m.id,
+            'sender_id': m.sender_id,
+            'sender_username': senders.get(m.sender_id, f'user #{m.sender_id}'),
+            'content': m.content,
+            'has_attachment': m.has_attachment,
+            'file_type': m.file_type,
+            'timestamp': m.timestamp.isoformat() if m.timestamp else None,
+            'is_deleted': m.is_deleted,
+            'is_read': m.is_read
+        } for m in pagination.items],
+        'page': page,
+        'per_page': per_page,
+        'total_pages': pagination.pages,
+        'total': pagination.total
+    }})
+
+
+@spav2_admin_bp.route('/chats/<int:chat_id>/messages/<int:message_id>/delete', methods=['POST'])
+@admin_required
+def admin_delete_message(chat_id, message_id):
+    msg = Message.query.get_or_404(message_id)
+    if msg.chat_id != chat_id:
+        return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'Message not found in this chat'}}), 404
+    msg.is_deleted = True
+    msg.deleted_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    db.session.commit()
+    return jsonify({'success': True, 'data': {'message': 'Message deleted'}})
+
+
+@spav2_admin_bp.route('/chats/<int:chat_id>/messages/<int:message_id>/restore', methods=['POST'])
+@admin_required
+def admin_restore_message(chat_id, message_id):
+    msg = Message.query.get_or_404(message_id)
+    if msg.chat_id != chat_id:
+        return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'Message not found in this chat'}}), 404
+    msg.is_deleted = False
+    msg.deleted_at = None
+    db.session.commit()
+    return jsonify({'success': True, 'data': {'message': 'Message restored'}})
+ 
