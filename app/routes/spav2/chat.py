@@ -88,14 +88,15 @@ def chat_list():
     })
 
     # Personal chats
-    sent = db.session.query(Message.receiver_id).filter_by(sender_id=current_user_id).filter(Message.receiver_id != current_user_id).distinct().all()
-    recv = db.session.query(Message.sender_id).filter_by(receiver_id=current_user_id).filter(Message.sender_id != current_user_id).distinct().all()
-    chat_user_ids = set([r[0] for r in sent] + [r[0] for r in recv])
+    sent = db.session.query(Message.receiver_id).filter_by(sender_id=current_user_id).filter(Message.receiver_id != current_user_id).distinct().limit(500).all()
+    recv = db.session.query(Message.sender_id).filter_by(receiver_id=current_user_id).filter(Message.sender_id != current_user_id).distinct().limit(500).all()
+    chat_user_ids = {r[0] for r in sent} | {r[0] for r in recv}
 
+    users = {u.id: u for u in User.query.filter(User.id.in_(chat_user_ids)).all()} if chat_user_ids else {}
     for uid in chat_user_ids:
         if uid in blocked_ids:
             continue
-        user = User.query.get(uid)
+        user = users.get(uid)
         if not user:
             continue
         last = Message.query.filter(
@@ -120,8 +121,10 @@ def chat_list():
 
     # Groups
     memberships = ChatMember.query.filter_by(user_id=current_user_id).all()
+    chat_ids = [m.chat_id for m in memberships]
+    chats_map = {c.id: c for c in Chat.query.filter(Chat.id.in_(chat_ids)).all()} if chat_ids else {}
     for m in memberships:
-        chat = Chat.query.get(m.chat_id)
+        chat = chats_map.get(m.chat_id)
         if not chat:
             continue
         last = Message.query.filter_by(chat_id=chat.id).order_by(Message.timestamp.desc()).first()
@@ -146,8 +149,10 @@ def chat_list():
 
     # Channels
     subscriptions = ChatSubscriber.query.filter_by(user_id=current_user_id).all()
+    chan_ids_list = [s.chat_id for s in subscriptions]
+    chans_map = {c.id: c for c in Chat.query.filter(Chat.id.in_(chan_ids_list)).all()} if chan_ids_list else {}
     for s in subscriptions:
-        chat = Chat.query.get(s.chat_id)
+        chat = chans_map.get(s.chat_id)
         if not chat:
             continue
         last = Message.query.filter_by(chat_id=chat.id).order_by(Message.timestamp.desc()).first()

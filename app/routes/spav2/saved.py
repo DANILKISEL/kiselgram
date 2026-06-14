@@ -20,9 +20,11 @@ def get_saved_messages():
     has_more = len(saved) == limit
     next_cursor = saved[-1].id if saved else None
 
+    sender_ids = list(set(msg.sender_id for msg in saved))
+    senders = {u.id: u for u in User.query.filter(User.id.in_(sender_ids)).all()} if sender_ids else {}
     result = []
     for msg in saved:
-        sender = User.query.get(msg.sender_id)
+        sender = senders.get(msg.sender_id)
         chat_name = sender.username if sender else 'Unknown'
         from app.models import Chat
         chat = Chat.query.get(msg.chat_id) if msg.chat_id else None

@@ -39,7 +39,7 @@ K.music = {
     if (K.music._audio) { K.music._audio.pause(); K.music._audio = null; }
     K.music._currentIdx = idx;
     K.music._audio = new Audio(t.file_url);
-    K.music._audio.volume = parseFloat(localStorage.getItem('k_music_volume')||'1');
+    K.music._audio.volume = parseFloat(localStorage.getItem('k_music_volume')||'1') || 0;
     K.music._audio.onended = () => {
       if (K.music._currentIdx + 1 < K.music._tracks.length) {
         K.music.play(K.music._currentIdx + 1);
@@ -74,7 +74,7 @@ K.music = {
     K.music._updatePlayBtn();
   },
   setVolume(v) {
-    const vol = parseFloat(v);
+    const vol = parseFloat(v) || 0;
     if (K.music._audio) K.music._audio.volume = vol;
     localStorage.setItem('k_music_volume', vol);
   },

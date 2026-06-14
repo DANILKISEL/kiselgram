@@ -1,0 +1,25 @@
+{
+    "name": "Kiselgram K",
+    "short_name": "Kiselgram",
+    "description": "Kiselgram messaging — K version",
+    "start_url": "/k",
+    "display": "standalone",
+    "background_color": "#17212b",
+    "theme_color": "#17212b",
+    "orientation": "portrait",
+    "scope": "/",
+    "categories": ["social", "communication"],
+    "screenshots": [],
+    "icons": [
+        {
+            "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%232b5278'/><text x='50' y='60' font-family='Arial' font-size='40' text-anchor='middle' fill='white'>K</text></svg>",
+            "sizes": "192x192",
+            "type": "image/svg+xml"
+        },
+        {
+            "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%232b5278'/><text x='50' y='60' font-family='Arial' font-size='40' text-anchor='middle' fill='white'>K</text></svg>",
+            "sizes": "512x512",
+            "type": "image/svg+xml"
+        }
+    ]
+}

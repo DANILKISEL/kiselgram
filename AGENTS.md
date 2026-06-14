@@ -140,6 +140,9 @@ The JavaFX desktop app was moved to `~/PycharmProjects/kiselgram-desktop`. See i
 - `Kiselgram-mac-arm64.zip` (38 MB, self-contained .app)
 - `Kiselgram-mac-intel.zip` (1.5 MB, needs Java 21)
 - `Kiselgram-windows.zip` (1.5 MB, needs Java 21)
+- `Kiselgram-K.app.zip` (2 KB, macOS Chrome launcher for the K version)
+
+**PWA:** The K version (`/k` route) has a dedicated manifest (`static/manifest_k.json`) and registers the service worker (`static/js/sw.js`). Install via Chrome/Edge address bar "Install" button — opens as a standalone window.
 
 API notes (server-side, applies to all clients including desktop):
 - `AuthApi.pollQr()` -> server path: `/auth/qr/status/{token}`
