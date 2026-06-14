@@ -31,7 +31,7 @@ const K = {
       const chat = p.get('chat');
       if (chat) {
         const [type, id] = chat.split(':');
-        if (type && id) { K.state._pendingChat = {type, id: parseInt(id)}; }
+        if (type && id) { K.state._pendingChat = {type, id: parseInt(id, 10)}; }
       }
       const stab = p.get('settings');
       if (stab) K.state._pendingSettings = stab;
