@@ -1541,7 +1541,28 @@ function render(n) {
   if (document.body.classList.contains('lang-ru')) {
     slideTranslate();
   }
+  updatePostBar(n);
   if (slides[n].demo) setTimeout(() => slides[n].demo(id), 2000);
+}
+
+function updatePostBar(n) {
+  const ru = document.body.classList.contains('lang-ru');
+  const p = ru && posts[n].ru ? posts[n].ru : posts[n];
+  document.getElementById('pbEmoji').textContent = posts[n].emoji;
+  document.getElementById('pbTitle').textContent = p.title;
+  document.getElementById('pbBody').innerHTML = p.body.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/_(.+?)_/g, '<em>$1</em>').replace(/`(.+?)`/g, '<code>$1</code>');
+}
+
+function copyCurrentPost() {
+  const n = current;
+  const ru = document.body.classList.contains('lang-ru');
+  const p = ru && posts[n].ru ? posts[n].ru : posts[n];
+  const text = '**#' + (n+1) + ' — ' + p.title + '**\n\n' + p.body.replace(/\*\*/g, '').replace(/`/g, '').replace(/_/g, '') + '\n\n' + 'kiselgram.ru';
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('pbCopy');
+    if (ru) btn.textContent = '✅ Скопировано!'; else btn.textContent = '✅ Copied!';
+    setTimeout(() => { btn.textContent = '📋 Copy'; }, 2000);
+  }).catch(() => {});
 }
 
 function slideTranslate() {
@@ -1782,6 +1803,7 @@ function toggleRu() {
       __untranslateNode(el);
     });
   }
+  updatePostBar(current);
 }
 </script>
 </body>

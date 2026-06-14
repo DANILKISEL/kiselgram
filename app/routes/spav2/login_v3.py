@@ -3,7 +3,7 @@ from datetime import datetime, timezone, timedelta
 import secrets
 import random
 from app import db
-from app.models import User, Message, Chat, LoginOtp, UserSession, EmailVerification, PreloadedAvatar
+from app.models import User, Message, Chat, LoginOtp, UserSession, EmailVerification, PreloadedAvatar, Referral
 from app.utils.helpers import get_current_user
 from app.utils.security import rate_limit, sanitize_string
 import re
@@ -310,6 +310,8 @@ def register_finish():
     if avatar and re.match(r'^[a-zA-Z0-9_][a-zA-Z0-9_\-\.]*\.(jpg|jpeg|png|gif|webp)$', avatar):
         avatar_url = f"/static/uploads/preloaded-avatars/{avatar}"
 
+    ref_code = data.get('ref', '').strip()
+
     user = User(
         username=username,
         email=email,
@@ -320,6 +322,18 @@ def register_finish():
     )
     db.session.add(user)
     db.session.flush()
+
+    if ref_code:
+        inviter = User.query.filter_by(username=ref_code).first()
+        if inviter and inviter.id != user.id:
+            existing_ref = Referral.query.filter_by(invited_user_id=user.id).first()
+            if not existing_ref:
+                ref = Referral(inviter_id=inviter.id, invited_user_id=user.id)
+                db.session.add(ref)
+                db.session.flush()
+                count = Referral.query.filter_by(inviter_id=inviter.id).count()
+                if count >= 10 and not inviter.is_premium:
+                    inviter.is_premium = True
 
     session_token = _make_session(user)
     return jsonify({'success': True, 'data': {'user': _serialize_user(user), 'session_token': session_token}})
