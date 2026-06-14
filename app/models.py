@@ -144,7 +144,7 @@ class Chat(db.Model):
     __tablename__ = 'chats'
 
     id = db.Column(db.Integer, primary_key=True)
-    chat_type = db.Column(db.String(20), nullable=False)  # 'personal', 'group', 'channel'
+    chat_type = db.Column(db.String(20), nullable=False, index=True)  # 'personal', 'group', 'channel'
     name = db.Column(db.String(100), nullable=True)       # For group/channel; personal uses other user's name
     description = db.Column(db.Text, nullable=True)
     avatar_url = db.Column(db.String(500), nullable=True)
@@ -154,8 +154,8 @@ class Chat(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # For personal chats: the two participants are stored in ChatMember with role='participant'
-    user1_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
-    user2_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    user1_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
+    user2_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
 
     # Relationships
     members = db.relationship('ChatMember', backref='chat', lazy='dynamic', cascade='all, delete-orphan')
@@ -174,8 +174,8 @@ class ChatMember(db.Model):
     __tablename__ = 'chat_members'
 
     id = db.Column(db.Integer, primary_key=True)
-    chat_id = db.Column(db.Integer, db.ForeignKey('chats.id'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    chat_id = db.Column(db.Integer, db.ForeignKey('chats.id'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     role = db.Column(db.String(20), default='member')  # 'owner', 'admin', 'member', 'participant'
     joined_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -187,7 +187,7 @@ class ChatSubscriber(db.Model):
     __tablename__ = 'chat_subscribers'
 
     id = db.Column(db.Integer, primary_key=True)
-    chat_id = db.Column(db.Integer, db.ForeignKey('chats.id'), nullable=False)
+    chat_id = db.Column(db.Integer, db.ForeignKey('chats.id'), nullable=False, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     subscribed_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -229,10 +229,10 @@ class Message(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     content = db.Column(db.Text, nullable=True)
-    sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    chat_id = db.Column(db.Integer, db.ForeignKey('chats.id'), nullable=False)
-    receiver_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # For personal chat, the other user
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    chat_id = db.Column(db.Integer, db.ForeignKey('chats.id'), nullable=False, index=True)
+    receiver_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)  # For personal chat, the other user
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     is_read = db.Column(db.Boolean, default=False)
     telegram_message_id = db.Column(db.String(50), nullable=True)
     is_from_telegram = db.Column(db.Boolean, default=False)
@@ -289,7 +289,7 @@ class Reaction(db.Model):
     __tablename__ = 'reaction'
 
     id = db.Column(db.Integer, primary_key=True)
-    message_id = db.Column(db.Integer, db.ForeignKey('message.id'), nullable=False)
+    message_id = db.Column(db.Integer, db.ForeignKey('message.id'), nullable=False, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     reaction_type = db.Column(db.String(20), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -323,13 +323,13 @@ class Story(db.Model):
     __tablename__ = 'stories'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     media_path = db.Column(db.String(500), nullable=False)
     media_type = db.Column(db.String(20), default='image')
     caption = db.Column(db.Text)
     music_path = db.Column(db.String(500), nullable=True)
     privacy_type = db.Column(db.String(20), default='everyone')
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
     views = db.relationship('StoryView', backref='story', lazy='dynamic', cascade='all, delete-orphan')
     likes = db.relationship('StoryLike', backref='story', lazy='dynamic', cascade='all, delete-orphan')
@@ -342,7 +342,7 @@ class StoryView(db.Model):
     __tablename__ = 'story_views'
 
     id = db.Column(db.Integer, primary_key=True)
-    story_id = db.Column(db.Integer, db.ForeignKey('stories.id'), nullable=False)
+    story_id = db.Column(db.Integer, db.ForeignKey('stories.id'), nullable=False, index=True)
     viewer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     viewed_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -351,7 +351,7 @@ class StoryLike(db.Model):
     __tablename__ = 'story_likes'
 
     id = db.Column(db.Integer, primary_key=True)
-    story_id = db.Column(db.Integer, db.ForeignKey('stories.id'), nullable=False)
+    story_id = db.Column(db.Integer, db.ForeignKey('stories.id'), nullable=False, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -390,7 +390,7 @@ class Contact(db.Model):
     __tablename__ = 'contacts'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     contact_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     custom_name = db.Column(db.String(80), nullable=True)  # Property: a contact can have a name
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -446,8 +446,8 @@ class BlockedUser(db.Model):
     __tablename__ = 'blocked_users'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    blocked_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    blocked_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     blocked_user = db.relationship('User', foreign_keys=[blocked_user_id], backref='blocked_by')
@@ -458,7 +458,7 @@ class UserSession(db.Model):
     __tablename__ = 'user_sessions'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     session_token = db.Column(db.String(255), unique=True, nullable=False)
     device = db.Column(db.String(200), nullable=True)
     ip_address = db.Column(db.String(45), nullable=True)
@@ -472,11 +472,11 @@ class Report(db.Model):
     __tablename__ = 'reports'
 
     id = db.Column(db.Integer, primary_key=True)
-    reporter_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    reporter_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     reported_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     reported_message_id = db.Column(db.Integer, db.ForeignKey('message.id'), nullable=True)
     reason = db.Column(db.Text, nullable=False)
-    status = db.Column(db.String(20), default='pending')
+    status = db.Column(db.String(20), default='pending', index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     reported_message = db.relationship('Message', foreign_keys=[reported_message_id])
@@ -550,7 +550,7 @@ class EmailVerification(db.Model):
 class UserMusic(db.Model):
     __tablename__ = 'user_music'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     file_url = db.Column(db.String(500), nullable=False)
     file_name = db.Column(db.String(255), nullable=True)
     artist = db.Column(db.String(255), nullable=True)
@@ -592,8 +592,8 @@ class QrLoginToken(db.Model):
 class LoginOtp(db.Model):
     __tablename__ = 'login_otps'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
-    code = db.Column(db.String(6), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
+    code = db.Column(db.String(6), nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     expires_at = db.Column(db.DateTime, nullable=False)
     used = db.Column(db.Boolean, default=False)
