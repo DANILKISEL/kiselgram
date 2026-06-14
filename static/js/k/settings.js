@@ -314,5 +314,50 @@ K.settings = {
       const msg = e.body?.error?.fields?.username || e.body?.error?.message || 'Error creating bot';
       K.ui.toast(msg, 'error');
     }
+  },
+  async loadInvite() {
+    const qrEl = $('inviteQR');
+    const linkEl = $('inviteLink');
+    const countEl = $('inviteCount');
+    const barEl = $('referralBar');
+    const statusEl = $('inviteStatus');
+    const badgeEl = $('premiumBadge');
+    const listEl = $('referredUsersList');
+    if (!qrEl) return;
+    try {
+      const d = await K.api.get(V2 + '/referrals/info');
+      if (d.success) {
+        const data = d.data;
+        if (linkEl) linkEl.textContent = data.invite_url.replace('https://', '');
+        if (countEl) countEl.textContent = data.count + '/' + data.threshold;
+        if (barEl) barEl.style.width = Math.min(100, (data.count / data.threshold) * 100) + '%';
+        if (statusEl) statusEl.textContent = data.count >= data.threshold ? 'Premium unlocked!' : data.count + '/' + data.threshold + ' to Premium';
+        if (badgeEl) badgeEl.style.display = data.has_premium ? '' : 'none';
+        qrEl.innerHTML = '';
+        const img = document.createElement('img');
+        img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(data.invite_url);
+        img.alt = 'Invite QR';
+        img.style.width = '200px';
+        img.style.height = '200px';
+        img.style.borderRadius = '8px';
+        qrEl.appendChild(img);
+        if (listEl) {
+          const r = await K.api.get(V2 + '/referrals/list');
+          if (r.success && r.data.length) {
+            listEl.innerHTML = r.data.map(u =>
+              '<div class="k-settings-item"><span>@' + esc(u.username) + '</span><span style="font-size:11px;color:var(--text-muted)">' + fmtTime(new Date(u.created_at)) + '</span></div>'
+            ).join('');
+          } else {
+            listEl.innerHTML = '<div style="color:var(--text-muted);padding:12px;font-size:13px">No referrals yet</div>';
+          }
+        }
+      }
+    } catch(e) { console.error('loadInvite:', e); }
+  },
+  copyInviteLink() {
+    const el = $('inviteLink');
+    if (!el) return;
+    const url = 'https://' + el.textContent;
+    navigator.clipboard.writeText(url).then(() => K.ui.toast('Link copied!', 'success')).catch(() => K.ui.toast('Failed to copy', 'error'));
   }
 };

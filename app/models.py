@@ -589,6 +589,16 @@ class QrLoginToken(db.Model):
     authorized_by = db.relationship('User', backref='qr_authorized_tokens', lazy=True, foreign_keys=[authorized_by_id])
 
 
+class Referral(db.Model):
+    __tablename__ = 'referrals'
+    id = db.Column(db.Integer, primary_key=True)
+    inviter_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    invited_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, unique=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    inviter = db.relationship('User', foreign_keys=[inviter_id], backref='referrals_made')
+    invited = db.relationship('User', foreign_keys=[invited_user_id], backref='referral_invite')
+
+
 class LoginOtp(db.Model):
     __tablename__ = 'login_otps'
     id = db.Column(db.Integer, primary_key=True)
