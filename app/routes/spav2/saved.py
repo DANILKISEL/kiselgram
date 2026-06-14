@@ -1,7 +1,7 @@
 from datetime import datetime
 from flask import Blueprint, request, jsonify
 from app import db
-from app.models import User, Message
+from app.models import User, Message, Chat
 from app.utils.helpers import get_current_user_id
 
 spav2_saved_bp = Blueprint('spav2_saved', __name__, url_prefix='/api')
@@ -26,7 +26,6 @@ def get_saved_messages():
     for msg in saved:
         sender = senders.get(msg.sender_id)
         chat_name = sender.username if sender else 'Unknown'
-        from app.models import Chat
         chat = Chat.query.get(msg.chat_id) if msg.chat_id else None
         if chat:
             chat_name = chat.name
