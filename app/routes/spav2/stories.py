@@ -12,10 +12,7 @@ ALLOWED_IMAGE_EXTS = {'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic', 'heif'
 ALLOWED_VIDEO_EXTS = {'mp4', 'webm', 'avi', 'mov', 'mkv', 'flv', 'wmv', 'm4v'}
 
 
-def _story_to_dict(story, current_user_id):
-    liked = StoryLike.query.filter_by(story_id=story.id, user_id=current_user_id).first() is not None
-    viewed = StoryView.query.filter_by(story_id=story.id, viewer_id=current_user_id).first() is not None
-    my_reaction = StoryReaction.query.filter_by(story_id=story.id, user_id=current_user_id).first()
+def _story_to_dict(story, current_user_id, liked=False, viewed=False, my_reaction=None, view_count=0, like_count=0):
     return {
         'story_id': story.id,
         'media_path': f"/uploads/{story.media_path}" if story.media_path else None,
@@ -24,9 +21,9 @@ def _story_to_dict(story, current_user_id):
         'created_at': story.created_at.isoformat() if story.created_at else None,
         'expires_at': (story.created_at + timedelta(hours=24)).isoformat() if story.created_at else None,
         'is_viewed': viewed,
-        'view_count': StoryView.query.filter_by(story_id=story.id).count(),
-        'like_count': StoryLike.query.filter_by(story_id=story.id).count(),
-        'my_reaction': my_reaction.reaction if my_reaction else None
+        'view_count': view_count,
+        'like_count': like_count,
+        'my_reaction': my_reaction or None
     }
 
 
@@ -37,13 +34,20 @@ def get_stories():
         return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED', 'message': 'Not authenticated'}}), 401
 
     cutoff = datetime.utcnow() - timedelta(hours=24)
-    visible_ids = set([current_user_id])
-    for (uid,) in db.session.query(Message.receiver_id).filter_by(sender_id=current_user_id).distinct():
+    visible_ids = {current_user_id}
+    for (uid,) in db.session.query(Message.receiver_id).filter_by(sender_id=current_user_id).distinct().limit(500):
         visible_ids.add(uid)
-    for (uid,) in db.session.query(Message.sender_id).filter_by(receiver_id=current_user_id).distinct():
+    for (uid,) in db.session.query(Message.sender_id).filter_by(receiver_id=current_user_id).distinct().limit(500):
         visible_ids.add(uid)
 
     stories = Story.query.filter(Story.created_at >= cutoff, Story.user_id.in_(visible_ids)).order_by(Story.created_at.desc()).all()
+
+    story_ids = [s.id for s in stories]
+    my_likes = {s_id for s_id, in db.session.query(StoryLike.story_id).filter(StoryLike.story_id.in_(story_ids), StoryLike.user_id == current_user_id).all()} if story_ids else set()
+    my_views = {s_id for s_id, in db.session.query(StoryView.story_id).filter(StoryView.story_id.in_(story_ids), StoryView.viewer_id == current_user_id).all()} if story_ids else set()
+    my_reactions = dict(db.session.query(StoryReaction.story_id, StoryReaction.reaction).filter(StoryReaction.story_id.in_(story_ids), StoryReaction.user_id == current_user_id).all()) if story_ids else {}
+    view_counts = dict(db.session.query(StoryView.story_id, db.func.count(StoryView.id)).filter(StoryView.story_id.in_(story_ids)).group_by(StoryView.story_id).all()) if story_ids else {}
+    like_counts = dict(db.session.query(StoryLike.story_id, db.func.count(StoryLike.id)).filter(StoryLike.story_id.in_(story_ids)).group_by(StoryLike.story_id).all()) if story_ids else {}
 
     user_map = {}
     for story in stories:
@@ -57,7 +61,14 @@ def get_stories():
                 'stories': [],
                 'has_unviewed': False
             }
-        data = _story_to_dict(story, current_user_id)
+        data = _story_to_dict(
+            story, current_user_id,
+            liked=story.id in my_likes,
+            viewed=story.id in my_views,
+            my_reaction=my_reactions.get(story.id),
+            view_count=view_counts.get(story.id, 0),
+            like_count=like_counts.get(story.id, 0)
+        )
         user_map[uid]['stories'].append(data)
         if not data['is_viewed'] and uid != current_user_id:
             user_map[uid]['has_unviewed'] = True
@@ -212,9 +223,32 @@ def story_stats(story_id):
     if story.user_id != current_user_id:
         return jsonify({'success': False, 'error': {'code': 'FORBIDDEN', 'message': 'Not authorized'}}), 403
 
-    views_q = StoryView.query.filter_by(story_id=story_id).order_by(StoryView.viewed_at.desc()).all()
-    likes_q = StoryLike.query.filter_by(story_id=story_id).order_by(StoryLike.created_at.desc()).all()
-    reactions_q = StoryReaction.query.filter_by(story_id=story_id).order_by(StoryReaction.created_at.desc()).all()
+    views_q = StoryView.query.filter_by(story_id=story_id).order_by(StoryView.viewed_at.desc()).limit(200).all()
+    likes_q = StoryLike.query.filter_by(story_id=story_id).order_by(StoryLike.created_at.desc()).limit(200).all()
+    reactions_q = StoryReaction.query.filter_by(story_id=story_id).order_by(StoryReaction.created_at.desc()).limit(200).all()
+
+    all_user_ids = set()
+    for v in views_q:
+        all_user_ids.add(v.viewer_id)
+    for l in likes_q:
+        all_user_ids.add(l.user_id)
+    for r in reactions_q:
+        all_user_ids.add(r.user_id)
+    users_map = {u.id: u for u in User.query.filter(User.id.in_(all_user_ids)).all()} if all_user_ids else {}
+
+    # Group reactions by type from already-loaded data
+    reaction_groups = {}
+    for r in reactions_q:
+        if r.reaction not in reaction_groups:
+            reaction_groups[r.reaction] = {'count': 0, 'user_ids': set()}
+        reaction_groups[r.reaction]['count'] += 1
+        reaction_groups[r.reaction]['user_ids'].add(r.user_id)
+
+    reactions_data = [{
+        'reaction': reaction,
+        'count': data['count'],
+        'users': sorted(users_map[uid].username for uid in data['user_ids'] if uid in users_map)
+    } for reaction, data in reaction_groups.items()]
 
     return jsonify({'success': True, 'data': {
         'story_id': story_id,
@@ -222,7 +256,7 @@ def story_stats(story_id):
             'count': len(views_q),
             'users': [{
                 'user_id': v.viewer_id,
-                'username': User.query.get(v.viewer_id).username if User.query.get(v.viewer_id) else None,
+                'username': users_map[v.viewer_id].username if v.viewer_id in users_map else None,
                 'viewed_at': v.viewed_at.isoformat() if v.viewed_at else None
             } for v in views_q]
         },
@@ -230,14 +264,10 @@ def story_stats(story_id):
             'count': len(likes_q),
             'users': [{
                 'user_id': l.user_id,
-                'username': User.query.get(l.user_id).username if User.query.get(l.user_id) else None
+                'username': users_map[l.user_id].username if l.user_id in users_map else None
             } for l in likes_q]
         },
-        'reactions': [{
-            'reaction': r.reaction,
-            'count': StoryReaction.query.filter_by(story_id=story_id, reaction=r.reaction).count(),
-            'users': [u.username for u in User.query.join(StoryReaction, User.id == StoryReaction.user_id).filter(StoryReaction.story_id == story_id, StoryReaction.reaction == r.reaction).all()]
-        } for r in reactions_q]
+        'reactions': reactions_data
     }})
 
 

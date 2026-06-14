@@ -234,7 +234,7 @@ K.chat = {
     let html = '', lastDate = '', lastSender = null, lastTime = null;
     const uid = K.state.user?.user_id;
     for (const m of msgs) {
-      const d = new Date(m.timestamp || Date.now());
+      const d = safeDate(m.timestamp) || new Date();
       const ds = d.toLocaleDateString();
       if (ds !== lastDate) {
         lastDate = ds; lastSender = null; lastTime = null;
@@ -245,7 +245,7 @@ K.chat = {
         html += `<div class="k-date-divider"><span>${label}</span></div>`;
       }
       const isOwn = m.sender_id === uid || m.is_own;
-      const consecutive = m.sender_id === lastSender && lastTime && (new Date(m.timestamp) - new Date(lastTime)) < 300000;
+      const consecutive = m.sender_id === lastSender && lastTime && (safeDate(m.timestamp)?.getTime()||0) - (safeDate(lastTime)?.getTime()||0) < 300000;
       html += K.chat._messageHtml(m, isOwn, consecutive);
       lastSender = m.sender_id; lastTime = m.timestamp;
     }
@@ -253,7 +253,7 @@ K.chat = {
     K.chat._scrollToBottom();
   },
   _messageHtml(m, isOwn, consecutive) {
-    const time = m.timestamp ? new Date(m.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '';
+    const time = m.timestamp ? (safeDate(m.timestamp)?.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) || '') : '';
     const mid = m.message_id || m.id;
     const isRead = m.is_read === true || m.is_read === 1;
     const statusIcon = !isOwn ? '' : (isRead ? '<i class="fas fa-check-double" style="font-size:10px;color:var(--accent-blue)"></i>' : '<i class="fas fa-check" style="font-size:10px"></i>');

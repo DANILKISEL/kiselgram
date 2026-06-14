@@ -70,7 +70,7 @@ K.adminPage = {
           <td>${esc(r.reporter_username || r.reporter_id)}</td>
           <td>${esc(r.reported_username || r.reported_user_id || '-')}</td>
           <td>${esc((r.reason||'').substring(0,60))}</td>
-          <td>${r.created_at ? new Date(r.created_at).toLocaleDateString() : ''}</td>
+          <td>${r.created_at ? (safeDate(r.created_at)?.toLocaleDateString() || '') : ''}</td>
           <td>${s === 'pending' ? '<button class="btn btn-sm" onclick="K.adminPage.resolveReport('+r.id+')"><i class="fas fa-check"></i> Resolve</button>' : '<span class="badge badge-resolved">Resolved</span>'}</td>
         </tr>
       `).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:12px">No reports</td></tr>';

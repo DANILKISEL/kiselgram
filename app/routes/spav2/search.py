@@ -18,11 +18,11 @@ def global_search():
         return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'Query must be at least 2 characters'}}), 400
 
     q = f"%{query}%"
-    blocked_ids = [b.blocked_user_id for b in BlockedUser.query.filter_by(user_id=current_user_id).all()]
+    blocked_ids = [b.blocked_user_id for b in BlockedUser.query.with_entities(BlockedUser.blocked_user_id).filter_by(user_id=current_user_id).all()]
 
     # Users
     users = User.query.filter(User.username.ilike(q) | (User.display_name.ilike(q))).limit(10).all()
-    contacts_set = set(c.contact_id for c in Contact.query.filter_by(user_id=current_user_id).all())
+    contacts_set = set(c.contact_id for c in Contact.query.with_entities(Contact.contact_id).filter_by(user_id=current_user_id).all())
     users_data = []
     for u in users:
         if u.id == current_user_id or u.id in blocked_ids:
@@ -37,31 +37,31 @@ def global_search():
         })
 
     # Groups
-    memberships = ChatMember.query.filter_by(user_id=current_user_id).all()
-    group_ids = set(m.chat_id for m in memberships)
+    group_ids = set(m.chat_id for m in ChatMember.query.with_entities(ChatMember.chat_id).filter_by(user_id=current_user_id).all())
     groups = Chat.query.filter(Chat.id.in_(group_ids), Chat.name.ilike(q), Chat.chat_type == 'group').limit(10).all()
+    group_counts = dict(db.session.query(ChatMember.chat_id, db.func.count(ChatMember.id)).filter(ChatMember.chat_id.in_([g.id for g in groups])).group_by(ChatMember.chat_id).all()) if groups else {}
     groups_data = []
     for g in groups:
         groups_data.append({
             'group_id': g.id,
             'name': g.name,
             'avatar_url': g.avatar_url,
-            'member_count': ChatMember.query.filter_by(chat_id=g.id).count(),
+            'member_count': group_counts.get(g.id, 0),
             'is_member': True
         })
 
     # Channels
     from app.models import ChatSubscriber
-    subs = ChatSubscriber.query.filter_by(user_id=current_user_id).all()
-    chan_ids = set(s.chat_id for s in subs)
+    chan_ids = set(s.chat_id for s in ChatSubscriber.query.with_entities(ChatSubscriber.chat_id).filter_by(user_id=current_user_id).all())
     channels = Chat.query.filter(Chat.id.in_(chan_ids), Chat.name.ilike(q), Chat.chat_type == 'channel').limit(10).all()
+    chan_counts = dict(db.session.query(ChatSubscriber.chat_id, db.func.count(ChatSubscriber.id)).filter(ChatSubscriber.chat_id.in_([c.id for c in channels])).group_by(ChatSubscriber.chat_id).all()) if channels else {}
     channels_data = []
     for c in channels:
         channels_data.append({
             'channel_id': c.id,
             'name': c.name,
             'avatar_url': c.avatar_url,
-            'subscriber_count': ChatSubscriber.query.filter_by(chat_id=c.id).count(),
+            'subscriber_count': chan_counts.get(c.id, 0),
             'is_subscribed': True
         })
 
@@ -86,8 +86,8 @@ def search_users():
         return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'Search query must be at least 2 characters'}}), 400
 
     q = f"%{query}%"
-    blocked_ids = [b.blocked_user_id for b in BlockedUser.query.filter_by(user_id=current_user_id).all()]
-    contacts_set = set(c.contact_id for c in Contact.query.filter_by(user_id=current_user_id).all())
+    blocked_ids = [b.blocked_user_id for b in BlockedUser.query.with_entities(BlockedUser.blocked_user_id).filter_by(user_id=current_user_id).all()]
+    contacts_set = set(c.contact_id for c in Contact.query.with_entities(Contact.contact_id).filter_by(user_id=current_user_id).all())
 
     users = User.query.filter(User.username.ilike(q) | (User.display_name.ilike(q))).limit(20).all()
     result = []

@@ -35,6 +35,11 @@ def add_security_headers(resp):
     resp.headers.setdefault('Content-Security-Policy', CSP_POLICY)
     if request.is_secure:
         resp.headers.setdefault('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+    path = getattr(request, 'path', '') or ''
+    if path.startswith('/api') or path.startswith('/api.v2') or path.startswith('/api.v3'):
+        resp.headers.setdefault('Cache-Control', 'no-store')
+    else:
+        resp.headers.setdefault('Cache-Control', 'no-cache')
     return resp
 
 # ─── RATE LIMITER ──────────────────────────────────────────────────────────

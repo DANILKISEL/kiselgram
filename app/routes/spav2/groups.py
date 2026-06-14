@@ -10,8 +10,9 @@ from app.utils.helpers import get_current_user_id
 spav2_groups_bp = Blueprint('spav2_groups', __name__, url_prefix='/api')
 
 
-def _serialize_group(chat):
-    member_count = ChatMember.query.filter_by(chat_id=chat.id).count()
+def _serialize_group(chat, member_count=None):
+    if member_count is None:
+        member_count = ChatMember.query.filter_by(chat_id=chat.id).count()
     last = Message.query.filter_by(chat_id=chat.id).order_by(Message.timestamp.desc()).first()
     return {
         'group_id': chat.id,
@@ -40,11 +41,14 @@ def get_groups():
         return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED', 'message': 'Not authenticated'}}), 401
 
     memberships = ChatMember.query.filter_by(user_id=current_user_id).all()
+    chat_ids = [m.chat_id for m in memberships]
+    chats_map = {c.id: c for c in Chat.query.filter(Chat.id.in_(chat_ids)).all()} if chat_ids else {}
+    counts = dict(db.session.query(ChatMember.chat_id, db.func.count(ChatMember.id)).filter(ChatMember.chat_id.in_(chat_ids)).group_by(ChatMember.chat_id).all()) if chat_ids else {}
     groups = []
     for m in memberships:
-        chat = Chat.query.get(m.chat_id)
+        chat = chats_map.get(m.chat_id)
         if chat:
-            g = _serialize_group(chat)
+            g = _serialize_group(chat, member_count=counts.get(chat.id, 0))
             g['my_role'] = m.role
             groups.append(g)
 
@@ -123,14 +127,13 @@ def get_group_messages(group_id):
     after_id = request.args.get('after', 0, type=int)
     limit = min(request.args.get('limit', 50, type=int), 100)
 
-    messages = Message.query.filter_by(chat_id=group_id).filter(Message.id > after_id).order_by(Message.timestamp.asc()).limit(limit).all()
+    messages = Message.query.options(db.joinedload(Message.reactions)).filter_by(chat_id=group_id).filter(Message.id > after_id).order_by(Message.timestamp.asc()).limit(limit).all()
     has_more = len(messages) == limit
 
     result = []
     for msg in messages:
-        from app.models import Reaction as ReactionModel
         reacs = {}
-        for r in ReactionModel.query.filter_by(message_id=msg.id).all():
+        for r in msg.reactions:
             reacs[r.reaction_type] = reacs.get(r.reaction_type, 0) + 1
         d = {
             'message_id': msg.id,

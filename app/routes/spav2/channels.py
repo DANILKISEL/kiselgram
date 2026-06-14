@@ -50,14 +50,13 @@ def get_channel_messages(channel_id):
     after_id = request.args.get('after', 0, type=int)
     limit = min(request.args.get('limit', 50, type=int), 100)
 
-    messages = Message.query.filter_by(chat_id=channel_id).filter(Message.id > after_id).order_by(Message.timestamp.asc()).limit(limit).all()
+    messages = Message.query.options(db.joinedload(Message.reactions)).filter_by(chat_id=channel_id).filter(Message.id > after_id).order_by(Message.timestamp.asc()).limit(limit).all()
     has_more = len(messages) == limit
 
     result = []
     for msg in messages:
-        from app.models import Reaction as ReactionModel
         reacs = {}
-        for r in ReactionModel.query.filter_by(message_id=msg.id).all():
+        for r in msg.reactions:
             reacs[r.reaction_type] = reacs.get(r.reaction_type, 0) + 1
         result.append({
             'message_id': msg.id,

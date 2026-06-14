@@ -14,9 +14,11 @@ def get_contacts():
         return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED', 'message': 'Not authenticated'}}), 401
 
     contacts = Contact.query.filter_by(user_id=current_user_id).all()
+    contact_ids = [c.contact_id for c in contacts]
+    users = {u.id: u for u in User.query.filter(User.id.in_(contact_ids)).all()} if contact_ids else {}
     result = []
     for c in contacts:
-        user = User.query.get(c.contact_id)
+        user = users.get(c.contact_id)
         if user:
             result.append({
                 'user_id': user.id,
@@ -106,9 +108,11 @@ def get_blocked_users():
         return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED', 'message': 'Not authenticated'}}), 401
 
     blocks = BlockedUser.query.filter_by(user_id=current_user_id).all()
+    blocked_ids_list = [b.blocked_user_id for b in blocks]
+    users = {u.id: u for u in User.query.filter(User.id.in_(blocked_ids_list)).all()} if blocked_ids_list else {}
     result = []
     for b in blocks:
-        user = User.query.get(b.blocked_user_id)
+        user = users.get(b.blocked_user_id)
         result.append({
             'user_id': b.blocked_user_id,
             'username': user.username if user else 'Unknown',
