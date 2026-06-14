@@ -50,10 +50,14 @@ def send_personal_message():
     reply_to_id = data.get('reply_to_id')
 
     errors = {}
+    if not isinstance(receiver_id, int):
+        errors['receiver_id'] = 'Receiver ID must be an integer'
     if not receiver_id:
         errors['receiver_id'] = 'Receiver ID is required'
     if not content:
         errors['content'] = 'Message content cannot be empty'
+    if len(content) > 5000:
+        errors['content'] = 'Message content too long (max 5000 characters)'
     if errors:
         return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'Validation failed', 'fields': errors}}), 400
 

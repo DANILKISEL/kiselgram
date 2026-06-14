@@ -59,6 +59,9 @@ def make_call():
     receiver_id = data.get('receiver_id')
     call_type = data.get('call_type', 'voice')
 
+    if not isinstance(receiver_id, int):
+        return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'receiver_id must be an integer'}}), 400
+
     if call_type not in ('voice', 'video'):
         return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'Call type must be voice or video'}}), 400
 

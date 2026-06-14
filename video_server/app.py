@@ -83,10 +83,14 @@ def list_rooms():
 def create_room():
     b = request.get_json(silent=True) or {}
     rid = uuid.uuid4().hex[:8]
+    try:
+        max_ppl = int(b.get('max_participants', 10))
+    except (ValueError, TypeError):
+        max_ppl = 10
     rooms[rid] = {'name':b.get('name',f"{b.get('username','A')}'s Room"),
                   'created_by':b.get('username','A'),'created_by_id':b.get('user_id',''),
                   'created_at':datetime.now(timezone.utc).isoformat(),
-                  'max_participants':min(int(b.get('max_participants',10)),50),
+                  'max_participants':min(max_ppl, 50),
                   'active':True,'_ts':time.time()}
     logger.info(f"Room {rid} by {b.get('username')}")
     return jsonify({'success':True,'room_id':rid,'join_url':f"{_url()}/room/{rid}"})
@@ -238,7 +242,12 @@ def h_identify(data):
 
 @socketio.on('join-room')
 def handle_join(data):
-    rid, username, uid = data.get('room'), data.get('username','Anonymous'), data.get('user_id','0')
+    rid = data.get('room') or ''
+    if not rid:
+        emit('error', {'message': 'Room ID required'})
+        return
+    username = data.get('username', 'Anonymous')
+    uid = data.get('user_id', '0')
     if app.config['PRODUCTION']:
         resolved = _resolve_user(uid)
         if not resolved: emit('error',{'message':'Auth failed'}); return
@@ -260,11 +269,11 @@ def handle_join(data):
         for s,u in participants[rid].items() if s != sid]},room=sid)
 
 @socketio.on('offer')
-def h_offer(d): emit('offer',{'offer':d['offer'],'from':request.sid},room=d['to'])
+def h_offer(d): emit('offer',{'offer':d.get('offer'),'from':request.sid},room=d.get('to'))
 @socketio.on('answer')
-def h_answer(d): emit('answer',{'answer':d['answer'],'from':request.sid},room=d['to'])
+def h_answer(d): emit('answer',{'answer':d.get('answer'),'from':request.sid},room=d.get('to'))
 @socketio.on('ice-candidate')
-def h_ice(d): emit('ice-candidate',{'candidate':d['candidate'],'from':request.sid},room=d['to'])
+def h_ice(d): emit('ice-candidate',{'candidate':d.get('candidate'),'from':request.sid},room=d.get('to'))
 
 @socketio.on('toggle-audio')
 def h_audio(d):

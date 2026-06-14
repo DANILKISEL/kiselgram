@@ -112,6 +112,11 @@ def create_story():
     caption = request.form.get('caption', '')
     privacy = request.form.get('privacy', 'everyone')
 
+    if len(caption) > 500:
+        return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'Caption too long (max 500 characters)'}}), 400
+    if privacy not in ('everyone', 'contacts', 'close_friends'):
+        return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'Privacy must be one of: everyone, contacts, close_friends'}}), 400
+
     story = Story(user_id=current_user_id, media_path=rel_path, media_type=media_type, caption=caption, created_at=datetime.utcnow())
     if hasattr(story, 'privacy_type'):
         story.privacy_type = privacy
