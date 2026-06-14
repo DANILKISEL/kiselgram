@@ -140,6 +140,9 @@ def take_action(report_id):
     action_type = data.get('action_type', '')
     user_id = data.get('user_id')
 
+    if user_id is not None and not isinstance(user_id, int):
+        return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'user_id must be an integer'}}), 400
+
     if action_type == 'warn':
         report.status = 'actioned_warn'
     elif action_type == 'delete_message':

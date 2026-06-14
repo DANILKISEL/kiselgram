@@ -208,14 +208,19 @@ def search_in_chat():
     chat_type = data.get('chat_type', 'personal')
     q = f"%{query}%"
 
+    try:
+        chat_id_int = int(chat_id)
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'Invalid chat_id format'}}), 400
+
     if chat_type == 'personal':
         messages = Message.query.filter(
-            ((Message.sender_id == current_user_id) & (Message.receiver_id == int(chat_id))) |
-            ((Message.sender_id == int(chat_id)) & (Message.receiver_id == current_user_id)),
+            ((Message.sender_id == current_user_id) & (Message.receiver_id == chat_id_int)) |
+            ((Message.sender_id == chat_id_int) & (Message.receiver_id == current_user_id)),
             Message.content.ilike(q)
         ).order_by(Message.timestamp.desc()).limit(50).all()
     else:
-        messages = Message.query.filter_by(chat_id=int(chat_id)).filter(Message.content.ilike(q)).order_by(Message.timestamp.desc()).limit(50).all()
+        messages = Message.query.filter_by(chat_id=chat_id_int).filter(Message.content.ilike(q)).order_by(Message.timestamp.desc()).limit(50).all()
 
     results = []
     for msg in messages:

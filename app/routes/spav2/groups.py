@@ -169,6 +169,9 @@ def create_group():
     description = data.get('description', '')
     member_ids = data.get('member_ids', [])
 
+    if not isinstance(member_ids, list):
+        return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'member_ids must be a list'}}), 400
+
     if not name:
         return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'Validation failed', 'fields': {'name': 'Group name is required', 'member_ids': 'At least one member is required'}}}), 400
 
@@ -251,9 +254,15 @@ def update_group(group_id):
         return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'Group not found'}}), 404
 
     if 'name' in data:
-        chat.name = data['name']
+        val = data['name']
+        if not isinstance(val, str) or len(val) > 100:
+            return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'Name must be a string (max 100 characters)'}}), 400
+        chat.name = val
     if 'description' in data:
-        chat.description = data['description']
+        val = data['description']
+        if not isinstance(val, str) or len(val) > 2000:
+            return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'Description must be a string (max 2000 characters)'}}), 400
+        chat.description = val
     db.session.commit()
     return jsonify({'success': True, 'data': {'group': _serialize_group(chat)}})
 
