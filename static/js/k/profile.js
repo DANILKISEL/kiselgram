@@ -62,6 +62,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const theirColor = localStorage.getItem('k_color_their') || '#e8e8e8';
   document.documentElement.style.setProperty('--bubble-my', myColor);
   document.documentElement.style.setProperty('--bubble-their', theirColor);
+  document.documentElement.style.setProperty('--primary-color', myColor);
   const myInput = $('myColor'); if (myInput) myInput.value = myColor;
   const theirInput = $('theirColor'); if (theirInput) theirInput.value = theirColor;
 
