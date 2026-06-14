@@ -154,28 +154,42 @@ class TestUploadStory:
 class TestDeleteFile:
     """DELETE /files/delete_file/<message_id>"""
 
+    def _make_chat(self, u1, u2):
+        from app.models import Chat, ChatMember
+        c = Chat(chat_type='personal')
+        db.session.add(c)
+        db.session.flush()
+        db.session.add(ChatMember(chat_id=c.id, user_id=u1.id, role='participant'))
+        db.session.add(ChatMember(chat_id=c.id, user_id=u2.id, role='participant'))
+        db.session.flush()
+        return c
+
     def test_delete_file_message(self, logged_in_client, user, user2):
+        chat = self._make_chat(user, user2)
         msg = Message(content="File message", sender_id=user.id,
-                      receiver_id=user2.id, file_path="test.pdf",
-                      has_attachment=True)
+                      receiver_id=user2.id, chat_id=chat.id,
+                      file_path="test.pdf", has_attachment=True)
         db.session.add(msg)
         db.session.commit()
         resp = logged_in_client.delete(f"/files/delete_file/{msg.id}")
         assert resp.status_code == 200
-        assert db.session.get(Message, msg.id) is None  # Message deleted
+        assert db.session.get(Message, msg.id) is None
 
     def test_delete_others_file(self, logged_in_client, user, user2):
+        chat = self._make_chat(user, user2)
         msg = Message(content="Not yours", sender_id=user2.id,
-                      receiver_id=user.id, file_path="test.pdf",
-                      has_attachment=True)
+                      receiver_id=user.id, chat_id=chat.id,
+                      file_path="test.pdf", has_attachment=True)
         db.session.add(msg)
         db.session.commit()
         resp = logged_in_client.delete(f"/files/delete_file/{msg.id}")
         assert resp.status_code == 403
 
     def test_delete_file_no_auth(self, client, user, user2):
+        chat = self._make_chat(user, user2)
         msg = Message(content="No auth", sender_id=user.id,
-                      receiver_id=user2.id, file_path="test.pdf")
+                      receiver_id=user2.id, chat_id=chat.id,
+                      file_path="test.pdf")
         db.session.add(msg)
         db.session.commit()
         resp = client.delete(f"/files/delete_file/{msg.id}")

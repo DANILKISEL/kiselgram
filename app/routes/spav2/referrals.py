@@ -2,7 +2,6 @@ from flask import Blueprint, request, jsonify
 from app import db
 from app.models import User, Referral
 from app.utils.helpers import get_current_user_id
-from app.utils.security import check_user_access
 
 spav2_referrals_bp = Blueprint('spav2_referrals', __name__, url_prefix='/api')
 
