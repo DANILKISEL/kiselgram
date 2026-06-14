@@ -112,7 +112,7 @@ K.qrlogin = {
       try {
         const d = await K.api.get(V3 + '/auth/qr/status/' + token);
         if (d.success && d.data) {
-          if (d.data.consumed) {
+          if (d.data.authorized && !d.data.consumed) {
             K.qrlogin._stopPolling();
             if (K.qrlogin._isUnAuth) {
               $('qrStatus').innerHTML = '<span style="color:var(--success)"><i class="fas fa-check-circle"></i> Authorized! Logging in...</span>';
@@ -156,5 +156,6 @@ K.qrlogin = {
     K.qrlogin._stopCountdown();
     K.qrlogin._currentToken = null;
     K.qrlogin._isUnAuth = false;
+    K.qrlogin._mode = 'show';
   },
 };
