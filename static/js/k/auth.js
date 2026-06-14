@@ -1,6 +1,6 @@
 K.auth = {
-  accounts: JSON.parse(localStorage.getItem('k_accounts') || '[]'),
-  activeIdx: parseInt(localStorage.getItem('k_active_idx') || '0'),
+  accounts: (() => { try { return JSON.parse(localStorage.getItem('k_accounts') || '[]'); } catch(e) { return []; } })(),
+  activeIdx: (() => { try { return parseInt(localStorage.getItem('k_active_idx') || '0', 10); } catch(e) { return 0; } })(),
 
   hideSplash() {
     const s = $('splashScreen'); if (s) { s.classList.add('fade-out'); setTimeout(() => { if (s) s.style.display = 'none'; }, 600); }

@@ -1,10 +1,33 @@
+import secrets
+import urllib.request
+import json as json_module
 from flask import Blueprint, request, jsonify, render_template, session, redirect, url_for
 from functools import wraps
 from datetime import datetime, timezone
 from app import db
-from app.models import User, Report, Message, LoginOtp, Chat, ChatMember
+from app.models import User, Report, Message, LoginOtp, Chat, ChatMember, ChatSubscriber
 from app.utils.helpers import get_current_user
 from app.utils.security import rate_limit
+from app.routes.premium import load_premium_config, save_premium_config, generate_promo_code
+
+MAILADMIN_URL = 'http://mailadmin:5002'
+MAILADMIN_KEY = 'admin-internal-secret-kisel'
+
+def _mailadmin_call(method, path, body=None):
+    url = f'{MAILADMIN_URL}{path}'
+    headers = {'X-Internal-Key': MAILADMIN_KEY, 'Content-Type': 'application/json'}
+    data = json_module.dumps(body).encode() if body else None
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return json_module.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        try:
+            return json_module.loads(e.read())
+        except Exception:
+            return {'success': False, 'error': f'HTTP {e.code}'}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
 
 spav2_admin_bp = Blueprint('spav2_admin', __name__, url_prefix='/api/admin')
 
@@ -454,4 +477,134 @@ def admin_restore_message(chat_id, message_id):
     msg.deleted_at = None
     db.session.commit()
     return jsonify({'success': True, 'data': {'message': 'Message restored'}})
+
+
+# ── Channel Creation ─────────────────────────────────────
+
+@spav2_admin_bp.route('/channels/create', methods=['POST'])
+@admin_required
+def admin_create_channel():
+    data = request.get_json() or {}
+    name = (data.get('name') or '').strip()
+    description = (data.get('description') or '').strip()
+    if not name:
+        return jsonify({'success': False, 'error': {'code': 'VALIDATION', 'message': 'Channel name required'}}), 400
+
+    admin = get_current_user()
+    invite_link = secrets.token_urlsafe(16)
+    chat = Chat(chat_type='channel', name=name, description=description or None,
+                owner_id=admin.id, is_public=True, invite_link=invite_link,
+                created_at=datetime.now(timezone.utc).replace(tzinfo=None))
+    db.session.add(chat)
+    db.session.flush()
+    db.session.add(ChatSubscriber(user_id=admin.id, chat_id=chat.id))
+    db.session.commit()
+
+    return jsonify({'success': True, 'data': {
+        'id': chat.id, 'name': chat.name, 'chat_type': 'channel',
+        'description': chat.description, 'message_count': 0, 'member_count': 1,
+        'created_at': chat.created_at.isoformat() if chat.created_at else None
+    }})
+
+
+@spav2_admin_bp.route('/chats/<int:chat_id>/post', methods=['POST'])
+@admin_required
+def admin_post_to_chat(chat_id):
+    chat = Chat.query.get_or_404(chat_id)
+    data = request.get_json() or {}
+    content = (data.get('content') or '').strip()
+    if not content:
+        return jsonify({'success': False, 'error': {'code': 'VALIDATION', 'message': 'Content required'}}), 400
+    admin = get_current_user()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    msg = Message(sender_id=admin.id, chat_id=chat_id, receiver_id=admin.id,
+                  content=content, timestamp=now)
+    db.session.add(msg)
+    db.session.commit()
+    return jsonify({'success': True, 'data': {
+        'message': 'Message posted',
+        'msg': {'id': msg.id, 'sender_id': msg.sender_id, 'sender_username': admin.username,
+                'content': msg.content, 'timestamp': msg.timestamp.isoformat() if msg.timestamp else None}
+    }})
+
+
+# ── Mail Accounts ────────────────────────────────────────
+
+@spav2_admin_bp.route('/mail/accounts', methods=['GET'])
+@admin_required
+def admin_mail_accounts():
+    result = _mailadmin_call('GET', '/api/accounts')
+    return jsonify(result)
+
+
+@spav2_admin_bp.route('/mail/accounts', methods=['POST'])
+@admin_required
+def admin_mail_add():
+    data = request.get_json() or {}
+    result = _mailadmin_call('POST', '/api/accounts', data)
+    return jsonify(result)
+
+
+@spav2_admin_bp.route('/mail/accounts/<path:email>', methods=['DELETE'])
+@admin_required
+def admin_mail_delete(email):
+    result = _mailadmin_call('DELETE', f'/api/accounts/{email}')
+    return jsonify(result)
+
+
+@spav2_admin_bp.route('/mail/accounts/<path:email>/password', methods=['POST'])
+@admin_required
+def admin_mail_reset_password(email):
+    data = request.get_json() or {}
+    result = _mailadmin_call('POST', f'/api/accounts/{email}/password', data)
+    return jsonify(result)
+
+
+# ── Promo Codes ──────────────────────────────────────────
+
+@spav2_admin_bp.route('/promo/list', methods=['GET'])
+@admin_required
+def admin_promo_list():
+    config = load_premium_config()
+    codes = []
+    for code, data in config.get('promo_codes', {}).items():
+        codes.append({'code': code, **data})
+    return jsonify({'success': True, 'promo_codes': codes})
+
+
+@spav2_admin_bp.route('/promo/generate', methods=['POST'])
+@admin_required
+def admin_promo_generate():
+    data = request.get_json() or {}
+    duration = data.get('duration_days', 30)
+    max_uses = data.get('max_uses', 1)
+    custom_code = data.get('custom_code', '').strip().upper()
+    admin = get_current_user()
+    config = load_premium_config()
+    if custom_code:
+        if custom_code in config.get('promo_codes', {}):
+            return jsonify({'success': False, 'error': {'code': 'CONFLICT', 'message': 'Code already exists'}}), 409
+        code = custom_code
+        config.setdefault('promo_codes', {})[code] = {
+            'duration_days': duration, 'max_uses': max_uses, 'used_count': 0,
+            'created_at': datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+            'created_by': admin.username,
+            'expires_at': None, 'active': True
+        }
+        save_premium_config(config)
+    else:
+        code = generate_promo_code(duration_days=duration, max_uses=max_uses, created_by=admin.username)
+    return jsonify({'success': True, 'data': {'code': code, 'duration_days': duration, 'max_uses': max_uses}})
+
+
+@spav2_admin_bp.route('/promo/toggle/<code>', methods=['POST'])
+@admin_required
+def admin_promo_toggle(code):
+    config = load_premium_config()
+    codes = config.get('promo_codes', {})
+    if code not in codes:
+        return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'Promo code not found'}}), 404
+    codes[code]['active'] = not codes[code].get('active', True)
+    save_premium_config(config)
+    return jsonify({'success': True, 'data': {'active': codes[code]['active']}})
  

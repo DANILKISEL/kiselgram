@@ -146,6 +146,58 @@
         .footer-links a:hover { color: #f0f6fc; }
         .footer-copy { color: #484f58; font-size: 13px; }
 
+        /* Carousel */
+        .carousel-wrap {
+            position: relative; max-width: 640px; margin: 0 auto;
+        }
+        .carousel {
+            position: relative; min-height: 320px; overflow: hidden;
+            background: #161b22; border: 1px solid #30363d; border-radius: 16px;
+            padding: 48px 40px 40px;
+        }
+        .carousel-slide {
+            display: none; text-align: center; animation: fadeIn 0.4s ease;
+        }
+        .carousel-slide.active { display: block; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .slide-icon {
+            width: 64px; height: 64px; border-radius: 18px;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 20px; font-size: 28px;
+        }
+        .carousel-slide h3 {
+            font-size: 24px; font-weight: 700; color: #f0f6fc; margin-bottom: 12px;
+        }
+        .carousel-slide p {
+            font-size: 15px; color: #8b949e; line-height: 1.7; margin-bottom: 20px;
+        }
+        .slide-tags { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+        .slide-tags span {
+            padding: 4px 14px; background: rgba(251,99,64,0.08);
+            border: 1px solid rgba(251,99,64,0.2); border-radius: 20px;
+            font-size: 12px; color: #fb6340; font-weight: 500;
+        }
+        .carousel-controls {
+            display: flex; align-items: center; justify-content: center;
+            gap: 16px; margin-top: 20px;
+        }
+        .carousel-btn {
+            width: 40px; height: 40px; border-radius: 50%;
+            border: 1px solid #30363d; background: #161b22;
+            color: #c9d1d9; cursor: pointer; font-size: 14px;
+            transition: all 0.2s; display: flex; align-items: center; justify-content: center;
+        }
+        .carousel-btn:hover { border-color: #fb6340; color: #fb6340; }
+        .carousel-dots { display: flex; gap: 8px; }
+        .carousel-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: #30363d; cursor: pointer; transition: all 0.3s; border: none;
+        }
+        .carousel-dot.active { background: #fb6340; width: 24px; border-radius: 4px; }
+
         @media (max-width: 768px) {
             .hero h1 { font-size: 36px; }
             .about-grid { grid-template-columns: 1fr; }
@@ -168,6 +220,7 @@
     <div class="nav-links">
         <a href="#about" class="nav-link">About</a>
         <a href="#features" class="nav-link">Features</a>
+        <a href="#spotlight" class="nav-link">Spotlight</a>
         <a href="#video" class="nav-link">Video</a>
         <a href="{{ url_for('auth.login') }}" class="btn-outline" style="text-decoration:none;">Sign In</a>
         <a href="{{ url_for('auth.register') }}" class="btn-primary" style="text-decoration:none;">Get Started</a>
@@ -272,6 +325,135 @@
         </div>
     </section>
 
+    <!-- Feature Spotlight Carousel -->
+    <section id="spotlight">
+        <div class="section-header">
+            <h2>14 features that make Kiselgram shine</h2>
+            <p>A closer look at what you can do — one slide at a time.</p>
+        </div>
+        <div class="carousel-wrap">
+            <div class="carousel" id="carousel">
+                <div class="carousel-slide active">
+                    <div class="slide-icon" style="background:rgba(251,99,64,0.15);color:#fb6340;"><i class="fas fa-bolt"></i></div>
+                    <h3>Instant Messaging</h3>
+                    <p class="slide-desc">Real-time chat with read receipts, typing indicators, emoji reactions, inline replies, and full Markdown formatting. Every message delivered in milliseconds.</p>
+                    <div class="slide-tags">
+                        <span>Markdown</span><span>Reactions</span><span>Replies</span><span>Read receipts</span>
+                    </div>
+                </div>
+                <div class="carousel-slide">
+                    <div class="slide-icon" style="background:rgba(45,206,137,0.15);color:#2dce89;"><i class="fas fa-users"></i></div>
+                    <h3>Group Chats</h3>
+                    <p class="slide-desc">Create communities of any size. Granular role-based permissions for Owner, Admin, and Member — control who can send, pin, add, ban, or delete.</p>
+                    <div class="slide-tags">
+                        <span>Roles</span><span>Invite links</span><span>Pinned msgs</span><span>Permissions</span>
+                    </div>
+                </div>
+                <div class="carousel-slide">
+                    <div class="slide-icon" style="background:rgba(94,114,228,0.15);color:#5e72e4;"><i class="fas fa-bullhorn"></i></div>
+                    <h3>Channels</h3>
+                    <p>Broadcast messages to unlimited subscribers. Only admins can post — perfect for news, announcements, and content creators. Public by default, with invite links.</p>
+                    <div class="slide-tags">
+                        <span>Broadcast</span><span>Subscribers</span><span>Channel admins</span><span>Invite links</span>
+                    </div>
+                </div>
+                <div class="carousel-slide">
+                    <div class="slide-icon" style="background:rgba(240,147,251,0.15);color:#f093fb;"><i class="fas fa-video"></i></div>
+                    <h3>Video Calls</h3>
+                    <p>High-quality peer-to-peer WebRTC video calls. Create rooms with custom names, invite anyone with a link — no account required to join. Up to 50 participants per room.</p>
+                    <div class="slide-tags">
+                        <span>WebRTC</span><span>Up to 50</span><span>No account needed</span><span>In-call chat</span>
+                    </div>
+                </div>
+                <div class="carousel-slide">
+                    <div class="slide-icon" style="background:rgba(45,206,185,0.15);color:#2dceb9;"><i class="fas fa-camera"></i></div>
+                    <h3>Stories</h3>
+                    <p>Share photos, videos, and music that disappear after 24 hours. Privacy controls for everyone or close friends only. Like, react, and reply to keep conversations going.</p>
+                    <div class="slide-tags">
+                        <span>24h expiry</span><span>Reactions</span><span>Privacy</span><span>View tracking</span>
+                    </div>
+                </div>
+                <div class="carousel-slide">
+                    <div class="slide-icon" style="background:rgba(255,193,7,0.15);color:#ffc107;"><i class="fas fa-bookmark"></i></div>
+                    <h3>Saved Messages</h3>
+                    <p>Bookmark any message from any chat into a dedicated "Saved Messages" collection. Add personal notes to each saved item. Your private reference library, always accessible.</p>
+                    <div class="slide-tags">
+                        <span>Bookmarks</span><span>Personal notes</span><span>Searchable</span><span>Self-chat</span>
+                    </div>
+                </div>
+                <div class="carousel-slide">
+                    <div class="slide-icon" style="background:rgba(251,99,64,0.15);color:#fb6340;"><i class="fas fa-music"></i></div>
+                    <h3>Music Library</h3>
+                    <p>Collect audio messages into a personal music player. Browse by track, artist, and source message. Share your music profile with others and discover new sounds.</p>
+                    <div class="slide-tags">
+                        <span>Player</span><span>Library</span><span>Profiles</span><span>Track metadata</span>
+                    </div>
+                </div>
+                <div class="carousel-slide">
+                    <div class="slide-icon" style="background:rgba(94,114,228,0.15);color:#5e72e4;"><i class="fas fa-search"></i></div>
+                    <h3>Global Search</h3>
+                    <p>Unified search across users, groups, channels, and messages. Find conversations, shared files, music, and contacts instantly. Recent searches auto-saved for quick access.</p>
+                    <div class="slide-tags">
+                        <span>Unified</span><span>Message search</span><span>User lookup</span><span>Recent searches</span>
+                    </div>
+                </div>
+                <div class="carousel-slide">
+                    <div class="slide-icon" style="background:rgba(45,206,137,0.15);color:#2dce89;"><i class="fas fa-file-upload"></i></div>
+                    <h3>File Sharing</h3>
+                    <p>Send images, documents, video, and audio with drag-and-drop simplicity. 16MB per file, extension-whitelist for security. Preview images and play media inline.</p>
+                    <div class="slide-tags">
+                        <span>Drag & drop</span><span>16MB limit</span><span>Inline preview</span><span>Whitelist</span>
+                    </div>
+                </div>
+                <div class="carousel-slide">
+                    <div class="slide-icon" style="background:rgba(240,147,251,0.15);color:#f093fb;"><i class="fas fa-palette"></i></div>
+                    <h3>Full Customization</h3>
+                    <p>Premium themes, custom fonts, chat wallpapers, bubble colors, and font sizes. Light and dark mode. Make your messenger look exactly how you want it.</p>
+                    <div class="slide-tags">
+                        <span>Themes</span><span>Wallpapers</span><span>Custom fonts</span><span>Bubble colors</span>
+                    </div>
+                </div>
+                <div class="carousel-slide">
+                    <div class="slide-icon" style="background:rgba(45,206,185,0.15);color:#2dceb9;"><i class="fas fa-shield-alt"></i></div>
+                    <h3>Security & Privacy</h3>
+                    <p>Bearer-token auth, CSP headers, in-memory rate limiting, and granular privacy controls. Control who sees your last seen, profile photo, and online status.</p>
+                    <div class="slide-tags">
+                        <span>CSP headers</span><span>Rate limiting</span><span>Privacy controls</span><span>Token auth</span>
+                    </div>
+                </div>
+                <div class="carousel-slide">
+                    <div class="slide-icon" style="background:rgba(251,99,64,0.15);color:#fb6340;"><i class="fas fa-robot"></i></div>
+                    <h3>Bot Platform</h3>
+                    <p>Create bot accounts with webhook integrations. Build interactive web apps that open as fullscreen iframes. Incoming and outgoing webhooks for external service connectivity.</p>
+                    <div class="slide-tags">
+                        <span>Webhooks</span><span>Web apps</span><span>Bot tokens</span><span>Automation</span>
+                    </div>
+                </div>
+                <div class="carousel-slide">
+                    <div class="slide-icon" style="background:rgba(94,114,228,0.15);color:#5e72e4;"><i class="fas fa-exchange-alt"></i></div>
+                    <h3>Multi-Account</h3>
+                    <p>Sign into multiple accounts and switch seamlessly. QR code login makes connecting your desktop client effortless. All your identities, one interface.</p>
+                    <div class="slide-tags">
+                        <span>Multi-account</span><span>QR login</span><span>Desktop client</span><span>Quick switch</span>
+                    </div>
+                </div>
+                <div class="carousel-slide">
+                    <div class="slide-icon" style="background:rgba(45,206,137,0.15);color:#2dce89;"><i class="fas fa-tachometer-alt"></i></div>
+                    <h3>Admin Panel</h3>
+                    <p>Full moderation dashboard with user management, report handling, chat inspection, mail account administration, and promo code generation. Everything you need to run the platform.</p>
+                    <div class="slide-tags">
+                        <span>Reports</span><span>Users</span><span>Mail admin</span><span>Promo codes</span>
+                    </div>
+                </div>
+            </div>
+            <div class="carousel-controls">
+                <button class="carousel-btn" onclick="prevSlide()" aria-label="Previous"><i class="fas fa-chevron-left"></i></button>
+                <div class="carousel-dots" id="dots"></div>
+                <button class="carousel-btn" onclick="nextSlide()" aria-label="Next"><i class="fas fa-chevron-right"></i></button>
+            </div>
+        </div>
+    </section>
+
     <!-- Video Section -->
     <section id="video">
         <div class="video-section">
@@ -319,6 +501,34 @@
         </div>
     </div>
 </footer>
+
+<script>
+let currentSlide = 0;
+const slides = document.querySelectorAll('.carousel-slide');
+const dotsContainer = document.getElementById('dots');
+
+slides.forEach((_, i) => {
+    const dot = document.createElement('button');
+    dot.className = 'carousel-dot' + (i === 0 ? ' active' : '');
+    dot.onclick = () => goToSlide(i);
+    dotsContainer.appendChild(dot);
+});
+
+function goToSlide(n) {
+    slides[currentSlide].classList.remove('active');
+    dotsContainer.children[currentSlide].classList.remove('active');
+    currentSlide = (n + slides.length) % slides.length;
+    slides[currentSlide].classList.add('active');
+    dotsContainer.children[currentSlide].classList.add('active');
+}
+
+function nextSlide() { goToSlide(currentSlide + 1); }
+function prevSlide() { goToSlide(currentSlide - 1); }
+
+let autoCycle = setInterval(nextSlide, 5000);
+document.getElementById('carousel').addEventListener('mouseenter', () => clearInterval(autoCycle));
+document.getElementById('carousel').addEventListener('mouseleave', () => { autoCycle = setInterval(nextSlide, 5000); });
+</script>
 
 </body>
 </html>

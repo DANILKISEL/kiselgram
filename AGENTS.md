@@ -77,6 +77,8 @@ kiselgram.ru          ─ Main site (landing page)
 web.kiselgram.ru      ─ SPA (/k route)
 app.kiselgram.ru      ─ Redirect to web.kiselgram.ru
 api.kiselgram.ru      ─ API backend
+admin.kiselgram.ru    ─ Admin panel (proxies to Flask, / → redirect to /api/admin/)
+help.kiselgram.ru     ─ Redirects to kiselgram.github.io/help (GitHub Pages, repo github.com/kiselgram/help)
 cdn.kiselgram.ru      ─ Uploaded files (served from volume)
 status.kiselgram.ru   ─ Service status page
 desktop.kiselgram.ru  ─ Desktop client downloads
@@ -92,7 +94,7 @@ All subdomains route to the same VPS (except docs which is on GitHub Pages). ngi
 - `desktop.kiselgram.ru` — static files from `/var/www/desktop`
 - `docs.kiselgram.ru` — CNAME to `kiselgram.github.io` (GitHub Pages)
 
-Single SSL cert SANs: `kiselgram.ru, web.kiselgram.ru, www.kiselgram.ru, api.kiselgram.ru, desktop.kiselgram.ru, app.kiselgram.ru, cdn.kiselgram.ru`
+Single SSL cert SANs: `kiselgram.ru, web.kiselgram.ru, www.kiselgram.ru, api.kiselgram.ru, desktop.kiselgram.ru, app.kiselgram.ru, cdn.kiselgram.ru, admin.kiselgram.ru, help.kiselgram.ru`
 Docs is on GitHub Pages (separate SSL via their CDN).
 
 See `docs/domain.md` for full details.
@@ -126,6 +128,9 @@ Rebuild after code changes: `docker compose build mailadmin && docker compose up
 - Video server's `_ensure_db()` creates the main Flask app for DB access but does NOT push its context globally (uses `with _main_app.app_context():` in `_resolve_user()` instead)
 - V3-only endpoints (QR login, email/login_v3) are registered under `/api.v2/` as well so the desktop client's single base URL works for all login flows
 - `docker compose up -d --build` recreates app and video containers but does NOT restart nginx; run `docker compose restart nginx` if nginx returns 502 (stale upstream)
+- After server reboot, host nginx may grab port 80 before Docker nginx starts; run `systemctl stop nginx && systemctl disable nginx` on the host, then `docker compose up -d nginx`
+- If nginx gets `host not found in upstream "app:5000"`, the container may not be on compose network. Fix: `docker compose create nginx && docker network connect kiselgram_default kiselgram-nginx-1 && docker start kiselgram-nginx-1`
+- Building on Apple Silicon requires `--platform linux/amd64` for server (amd64 host). Transfer: `docker save <image> | ssh root@kiselgram.ru docker load` (avoid intermediate files — SCP/rsync gzip truncates large images).
 
 ## Desktop Client (moved)
 
@@ -140,3 +145,51 @@ API notes (server-side, applies to all clients including desktop):
 - `AuthApi.pollQr()` -> server path: `/auth/qr/status/{token}`
 - `ChatApi.sendTyping()` -> server path: `/typing/{chatType}/{chatId}` (chatType=`personal`, not `private`)
 - QR login + email login endpoints are registered under both `/api.v2/` and `/api.v3/` (see `spav2/__init__.py`)
+
+## Session Summary (2026-06-11)
+
+### Completed
+- **Security audit fixes deployed**: Docker images rebuilt locally for `linux/amd64` and deployed to production. Includes:
+  - Non-root `appuser` in both Dockerfiles + HEALTHCHECKs
+  - Hardcoded secrets moved from docker-compose.yml to `.env` file (`.env.example` created)
+  - JS fixes: try/catch wrappers for `JSON.parse(localStorage)`, error toasts instead of empty catches, CSS injection prevention in settings
+  - `d.success` checks fixed, `parseInt` radix added
+  - Video server `debug=False`, `allow_unsafe_werkzeug=False`
+  - Profile upload extension whitelist
+  - `/health` endpoint, expanded `.dockerignore`
+- **Docker build moved off server**: Building on the 957MB RAM server caused OOM. Changed `docker-compose.yml` to use `image:` tags (no `build:`). Images are built locally on Mac (Apple Silicon with `--platform linux/amd64`) and transferred via `docker save | ssh docker load`.
+- **deploy.sh updated**: Replaced server-side `docker compose build` with local build + `docker save | ssh docker load` pipeline.
+- **Mail server pinned**: `docker-mailserver` image pinned to `14.0` (was `latest`). Nginx pinned to `1.27-alpine` (was `alpine`).
+- **nginx replaced**: Host nginx was binding port 80 after reboot, preventing Docker nginx from starting. Disabled host nginx (`systemctl disable nginx`); Docker nginx now serves all traffic.
+
+### Ongoing Issues
+- **Server underpowered**: 957MB RAM / 512MB swap (old swapfile). Needs `fallocate -l 2G /swapfile` to prevent OOM during heavy operations.
+- **Mailadmin container shows "unhealthy"**: No HEALTHCHECK defined in mailadmin Dockerfile — Docker defaults to unhealthy. Container works fine.
+- **`.env` on server**: Created at `/root/kiselgram/.env` with `POSTGRES_PASSWORD`, `DATABASE_URL`, `MAILADMIN_INTERNAL_KEY`, `MAILADMIN_SECRET`.
+
+### Key Decisions
+- **No Docker builds on server** — build locally, pipe image via `docker save | ssh docker load`
+- **`docker-compose.yml` uses `image:`** instead of `build:` for all custom services
+- **Git-untracked files**: `.env` (all env vars), `config/kis.toml` (OAuth secrets, app config), `mailserver/config/` (mail accounts), `ssl/` (certificates)
+
+### Deploy Workflow
+```bash
+# 1. Build locally
+docker build --platform linux/amd64 -t kiselgram-app:latest .
+docker build --platform linux/amd64 -t kiselgram-mailadmin:latest mailadmin/
+
+# 2. Transfer + load on server
+docker save kiselgram-app:latest | ssh root@kiselgram.ru docker load
+docker save kiselgram-mailadmin:latest | ssh root@kiselgram.ru docker load
+
+# 3. Rsync code + restart
+rsync -avz --delete --exclude-from=.rsync-exclude . root@kiselgram.ru:/root/kiselgram/
+ssh root@kiselgram.ru 'cd /root/kiselgram && docker compose up -d && docker compose restart nginx'
+```
+Or just run `./deploy.sh`.
+
+### Server Architecture
+- amd64 VM (hetzner?), 957MB RAM, 15GB disk
+- Docker compose with 6 containers: db (postgres), app (Flask+gunicorn), video (Flask+eventlet), nginx (proxy), mailserver (docker-mailserver), mailadmin (Flask+gunicorn)
+- nginx is Docker-based; host nginx was disabled (`systemctl disable nginx`)
+- SSL cert with 12 SANs, Let's Encrypt via certbot in Docker

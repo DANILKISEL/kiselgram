@@ -13,3 +13,8 @@ status/
 *.sh
 *.md
 .idea/
+.DS_Store
+desktop-site/
+tests/
+.pytest_cache/
+mailserver/

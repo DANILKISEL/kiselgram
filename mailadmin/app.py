@@ -23,6 +23,7 @@ DOMAINS = [d.strip() for d in
            os.environ.get('MAILADMIN_DOMAINS',
                           'kiselgram.ru,mail.kiselgram.ru')
            .split(',') if d.strip()]
+INTERNAL_KEY = os.environ.get('MAILADMIN_INTERNAL_KEY')
 
 def _docker():
     return docker.from_env()
@@ -119,6 +120,8 @@ def logout():
 # ── Admin Account API ──────────────────────────────────────────────
 
 def _admin_only():
+    if INTERNAL_KEY and request.headers.get('X-Internal-Key') == INTERNAL_KEY:
+        return None
     if not session.get('authenticated'):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 401
     if not session.get('is_admin'):

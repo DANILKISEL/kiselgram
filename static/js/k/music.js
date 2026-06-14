@@ -1,5 +1,5 @@
 K.music = {
-  _tracks: JSON.parse(localStorage.getItem('k_music_tracks')||'[]'),
+  _tracks: (() => { try { return JSON.parse(localStorage.getItem('k_music_tracks')||'[]'); } catch(e) { return []; } })(),
   _currentIdx: -1,
   _audio: null,
   _urlTrack: null,
