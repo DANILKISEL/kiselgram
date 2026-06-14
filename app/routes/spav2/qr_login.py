@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify, session, current_app
 from datetime import datetime, timezone, timedelta
 import secrets
+from sqlalchemy.exc import IntegrityError
 from app import db
 from app.models import User, UserSession, QrLoginToken
 from app.utils.helpers import get_current_user
@@ -15,14 +16,21 @@ spav2_qr_bp = Blueprint('spav2_qr', __name__, url_prefix='/api/auth/qr')
 @rate_limit('qr_generate', max_requests=10, window=60)
 def qr_generate():
     user = get_current_user()
-    if not user:
+    if not user or user.is_deleted:
         return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED', 'message': 'Not authenticated'}}), 401
 
-    token = secrets.token_urlsafe(32)
     expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=2)
-    qr = QrLoginToken(user_id=user.id, token=token, expires_at=expires_at)
-    db.session.add(qr)
-    db.session.commit()
+    for _ in range(3):
+        token = secrets.token_urlsafe(32)
+        qr = QrLoginToken(user_id=user.id, token=token, expires_at=expires_at)
+        db.session.add(qr)
+        try:
+            db.session.commit()
+            break
+        except IntegrityError:
+            db.session.rollback()
+    else:
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Failed to generate token'}}), 500
 
     return jsonify({'success': True, 'data': {
         'token': token,
@@ -39,11 +47,18 @@ def qr_generate():
 @rate_limit('qr_request', max_requests=10, window=60)
 def qr_request():
     """Public: create an unclaimed token for Mode B."""
-    token = secrets.token_urlsafe(32)
     expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=2)
-    qr = QrLoginToken(user_id=None, token=token, expires_at=expires_at)
-    db.session.add(qr)
-    db.session.commit()
+    for _ in range(3):
+        token = secrets.token_urlsafe(32)
+        qr = QrLoginToken(user_id=None, token=token, expires_at=expires_at)
+        db.session.add(qr)
+        try:
+            db.session.commit()
+            break
+        except IntegrityError:
+            db.session.rollback()
+    else:
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Failed to generate token'}}), 500
 
     return jsonify({'success': True, 'data': {
         'token': token,
@@ -57,7 +72,7 @@ def qr_request():
 def qr_authorize():
     """Auth required: scan a Mode B QR and authorize the requesting device."""
     user = get_current_user()
-    if not user:
+    if not user or user.is_deleted:
         return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED', 'message': 'Not authenticated'}}), 401
 
     data = request.get_json() or {}
@@ -71,12 +86,19 @@ def qr_authorize():
     if qr.expires_at < datetime.now(timezone.utc).replace(tzinfo=None):
         qr.consumed = True
         qr.consumed_at = datetime.now(timezone.utc).replace(tzinfo=None)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
         return jsonify({'success': False, 'error': {'code': 'EXPIRED_TOKEN', 'message': 'QR code has expired'}}), 400
     if qr.user_id is None:
         qr.user_id = user.id
     qr.authorized_by_id = user.id
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Failed to authorize'}}), 500
 
     return jsonify({'success': True, 'data': {'message': 'Login authorized'}})
 
@@ -98,12 +120,17 @@ def qr_login():
     if qr.expires_at < datetime.now(timezone.utc).replace(tzinfo=None):
         qr.consumed = True
         qr.consumed_at = datetime.now(timezone.utc).replace(tzinfo=None)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
         return jsonify({'success': False, 'error': {'code': 'EXPIRED_TOKEN', 'message': 'QR code has expired'}}), 400
+
+    db.session.refresh(qr)
     if qr.user_id is None:
         return jsonify({'success': False, 'error': {'code': 'NOT_AUTHORIZED', 'message': 'Not yet authorized'}}), 400
 
-    user = User.query.get(qr.user_id)
+    user = User.query.filter_by(id=qr.user_id, is_deleted=False).first()
     if not user:
         return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'User not found'}}), 404
 
@@ -123,7 +150,11 @@ def qr_login():
         last_activity=datetime.now(timezone.utc).replace(tzinfo=None),
         is_active=True,
     ))
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Login failed'}}), 500
 
     return jsonify({'success': True, 'data': {
         'user': {

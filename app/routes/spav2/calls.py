@@ -21,15 +21,28 @@ def call_history():
     if not current_user_id:
         return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED', 'message': 'Not authenticated'}}), 401
 
-    calls = Call.query.filter(
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+    per_page = min(max(per_page, 1), 100)
+
+    base_q = Call.query.filter(
         (Call.caller_id == current_user_id) | (Call.receiver_id == current_user_id)
-    ).order_by(Call.started_at.desc()).limit(50).all()
+    )
+    total = base_q.count()
+    pages = (total + per_page - 1) // per_page if per_page else 0
+
+    calls = base_q.order_by(Call.started_at.desc()).offset((page - 1) * per_page).limit(per_page).all()
+
+    peer_ids = set()
+    for call in calls:
+        peer_ids.add(call.receiver_id if call.caller_id == current_user_id else call.caller_id)
+    peers = {u.id: u for u in User.query.filter(User.id.in_(peer_ids), User.is_deleted == False).all()}
 
     result = []
     for call in calls:
         is_outgoing = call.caller_id == current_user_id
         peer_id = call.receiver_id if is_outgoing else call.caller_id
-        peer = User.query.get(peer_id)
+        peer = peers.get(peer_id)
 
         result.append({
             'call_id': call.id,
@@ -46,7 +59,7 @@ def call_history():
             'ended_at': call.ended_at.isoformat() if call.ended_at else None
         })
 
-    return jsonify({'success': True, 'data': {'calls': result}})
+    return jsonify({'success': True, 'data': {'calls': result, 'page': page, 'per_page': per_page, 'total': total, 'pages': pages}})
 
 
 @spav2_calls_bp.route('/calls/make', methods=['POST'])
@@ -65,7 +78,7 @@ def make_call():
     if call_type not in ('voice', 'video'):
         return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'Call type must be voice or video'}}), 400
 
-    receiver = User.query.get(receiver_id)
+    receiver = User.query.filter(User.id == receiver_id, User.is_deleted == False).first()
     if not receiver:
         return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'User not found'}}), 404
 
@@ -79,7 +92,11 @@ def make_call():
         started_at=datetime.utcnow()
     )
     db.session.add(call)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'DB_ERROR', 'message': 'Failed to create call'}}), 500
 
     return jsonify({'success': True, 'data': {'call': {
         'call_id': call.id,
@@ -133,7 +150,11 @@ def video_create_room():
             joined_at=datetime.utcnow()
         )
         db.session.add(participant)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': {'code': 'DB_ERROR', 'message': 'Failed to create video call'}}), 500
 
         return jsonify({'success': True, 'data': {
             'room_id': room_id,

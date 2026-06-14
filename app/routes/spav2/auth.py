@@ -82,7 +82,7 @@ def login():
         if not username or not password:
             return jsonify({'success': False, 'error': {'code': 'INVALID_CREDENTIALS', 'message': 'Invalid username or password'}}), 401
 
-        user = User.query.filter_by(username=username).first()
+        user = User.query.filter_by(username=username).filter(User.is_deleted == False).first()
         if not user or not user.check_password(password):
             return jsonify({'success': False, 'error': {'code': 'INVALID_CREDENTIALS', 'message': 'Invalid username or password'}}), 401
 
@@ -123,11 +123,14 @@ def login():
 def logout():
     user_id = session.get('user_id')
     if user_id:
-        user = User.query.get(user_id)
+        user = User.query.filter(User.id == user_id, User.is_deleted == False).first()
         if user:
             user.is_online = False
             user.last_seen = datetime.utcnow()
-            db.session.commit()
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
     session.clear()
     return jsonify({'success': True, 'data': {'message': 'Logged out successfully'}})
 
@@ -151,7 +154,7 @@ def verify_email():
     if verification.expires_at < datetime.utcnow():
         return jsonify({'success': False, 'error': {'code': 'EXPIRED_TOKEN', 'message': 'Verification token has expired'}}), 400
 
-    user = User.query.get(verification.user_id)
+    user = User.query.filter(User.id == verification.user_id, User.is_deleted == False).first()
     if not user:
         return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'User not found'}}), 404
 
@@ -159,7 +162,11 @@ def verify_email():
     user.is_online = True
     user.last_seen = datetime.utcnow()
     verification.verified = True
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Database error'}}), 500
 
     return jsonify({'success': True, 'data': {'message': 'Email verified successfully'}})
 
@@ -170,6 +177,6 @@ def check_username():
     if not username:
         return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'Username is required'}}), 400
     user_id = session.get('user_id')
-    existing = User.query.filter_by(username=username).first()
+    existing = User.query.filter_by(username=username).filter(User.is_deleted == False).first()
     available = existing is None or (user_id and existing.id == user_id)
     return jsonify({'success': True, 'data': {'username': username, 'available': available}})

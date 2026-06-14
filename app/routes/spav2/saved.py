@@ -1,5 +1,6 @@
 from datetime import datetime
 from flask import Blueprint, request, jsonify
+from sqlalchemy.orm import joinedload, selectinload
 from app import db
 from app.models import User, Message, Chat
 from app.utils.helpers import get_current_user_id
@@ -13,20 +14,26 @@ def get_saved_messages():
     if not current_user_id:
         return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED', 'message': 'Not authenticated'}}), 401
 
-    after_id = request.args.get('after', 0, type=int)
-    limit = min(request.args.get('limit', 50, type=int), 100)
+    page = request.args.get('page', 1, type=int)
+    per_page = min(request.args.get('per_page', 50, type=int), 100)
+    offset = (page - 1) * per_page
 
-    saved = Message.query.filter_by(receiver_id=current_user_id, is_saved=True).filter(Message.id > after_id).order_by(Message.timestamp.desc()).limit(limit).all()
-    has_more = len(saved) == limit
-    next_cursor = saved[-1].id if saved else None
+    query = Message.query.options(
+        selectinload(Message.sender),
+        selectinload(Message.chat)
+    ).filter_by(receiver_id=current_user_id, is_saved=True)
+    total = query.count()
+    saved = query.order_by(Message.timestamp.desc()).offset(offset).limit(per_page).all()
+    pages = (total + per_page - 1) // per_page if per_page else 0
 
-    sender_ids = list(set(msg.sender_id for msg in saved))
-    senders = {u.id: u for u in User.query.filter(User.id.in_(sender_ids)).all()} if sender_ids else {}
+    chat_ids = list(set(msg.chat_id for msg in saved if msg.chat_id))
+    chats = {c.id: c for c in Chat.query.filter(Chat.id.in_(chat_ids)).all()} if chat_ids else {}
+
     result = []
     for msg in saved:
-        sender = senders.get(msg.sender_id)
+        sender = msg.sender
         chat_name = sender.username if sender else 'Unknown'
-        chat = Chat.query.get(msg.chat_id) if msg.chat_id else None
+        chat = msg.chat if msg.chat_id else None
         if chat:
             chat_name = chat.name
         chat_type = 'group' if msg.chat_id else 'personal'
@@ -48,7 +55,10 @@ def get_saved_messages():
 
     return jsonify({'success': True, 'data': {
         'messages': result,
-        'pagination': {'after': after_id or None, 'limit': limit, 'has_more': has_more, 'next_cursor': next_cursor}
+        'page': page,
+        'per_page': per_page,
+        'total': total,
+        'pages': pages
     }})
 
 
@@ -64,7 +74,7 @@ def save_message():
     if not message_id:
         return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'message_id is required'}}), 400
 
-    msg = Message.query.get(message_id)
+    msg = Message.query.options(selectinload(Message.sender), selectinload(Message.chat)).get(message_id)
     if not msg:
         return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'Message not found'}}), 404
 
@@ -74,12 +84,15 @@ def save_message():
     msg.is_saved = True
     if hasattr(msg, 'saved_note'):
         msg.saved_note = data.get('note', '').strip() or None
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Database error'}}), 500
 
-    sender = User.query.get(msg.sender_id)
+    sender = msg.sender
     chat_name = sender.username if sender else 'Unknown'
-    from app.models import Chat
-    chat = Chat.query.get(msg.chat_id) if msg.chat_id else None
+    chat = msg.chat if msg.chat_id else None
     if chat:
         chat_name = chat.name
     chat_type = 'group' if msg.chat_id else 'personal'
@@ -106,13 +119,19 @@ def update_saved_note(saved_id):
     if not current_user_id:
         return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED', 'message': 'Not authenticated'}}), 401
 
-    msg = Message.query.get_or_404(saved_id)
-    if not hasattr(msg, 'saved_note'):
+    msg = Message.query.get(saved_id)
+    if not msg:
+        return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'Saved message not found'}}), 404
+    if not msg.is_saved:
         return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'Saved message not found'}}), 404
 
     data = request.get_json() or {}
     msg.saved_note = data.get('note', '').strip() or None
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Database error'}}), 500
 
     return jsonify({'success': True, 'data': {
         'saved_id': saved_id,

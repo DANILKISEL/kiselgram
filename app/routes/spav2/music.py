@@ -13,7 +13,15 @@ def list_music():
     if not current_user_id:
         return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED', 'message': 'Not authenticated'}}), 401
 
-    tracks = UserMusic.query.filter_by(user_id=current_user_id).order_by(UserMusic.added_at.desc()).limit(100).all()
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+    per_page = min(max(per_page, 1), 100)
+
+    base_q = UserMusic.query.filter_by(user_id=current_user_id)
+    total = base_q.count()
+    pages = (total + per_page - 1) // per_page if per_page else 0
+
+    tracks = base_q.order_by(UserMusic.added_at.desc()).offset((page - 1) * per_page).limit(per_page).all()
 
     return jsonify({'success': True, 'data': {
         'tracks': [{
@@ -25,7 +33,11 @@ def list_music():
             'duration': t.duration,
             'source_message_id': t.source_message_id,
             'added_at': t.added_at.isoformat() if t.added_at else None
-        } for t in tracks]
+        } for t in tracks],
+        'page': page,
+        'per_page': per_page,
+        'total': total,
+        'pages': pages
     }})
 
 
@@ -55,7 +67,11 @@ def add_music():
         added_at=datetime.utcnow()
     )
     db.session.add(track)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'DB_ERROR', 'message': 'Failed to save track'}}), 500
 
     return jsonify({'success': True, 'data': {
         'id': track.id,
@@ -79,6 +95,10 @@ def remove_music(track_id):
         return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'Track not found'}}), 404
 
     db.session.delete(track)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'DB_ERROR', 'message': 'Failed to remove track'}}), 500
 
     return jsonify({'success': True, 'data': {'id': track_id}})

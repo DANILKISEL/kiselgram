@@ -44,7 +44,11 @@ def update_profile():
         current_user.bio = sanitize_string(data['bio'], max_length=200)
     if 'status_emoji' in data:
         current_user.status_emoji = sanitize_string(data['status_emoji'], max_length=10)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Database error'}}), 500
     return jsonify({'success': True, 'data': {'message': 'Profile updated'}})
 
 
@@ -106,7 +110,11 @@ def upload_avatar():
     file.save(os.path.join(upload_dir, filename))
 
     current_user.avatar_url = f"/uploads/avatars/{filename}"
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Database error'}}), 500
 
     return jsonify({'success': True, 'data': {
         'user_id': current_user.id,

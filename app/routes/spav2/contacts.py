@@ -1,5 +1,6 @@
 from datetime import datetime
 from flask import Blueprint, request, jsonify
+from sqlalchemy.orm import joinedload, selectinload
 from app import db
 from app.models import User, Contact, BlockedUser
 from app.utils.helpers import get_current_user_id
@@ -13,9 +14,19 @@ def get_contacts():
     if not current_user_id:
         return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED', 'message': 'Not authenticated'}}), 401
 
-    contacts = Contact.query.filter_by(user_id=current_user_id).all()
+    page = request.args.get('page', 1, type=int)
+    per_page = min(request.args.get('per_page', 50, type=int), 100)
+    offset = (page - 1) * per_page
+
+    query = Contact.query.filter_by(user_id=current_user_id)
+    total = query.count()
+    contacts = query.order_by(Contact.id).offset(offset).limit(per_page).all()
+    pages = (total + per_page - 1) // per_page if per_page else 0
     contact_ids = [c.contact_id for c in contacts]
-    users = {u.id: u for u in User.query.filter(User.id.in_(contact_ids)).all()} if contact_ids else {}
+    users = {}
+    if contact_ids:
+        user_rows = User.query.filter(User.id.in_(contact_ids), User.is_deleted == False).all()
+        users = {u.id: u for u in user_rows}
     result = []
     for c in contacts:
         user = users.get(c.contact_id)
@@ -32,7 +43,7 @@ def get_contacts():
                 'status_emoji': getattr(user, 'status_emoji', '') or ''
             })
 
-    return jsonify({'success': True, 'data': {'contacts': result, 'total': len(result)}})
+    return jsonify({'success': True, 'data': {'contacts': result, 'total': total, 'page': page, 'per_page': per_page, 'pages': pages}})
 
 
 @spav2_contacts_bp.route('/contacts', methods=['POST'])
@@ -50,13 +61,17 @@ def add_contact():
     if existing:
         return jsonify({'success': False, 'error': {'code': 'ALREADY_CONTACT', 'message': 'User is already in your contacts'}}), 400
 
-    user = User.query.get(contact_id)
+    user = User.query.filter_by(id=contact_id, is_deleted=False).first()
     if not user:
         return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'User not found'}}), 404
 
     c = Contact(user_id=current_user_id, contact_id=contact_id, created_at=datetime.utcnow())
     db.session.add(c)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Database error'}}), 500
 
     return jsonify({'success': True, 'data': {'contact': {
         'user_id': user.id, 'username': user.username,
@@ -84,7 +99,11 @@ def rename_contact():
         return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'Contact not found'}}), 404
 
     contact.custom_name = name
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Database error'}}), 500
     return jsonify({'success': True, 'data': {'user_id': contact_id, 'custom_name': name, 'updated_at': datetime.utcnow().isoformat()}})
 
 
@@ -97,7 +116,11 @@ def remove_contact(contact_id):
     contact = Contact.query.filter_by(user_id=current_user_id, contact_id=contact_id).first()
     if contact:
         db.session.delete(contact)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Database error'}}), 500
     return jsonify({'success': True, 'data': {'message': 'Contact removed'}})
 
 
@@ -107,9 +130,19 @@ def get_blocked_users():
     if not current_user_id:
         return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED', 'message': 'Not authenticated'}}), 401
 
-    blocks = BlockedUser.query.filter_by(user_id=current_user_id).all()
+    page = request.args.get('page', 1, type=int)
+    per_page = min(request.args.get('per_page', 50, type=int), 100)
+    offset = (page - 1) * per_page
+
+    query = BlockedUser.query.filter_by(user_id=current_user_id)
+    total = query.count()
+    blocks = query.order_by(BlockedUser.id).offset(offset).limit(per_page).all()
+    pages = (total + per_page - 1) // per_page if per_page else 0
     blocked_ids_list = [b.blocked_user_id for b in blocks]
-    users = {u.id: u for u in User.query.filter(User.id.in_(blocked_ids_list)).all()} if blocked_ids_list else {}
+    users = {}
+    if blocked_ids_list:
+        user_rows = User.query.filter(User.id.in_(blocked_ids_list), User.is_deleted == False).all()
+        users = {u.id: u for u in user_rows}
     result = []
     for b in blocks:
         user = users.get(b.blocked_user_id)
@@ -120,7 +153,7 @@ def get_blocked_users():
             'blocked_at': b.created_at.isoformat() if b.created_at else None
         })
 
-    return jsonify({'success': True, 'data': {'blocked_users': result, 'total': len(result)}})
+    return jsonify({'success': True, 'data': {'blocked_users': result, 'total': total, 'page': page, 'per_page': per_page, 'pages': pages}})
 
 
 @spav2_contacts_bp.route('/block_user/<int:user_id>', methods=['POST'])
@@ -133,7 +166,11 @@ def block_user(user_id):
     if not existing:
         b = BlockedUser(user_id=current_user_id, blocked_user_id=user_id, created_at=datetime.utcnow())
         db.session.add(b)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Database error'}}), 500
         blocked_at = datetime.utcnow().isoformat()
     else:
         blocked_at = existing.created_at.isoformat() if existing.created_at else datetime.utcnow().isoformat()
@@ -155,6 +192,11 @@ def unblock_user(user_id):
     existing = BlockedUser.query.filter_by(user_id=current_user_id, blocked_user_id=user_id).first()
     if existing:
         db.session.delete(existing)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Database error'}}), 500
 
-    return jsonify({'success': True, 'data': {'unblocked_user_id': user_id, 'username': User.query.get(user_id).username if User.query.get(user_id) else None}})
+    user = User.query.filter_by(id=user_id, is_deleted=False).first()
+    return jsonify({'success': True, 'data': {'unblocked_user_id': user_id, 'username': user.username if user else None}})

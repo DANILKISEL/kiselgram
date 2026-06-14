@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify, session, current_app
 from datetime import datetime, timezone, timedelta
 import secrets
 import random
+from sqlalchemy.exc import IntegrityError
 from app import db
 from app.models import User, Message, Chat, LoginOtp, UserSession, EmailVerification, PreloadedAvatar, Referral
 from app.utils.helpers import get_current_user
@@ -17,7 +18,7 @@ def _ensure_kiselgram_user():
     global KISELGRAM_USER_ID
     if KISELGRAM_USER_ID:
         return KISELGRAM_USER_ID
-    user = User.query.filter_by(username='kiselgram').first()
+    user = User.query.filter_by(username='kiselgram', is_deleted=False).first()
     if not user:
         user = User(
             username='kiselgram',
@@ -30,7 +31,11 @@ def _ensure_kiselgram_user():
         db.session.flush()
     if not user.avatar_url:
         user.avatar_url = '/static/favicon.ico'
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
     KISELGRAM_USER_ID = user.id
     return user.id
 
@@ -53,7 +58,11 @@ def _send_otp_via_chat(user_id, code):
         timestamp=datetime.now(timezone.utc).replace(tzinfo=None),
     )
     db.session.add(msg)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
 
 
 def _make_session(user):
@@ -70,7 +79,11 @@ def _make_session(user):
         last_activity=datetime.now(timezone.utc).replace(tzinfo=None),
         is_active=True,
     ))
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return None
     return session_token
 
 
@@ -99,7 +112,7 @@ def check_email():
     if not email or '@' not in email:
         return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'Valid email required'}}), 400
 
-    user = User.query.filter_by(email=email).first()
+    user = User.query.filter_by(email=email, is_deleted=False).first()
     exists = user is not None
     return jsonify({'success': True, 'data': {'exists': exists, 'email': email}})
 
@@ -111,14 +124,18 @@ def check_email():
 def send_otp():
     data = request.get_json() or {}
     email = sanitize_string(data.get('email', '').strip().lower(), max_length=128)
-    user = User.query.filter_by(email=email).first()
+    user = User.query.filter_by(email=email, is_deleted=False).first()
     if not user:
         return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'User not found'}}), 404
 
     code = str(random.randint(100000, 999999))
     expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=5)
     db.session.add(LoginOtp(user_id=user.id, code=code, expires_at=expires_at))
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Failed to save OTP'}}), 500
 
     try:
         _send_otp_via_chat(user.id, code)
@@ -137,14 +154,18 @@ def send_otp():
 def send_otp_email():
     data = request.get_json() or {}
     email = sanitize_string(data.get('email', '').strip().lower(), max_length=128)
-    user = User.query.filter_by(email=email).first()
+    user = User.query.filter_by(email=email, is_deleted=False).first()
     if not user:
         return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'User not found'}}), 404
 
     code = str(random.randint(100000, 999999))
     expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=5)
     db.session.add(LoginOtp(user_id=user.id, code=code, expires_at=expires_at))
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Failed to save OTP'}}), 500
 
     try:
         from flask_mail import Mail, Message as MailMessage
@@ -173,7 +194,7 @@ def verify_otp():
     email = sanitize_string(data.get('email', '').strip().lower(), max_length=128)
     code = data.get('code', '').strip()
 
-    user = User.query.filter_by(email=email).first()
+    user = User.query.filter_by(email=email, is_deleted=False).first()
     if not user:
         return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'User not found'}}), 404
 
@@ -184,7 +205,11 @@ def verify_otp():
         return jsonify({'success': False, 'error': {'code': 'EXPIRED_CODE', 'message': 'Code expired'}}), 400
 
     otp.used = True
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Failed to verify code'}}), 500
 
     return jsonify({'success': True, 'data': {'message': 'Code verified', 'email': email}})
 
@@ -202,7 +227,7 @@ def login_password():
     if not verified:
         return jsonify({'success': False, 'error': {'code': 'OTP_REQUIRED', 'message': 'Verify OTP first'}}), 400
 
-    user = User.query.filter_by(email=email).first()
+    user = User.query.filter_by(email=email, is_deleted=False).first()
     if not user:
         return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'User not found'}}), 404
 
@@ -210,6 +235,8 @@ def login_password():
         return jsonify({'success': False, 'error': {'code': 'INVALID_CREDENTIALS', 'message': 'Invalid password'}}), 401
 
     session_token = _make_session(user)
+    if not session_token:
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Session creation failed'}}), 500
     return jsonify({'success': True, 'data': {'user': _serialize_user(user), 'session_token': session_token}})
 
 
@@ -225,11 +252,13 @@ def login_otp_only():
     if not verified:
         return jsonify({'success': False, 'error': {'code': 'OTP_REQUIRED', 'message': 'Verify OTP first'}}), 400
 
-    user = User.query.filter_by(email=email).first()
+    user = User.query.filter_by(email=email, is_deleted=False).first()
     if not user:
         return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'User not found'}}), 404
 
     session_token = _make_session(user)
+    if not session_token:
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Session creation failed'}}), 500
     return jsonify({'success': True, 'data': {'user': _serialize_user(user), 'session_token': session_token}})
 
 
@@ -242,7 +271,7 @@ def register_send_code():
     email = sanitize_string(data.get('email', '').strip().lower(), max_length=128)
     if not email or '@' not in email:
         return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'Valid email required'}}), 400
-    if User.query.filter_by(email=email).first():
+    if User.query.filter_by(email=email, is_deleted=False).first():
         return jsonify({'success': False, 'error': {'code': 'EMAIL_TAKEN', 'message': 'Email already registered'}}), 409
 
     code = str(random.randint(100000, 999999))
@@ -254,7 +283,11 @@ def register_send_code():
         existing.expires_at = expires_at
     else:
         db.session.add(EmailVerification(email=email, token=code, expires_at=expires_at))
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Failed to send code'}}), 500
 
     current_app.logger.info(f"Registration code for {email}: {code}")
     return jsonify({'success': True, 'data': {'message': 'Code sent to email'}})
@@ -274,7 +307,11 @@ def register_verify_code():
         return jsonify({'success': False, 'error': {'code': 'EXPIRED_CODE', 'message': 'Code expired'}}), 400
 
     ev.verified = True
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Failed to verify code'}}), 500
     return jsonify({'success': True, 'data': {'message': 'Email verified', 'email': email}})
 
 
@@ -295,13 +332,13 @@ def register_finish():
         return jsonify({'success': False, 'error': {'code': 'VERIFY_REQUIRED', 'message': 'Verify email first'}}), 400
     if not email or '@' not in email:
         return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'Valid email required'}}), 400
-    if User.query.filter_by(email=email).first():
+    if User.query.filter_by(email=email, is_deleted=False).first():
         return jsonify({'success': False, 'error': {'code': 'EMAIL_TAKEN', 'message': 'Email already registered'}}), 409
 
     errors = {}
     if len(username) < 3 or not re.match(r'^[a-zA-Z0-9_]+$', username):
         errors['username'] = '3-32 chars, letters, numbers, underscores'
-    if User.query.filter_by(username=username).first():
+    if User.query.filter_by(username=username, is_deleted=False).first():
         errors['username'] = 'Username taken'
     if errors:
         return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'Validation failed', 'fields': errors}}), 400
@@ -321,21 +358,31 @@ def register_finish():
         email_verified=True,
     )
     db.session.add(user)
-    db.session.flush()
+    try:
+        db.session.flush()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'DUPLICATE', 'message': 'Email or username already taken'}}), 409
 
     if ref_code:
-        inviter = User.query.filter_by(username=ref_code).first()
+        inviter = User.query.filter_by(username=ref_code, is_deleted=False).first()
         if inviter and inviter.id != user.id:
             existing_ref = Referral.query.filter_by(invited_user_id=user.id).first()
             if not existing_ref:
-                ref = Referral(inviter_id=inviter.id, invited_user_id=user.id)
-                db.session.add(ref)
-                db.session.flush()
-                count = Referral.query.filter_by(inviter_id=inviter.id).count()
-                if count >= 10 and not inviter.is_premium:
-                    inviter.is_premium = True
+                try:
+                    ref = Referral(inviter_id=inviter.id, invited_user_id=user.id)
+                    db.session.add(ref)
+                    db.session.flush()
+                    count = Referral.query.filter_by(inviter_id=inviter.id).count()
+                    if count >= 10 and not inviter.is_premium:
+                        inviter.is_premium = True
+                except IntegrityError:
+                    db.session.rollback()
+                    current_app.logger.warning(f"Duplicate referral for user {user.id}")
 
     session_token = _make_session(user)
+    if not session_token:
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Session creation failed'}}), 500
     return jsonify({'success': True, 'data': {'user': _serialize_user(user), 'session_token': session_token}})
 
 
