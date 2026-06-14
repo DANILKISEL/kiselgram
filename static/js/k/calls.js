@@ -9,7 +9,7 @@ K.calls = {
     if (frame) {
       frame.innerHTML = `<iframe src="${esc(url)}" allow="camera;microphone;display-capture" style="width:100%;height:100%;border:none"></iframe>`;
     }
-    $('videoCallPeer').textContent = 'In call';
+    const vcp = $('videoCallPeer'); if (vcp) vcp.textContent = 'In call';
     K.calls._started = Date.now();
     K.calls._updateTimer();
     K.calls._timer = setInterval(K.calls._updateTimer, 1000);
@@ -20,23 +20,23 @@ K.calls = {
     const m = String(Math.floor(elapsed / 60)).padStart(2, '0');
     const s = String(elapsed % 60).padStart(2, '0');
     const t = m + ':' + s;
-    $('videoCallDuration').textContent = t;
-    $('miniDuration').textContent = t;
+    const vcd = $('videoCallDuration'); if (vcd) vcd.textContent = t;
+    const md = $('miniDuration'); if (md) md.textContent = t;
   },
   minimize() {
-    $('videoOverlay').style.display = 'none';
-    $('videoMinimized').style.display = 'flex';
+    const vo = $('videoOverlay'); if (vo) vo.style.display = 'none';
+    const vm = $('videoMinimized'); if (vm) vm.style.display = 'flex';
   },
   maximize() {
-    $('videoMinimized').style.display = 'none';
-    $('videoOverlay').style.display = 'flex';
+    const vm = $('videoMinimized'); if (vm) vm.style.display = 'none';
+    const vo = $('videoOverlay'); if (vo) vo.style.display = 'flex';
   },
   endCall() {
     clearInterval(K.calls._timer);
     K.calls._timer = null;
     K.calls._started = null;
-    $('videoOverlay').style.display = 'none';
-    $('videoMinimized').style.display = 'none';
+    const vo = $('videoOverlay'); if (vo) vo.style.display = 'none';
+    const vm = $('videoMinimized'); if (vm) vm.style.display = 'none';
     const frame = $('videoFrame');
     if (frame) frame.innerHTML = '<div class="k-loader" style="margin:auto"></div>';
     K.calls._roomUrl = null;

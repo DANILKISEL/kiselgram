@@ -42,19 +42,19 @@ K.stories = {
   async view(userId) {
     const storyGroup = K.state.stories.find(s => s.user_id === userId);
     const stories = storyGroup?.stories; if (!stories?.length) return;
-    const viewer = $('storyViewer'); viewer.style.display = 'flex'; viewer.style.flexDirection = 'column';
+    const viewer = $('storyViewer'); if (!viewer) return; viewer.style.display = 'flex'; viewer.style.flexDirection = 'column';
     let idx = 0;
     const show = (i) => {
       if (K.stories._storyTimer) { clearTimeout(K.stories._storyTimer); K.stories._storyTimer = null; }
       const s = stories[i]; if (!s) { K.stories.close(); return; }
       K.stories._activeStory = s;
-      $('storyViewerName').textContent = storyGroup.username;
-      $('storyViewerAvatar').innerHTML = K.ui.avatar(storyGroup.username);
-      $('storyMedia').innerHTML = s.media_type === 'video'
+      const svn = $('storyViewerName'); if (svn) svn.textContent = storyGroup.username;
+      const sva = $('storyViewerAvatar'); if (sva) sva.innerHTML = K.ui.avatar(storyGroup.username);
+      const sm = $('storyMedia'); if (sm) sm.innerHTML = s.media_type === 'video'
         ? `<video src="${esc(s.media_path)}" autoplay controls style="max-width:100%;max-height:80vh"></video>`
         : `<img src="${esc(s.media_path)}" style="max-width:100%;max-height:80vh">`;
-      $('storyLikeCount').textContent = s.like_count || 0;
-      $('storyProgress').innerHTML = stories.map((_, si) =>
+      const slc = $('storyLikeCount'); if (slc) slc.textContent = s.like_count || 0;
+      const sp = $('storyProgress'); if (sp) sp.innerHTML = stories.map((_, si) =>
         `<div class="k-story-progress-seg"><div class="k-story-progress-fill" style="width:${si<i?'100%':si===i?'0%':'0%'}"></div></div>`
       ).join('');
       if (s.media_type !== 'video') {
@@ -71,7 +71,7 @@ K.stories = {
     document.addEventListener('keydown', K.stories._keyHandler = (e) => { if (e.key === 'Escape') K.stories.close(); else if (e.key === 'ArrowRight') next(); else if (e.key === 'ArrowLeft') prev(); });
   },
   close() {
-    $('storyViewer').style.display = 'none';
+    const sv = $('storyViewer'); if (sv) sv.style.display = 'none';
     K.stories._activeStory = null;
     if (K.stories._keyHandler) document.removeEventListener('keydown', K.stories._keyHandler);
     if (K.stories._storyTimer) { clearTimeout(K.stories._storyTimer); K.stories._storyTimer = null; }
