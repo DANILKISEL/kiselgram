@@ -33,3 +33,22 @@ def get_sessions():
         'total': pagination.total,
         'pages': pagination.pages
     }})
+
+
+@spav2_sessions_bp.route('/sessions/<int:session_id>', methods=['DELETE'])
+def terminate_session(session_id):
+    current_user_id = get_current_user_id()
+    if not current_user_id:
+        return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED', 'message': 'Not authenticated'}}), 401
+
+    s = UserSession.query.filter_by(id=session_id, user_id=current_user_id).first()
+    if not s:
+        return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'Session not found'}}), 404
+
+    try:
+        db.session.delete(s)
+        db.session.commit()
+        return jsonify({'success': True, 'data': {'message': 'Session terminated'}})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': str(e)}}), 500

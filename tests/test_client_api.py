@@ -78,7 +78,10 @@ def test_stats_with_invalid_token(client):
 
 
 def test_stats_reflects_data(logged_in_client, user, user2):
-    Message(content="test", sender_id=user.id, receiver_id=user2.id)
+    chat = Chat(chat_type="personal")
+    db.session.add(chat)
+    db.session.flush()
+    Message(content="test", sender_id=user.id, receiver_id=user2.id, chat_id=chat.id)
     db.session.commit()
 
     token = os.environ.get("KISELGRAM_TOKEN", "default-token-change-me")

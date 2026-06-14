@@ -31,7 +31,7 @@ def call_history():
     total = base_q.count()
     pages = (total + per_page - 1) // per_page if per_page else 0
 
-    calls = base_q.order_by(Call.started_at.desc()).offset((page - 1) * per_page).limit(per_page).all()
+    calls = base_q.order_by(Call.created_at.desc()).offset((page - 1) * per_page).limit(per_page).all()
 
     peer_ids = set()
     for call in calls:
@@ -55,7 +55,7 @@ def call_history():
             'direction': 'outgoing' if is_outgoing else 'incoming',
             'status': call.status,
             'duration_seconds': call.duration_seconds or 0,
-            'started_at': call.started_at.isoformat() if call.started_at else None,
+            'created_at': call.created_at.isoformat() if call.created_at else None,
             'ended_at': call.ended_at.isoformat() if call.ended_at else None
         })
 
@@ -89,7 +89,7 @@ def make_call():
         receiver_id=receiver_id,
         status='ringing',
         room_token=room_token,
-        started_at=datetime.utcnow()
+        created_at=datetime.utcnow()
     )
     db.session.add(call)
     try:
@@ -105,7 +105,7 @@ def make_call():
         'receiver_id': receiver_id,
         'status': 'ringing',
         'room_token': room_token,
-        'started_at': call.started_at.isoformat() if call.started_at else None
+        'created_at': call.created_at.isoformat() if call.created_at else None
     }}}), 201
 
 
@@ -139,7 +139,7 @@ def video_create_room():
             creator_id=current_user_id,
             call_type='video',
             status='active',
-            started_at=datetime.utcnow()
+            created_at=datetime.utcnow()
         )
         db.session.add(vc)
         db.session.flush()

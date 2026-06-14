@@ -24,8 +24,11 @@ class TestV2ChatList:
         assert "personal" in chat_types
 
     def test_chat_list_with_messages(self, logged_in_client, user, user2):
+        chat = Chat(chat_type="personal")
+        db.session.add(chat)
+        db.session.flush()
         msg = Message(content="Test from user2", sender_id=user2.id,
-                      receiver_id=user.id, timestamp=datetime.utcnow())
+                      receiver_id=user.id, chat_id=chat.id, timestamp=datetime.utcnow())
         db.session.add(msg)
         db.session.commit()
         resp = logged_in_client.get(f"{API_PREFIX}/chat_list")
@@ -64,10 +67,13 @@ class TestV2GetMessages:
     """GET /api.v2/api/messages/<user_id>"""
 
     def test_get_personal_messages(self, logged_in_client, user, user2):
+        chat = Chat(chat_type="personal")
+        db.session.add(chat)
+        db.session.flush()
         for i in range(3):
             db.session.add(Message(
                 content=f"Msg {i}", sender_id=user.id,
-                receiver_id=user2.id, timestamp=datetime.utcnow()))
+                receiver_id=user2.id, chat_id=chat.id, timestamp=datetime.utcnow()))
         db.session.commit()
         resp = logged_in_client.get(f"{API_PREFIX}/messages/{user2.id}")
         assert resp.status_code == 200
@@ -76,10 +82,13 @@ class TestV2GetMessages:
         assert data["data"]["peer"]["username"] == "friend"
 
     def test_get_messages_pagination(self, logged_in_client, user, user2):
+        chat = Chat(chat_type="personal")
+        db.session.add(chat)
+        db.session.flush()
         for i in range(5):
             db.session.add(Message(
                 content=f"M{i}", sender_id=user.id,
-                receiver_id=user2.id, timestamp=datetime.utcnow()))
+                receiver_id=user2.id, chat_id=chat.id, timestamp=datetime.utcnow()))
         db.session.commit()
         resp = logged_in_client.get(
             f"{API_PREFIX}/messages/{user2.id}?after=2&limit=2")
@@ -98,7 +107,7 @@ class TestV2GetMessages:
     def test_get_messages_saved(self, logged_in_client, user):
         db.session.add(Message(
             content="Saved note", sender_id=user.id,
-            receiver_id=user.id, timestamp=datetime.utcnow()))
+            receiver_id=user.id, chat_id=1, timestamp=datetime.utcnow()))
         db.session.commit()
         resp = logged_in_client.get(f"{API_PREFIX}/messages/{user.id}")
         assert resp.status_code == 200

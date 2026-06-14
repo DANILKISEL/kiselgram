@@ -174,16 +174,11 @@ class TestV2AdminChats:
         assert len(data["data"]["messages"]) >= 1
 
     def test_admin_delete_message(self, logged_in_admin, admin_user, user, user2):
-        msg = Message(content="Delete from admin", sender_id=user.id,
-                      receiver_id=user2.id, timestamp=datetime.utcnow())
-        db.session.add(msg)
-        db.session.commit()
-        # Need a chat for the message
         c = Chat(chat_type="personal", user1_id=user.id, user2_id=user2.id)
         db.session.add(c)
-        db.session.commit()
-        msg.chat_id = c.id
-        db.session.commit()
+        db.session.flush()
+        msg = Message(content="Delete from admin", sender_id=user.id,
+                      receiver_id=user2.id, chat_id=c.id, timestamp=datetime.utcnow())
         resp = logged_in_admin.post(
             f"{API_PREFIX}/admin/chats/{c.id}/messages/{msg.id}/delete")
         assert resp.status_code == 200

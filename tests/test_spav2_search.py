@@ -82,7 +82,7 @@ class TestV2SearchInChat:
                 content=text,
                 sender_id=user.id if "apple" in text else user2.id,
                 receiver_id=user2.id if "apple" in text else user.id,
-                timestamp=datetime.utcnow()))
+                chat_id=1, timestamp=datetime.utcnow()))
         db.session.commit()
         resp = logged_in_client.post(f"{API_PREFIX}/search_in_chat", json={
             "chat_id": user2.id,
