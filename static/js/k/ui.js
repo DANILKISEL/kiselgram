@@ -1,8 +1,11 @@
+const TOAST_TIMEOUT = 2500;
+const FOCUS_DELAY = 100;
+
 K.ui = {
   toast(msg, type='info') {
     const t = $('toast'); if (!t) return;
     t.textContent = msg; t.className = 'k-toast show';
-    clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('show'), 2500);
+    clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('show'), TOAST_TIMEOUT);
   },
   confirm(msg) { return new Promise(resolve => {
     const o = $('modalOverlay'); o.style.display = 'flex';
@@ -27,7 +30,7 @@ K.ui = {
         <button class="k-btn k-btn-secondary" onclick="K.modals.close();K.ui._promptRes()">Cancel</button>
         <button class="k-btn k-btn-primary" onclick="K.ui._promptRes(document.getElementById('${mid}')?.value||'')">OK</button>
       </div>`;
-    setTimeout(() => document.getElementById(mid)?.focus(), 100);
+    setTimeout(() => document.getElementById(mid)?.focus(), FOCUS_DELAY);
     K.ui._promptRes = resolve;
   })},
   formatSize(bytes) { if (!bytes || bytes <= 0) return ''; const u = ['B','KB','MB','GB']; let i = 0; let s = bytes; while (s >= 1024 && i < u.length-1) { s /= 1024; i++; } return s.toFixed(i===0?0:1) + ' ' + u[i]; },

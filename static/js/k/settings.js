@@ -1,3 +1,6 @@
+const PERCENT = 100;
+const QR_IMAGE_SIZE = 200;
+
 K.settings = {
   _isDark() { return document.documentElement.getAttribute('data-theme') === 'dark'; },
   toggleTheme() {
@@ -56,7 +59,7 @@ K.settings = {
         if (selects[0]) selects[0].value = d.data.last_seen || 'everyone';
         if (selects[1]) selects[1].value = d.data.profile_photo || 'everyone';
       }
-    } catch(e) { console.error('Load privacy:', e); }
+    } catch(e) { K.ui.toast('Failed to load privacy settings', 'error'); }
   },
   async updatePrivacy(key, value) {
     try {
@@ -76,7 +79,7 @@ K.settings = {
           ).join('') : '<div style="color:var(--text-muted);padding:12px">No active sessions</div>';
         }
       }
-    } catch(e) { console.error('Load sessions:', e); }
+    } catch(e) { K.ui.toast('Failed to load sessions', 'error'); }
   },
   _setBubbleColor(cssVar, storageKey, color) {
     document.documentElement.style.setProperty(cssVar, color);
@@ -219,7 +222,7 @@ K.settings = {
         if (s.saved_themes) { localStorage.setItem('k_saved_themes', JSON.stringify(s.saved_themes)); }
         if (s.music_tracks) { K.music._tracks = s.music_tracks; localStorage.setItem('k_music_tracks', JSON.stringify(s.music_tracks)); }
       }
-    } catch(e) { console.error('Load server settings:', e); }
+    } catch(e) { K.ui.toast('Failed to load settings', 'error'); }
   },
   async saveToServer() {
     const settings = {
@@ -235,7 +238,7 @@ K.settings = {
     };
     try {
       await K.api.put(V2 + '/k/settings', {settings});
-    } catch(e) { console.error('Save settings:', e); }
+    } catch(e) { K.ui.toast('Failed to save settings', 'error'); }
   },
   importTheme(input) {
     if (!input?.files?.length) return;
@@ -330,15 +333,15 @@ K.settings = {
         const data = d.data;
         if (linkEl) linkEl.textContent = data.invite_url.replace('https://', '');
         if (countEl) countEl.textContent = data.count + '/' + data.threshold;
-        if (barEl) barEl.style.width = Math.min(100, (data.count / data.threshold) * 100) + '%';
+        if (barEl) barEl.style.width = Math.min(PERCENT, (data.count / data.threshold) * PERCENT) + '%';
         if (statusEl) statusEl.textContent = data.count >= data.threshold ? 'Premium unlocked!' : data.count + '/' + data.threshold + ' to Premium';
         if (badgeEl) badgeEl.style.display = data.has_premium ? '' : 'none';
         qrEl.innerHTML = '';
         const img = document.createElement('img');
-        img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(data.invite_url);
-        img.alt = 'Invite QR';
-        img.style.width = '200px';
-        img.style.height = '200px';
+        img.src = `https://api.qrserver.com/v1/create-qr-code/?size=${QR_IMAGE_SIZE}x${QR_IMAGE_SIZE}&data=${encodeURIComponent(data.invite_url)}`;
+img.alt = 'Invite QR';
+img.style.width = QR_IMAGE_SIZE + 'px';
+img.style.height = QR_IMAGE_SIZE + 'px';
         img.style.borderRadius = '8px';
         qrEl.appendChild(img);
         if (listEl) {
@@ -352,7 +355,7 @@ K.settings = {
           }
         }
       }
-    } catch(e) { console.error('loadInvite:', e); }
+    } catch(e) { K.ui.toast('Failed to load invite info', 'error'); }
   },
   copyInviteLink() {
     const el = $('inviteLink');

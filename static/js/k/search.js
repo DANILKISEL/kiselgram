@@ -1,7 +1,10 @@
+const MIN_QUERY_LENGTH = 2;
+const DEBOUNCE_DELAY_MS = 300;
+
 K.search = {
   global: debounce(async (q) => {
     const dd = $('searchDropdown');
-    if (!q || q.length < 2) { if (dd) dd.classList.remove('active'); return; }
+    if (!q || q.length < MIN_QUERY_LENGTH) { if (dd) dd.classList.remove('active'); return; }
     try {
       const d = await K.api.get(V2 + `/search/global?q=${encodeURIComponent(q)}`);
       if (d.success && d.data?.results) {
@@ -20,5 +23,5 @@ K.search = {
         }
       }
     } catch(e) { dd?.classList.remove('active'); }
-  }, 300)
+  }, DEBOUNCE_DELAY_MS)
 };

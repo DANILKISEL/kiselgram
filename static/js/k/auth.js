@@ -1,16 +1,35 @@
+const SPLASH_FADE_DURATION = 600;
+const SPLASH_STEP_PCT = 5;
+const SPLASH_MAX_PCT = 100;
+const SPLASH_STEP_INTERVAL = 100;
+const SPLASH_HIDE_DELAY = 2000;
+const HASH_ROUTE_DELAY = 500;
+const REDIRECT_DELAY = 2200;
+const AUTH_FOCUS_DELAY = 100;
+const RELOAD_DELAY = 500;
+const QR_CODE_SIZE = 200;
+const QR_DEFAULT_EXPIRES = 120;
+const QR_POLL_INTERVAL = 2000;
+const QR_COUNTDOWN_INTERVAL = 1000;
+const OAUTH_POPUP_WIDTH = 600;
+const OAUTH_POPUP_HEIGHT = 700;
+const OAUTH_POPUP_LEFT = 200;
+const OAUTH_POPUP_TOP = 100;
+const POPUP_CHECK_INTERVAL = 1000;
+
 K.auth = {
   accounts: (() => { try { return JSON.parse(localStorage.getItem('k_accounts') || '[]'); } catch(e) { return []; } })(),
   activeIdx: (() => { try { return parseInt(localStorage.getItem('k_active_idx') || '0', 10); } catch(e) { return 0; } })(),
 
   hideSplash() {
-    const s = $('splashScreen'); if (s) { s.classList.add('fade-out'); setTimeout(() => { if (s) s.style.display = 'none'; }, 600); }
+    const s = $('splashScreen'); if (s) { s.classList.add('fade-out'); setTimeout(() => { if (s) s.style.display = 'none'; }, SPLASH_FADE_DURATION); }
   },
   _startSplashTimer() {
     const fill = $('splashFill'); if (!fill) return;
     let pct = 0;
-    const step = () => { pct += 5; fill.style.width = Math.min(pct, 100) + '%'; if (pct < 100) setTimeout(step, 100); };
+    const step = () => { pct += SPLASH_STEP_PCT; fill.style.width = Math.min(pct, SPLASH_MAX_PCT) + '%'; if (pct < SPLASH_MAX_PCT) setTimeout(step, SPLASH_STEP_INTERVAL); };
     step();
-    setTimeout(() => K.auth.hideSplash(), 2000);
+    setTimeout(() => K.auth.hideSplash(), SPLASH_HIDE_DELAY);
   },
   async init() {
     if (typeof K.chat._initActions === 'function') K.chat._initActions();
@@ -19,7 +38,7 @@ K.auth = {
     // Hash-based routing: /k#login or /k#register
     const hash = window.location.hash.replace('#', '');
     if (hash === 'login' || hash === 'register') {
-      setTimeout(() => { K.loginV3.showPicker(); }, 500);
+      setTimeout(() => { K.loginV3.showPicker(); }, HASH_ROUTE_DELAY);
       window.location.hash = '';
     }
 
@@ -44,7 +63,7 @@ K.auth = {
       location.reload();
     } else {
       if (hash !== 'login' && hash !== 'register') {
-        setTimeout(() => { window.location.href = '/'; }, 2200);
+        setTimeout(() => { window.location.href = '/'; }, REDIRECT_DELAY);
       }
     }
   },
@@ -148,7 +167,7 @@ K.auth = {
         <button class="k-btn k-btn-primary" id="loginBtn" onclick="K.auth.doAddAccount()">Login</button>
       </div>`;
     K.auth._loginMode = 'login';
-    setTimeout(() => $('loginUser')?.focus(), 100);
+    setTimeout(() => $('loginUser')?.focus(), AUTH_FOCUS_DELAY);
   },
 
   showQRRequest() {
@@ -180,10 +199,10 @@ K.auth = {
       const token = d.data.token;
       const container = $('qrRequestContainer');
       container.innerHTML = '<div id="qrReqCanvas" style="border-radius:12px;overflow:hidden"></div>';
-      new QRCode('qrReqCanvas', {text: token, width: 200, height: 200, colorDark: '#000000', colorLight: '#ffffff'});
+      new QRCode('qrReqCanvas', {text: token, width: QR_CODE_SIZE, height: QR_CODE_SIZE, colorDark: '#000000', colorLight: '#ffffff'});
       $('qrRequestStatus').textContent = 'Waiting for authorization...';
       K.auth._qrStartPoll(token);
-      K.auth._qrStartCountdown(d.data.expires_in || 120, 'qrRequestExpires');
+      K.auth._qrStartCountdown(d.data.expires_in || QR_DEFAULT_EXPIRES, 'qrRequestExpires');
     } catch(e) {
       $('qrRequestContainer').innerHTML = '<div style="color:var(--error)">Connection error</div>';
     }
@@ -208,7 +227,7 @@ K.auth = {
                 K.auth.renderTabs();
                 K.modals.close();
                 K.ui.toast('Logged in!', 'success');
-                setTimeout(() => location.reload(), 500);
+                setTimeout(() => location.reload(), RELOAD_DELAY);
               }
             } catch(_) { K.auth._qrStopPoll(); return; }
           } else if (d.data.consumed || d.data.expired) {
@@ -217,7 +236,7 @@ K.auth = {
           }
         }
       } catch(_) { K.auth._qrStopPoll(); }
-    }, 2000);
+    }, QR_POLL_INTERVAL);
   },
 
   _qrStartCountdown(seconds, elId) {
@@ -230,7 +249,7 @@ K.auth = {
       remaining--;
       if (remaining <= 0) { clearInterval(K.auth._qrCountdown); el.textContent = 'Expired'; }
       else el.textContent = 'Expires in ' + remaining + 's';
-    }, 1000);
+    }, QR_COUNTDOWN_INTERVAL);
   },
 
   _qrStopPoll() {
@@ -273,13 +292,13 @@ K.auth = {
       } else {
         r = await K.auth.login(user, pass);
       }
-      if (r.success) { K.modals.close(); K.ui.toast('Account added', 'success'); setTimeout(() => location.reload(), 500); }
+      if (r.success) { K.modals.close(); K.ui.toast('Account added', 'success'); setTimeout(() => location.reload(), RELOAD_DELAY); }
       else { K.ui.toast(r.error || 'Failed', 'error'); }
     } catch(e) { K.ui.toast('Connection error', 'error'); }
     if (btn) btn.disabled = false;
   },
   async oauthLogin(provider) {
-    const popup = window.open(V2 + '/auth/oauth/' + provider + '/login', 'oauth', 'width=600,height=700,left=200,top=100');
+    const popup = window.open(V2 + '/auth/oauth/' + provider + '/login', 'oauth', `width=${OAUTH_POPUP_WIDTH},height=${OAUTH_POPUP_HEIGHT},left=${OAUTH_POPUP_LEFT},top=${OAUTH_POPUP_TOP}`);
     if (!popup) { K.ui.toast('Please allow popups for this site', 'error'); return; }
     if (K.auth._oauthHandler) window.removeEventListener('message', K.auth._oauthHandler);
     K.auth._oauthHandler = async (e) => {
@@ -294,7 +313,7 @@ K.auth = {
           K.auth.renderTabs();
           K.modals.close();
           K.ui.toast('Account added', 'success');
-          setTimeout(() => location.reload(), 500);
+          setTimeout(() => location.reload(), RELOAD_DELAY);
         } else {
           K.ui.toast(data.error?.message || 'OAuth failed', 'error');
         }
@@ -311,7 +330,7 @@ K.auth = {
           K.auth._oauthHandler = null;
         }
       }
-    }, 1000);
+    }, POPUP_CHECK_INTERVAL);
   },
   _save() {
     localStorage.setItem('k_accounts', JSON.stringify(this.accounts));

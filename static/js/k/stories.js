@@ -1,3 +1,6 @@
+const STORY_AUTO_ADVANCE_MS = 5000;
+const USERNAME_MAX_CHARS = 8;
+
 K.stories = {
   async load() {
     try {
@@ -7,7 +10,7 @@ K.stories = {
         K.stories._renderRow();
         K.stories._renderGrid();
       }
-    } catch(e) { console.error('Stories load:', e); }
+    } catch(e) { K.ui.toast('Failed to load stories', 'error'); }
   },
   _renderRow() {
     const row = $('storiesRow'); if (!row) return;
@@ -22,7 +25,7 @@ K.stories = {
         <div class="k-story-ring ${!hasUnviewed?'viewed':''}">
           ${s.avatar_url ? `<img src="${esc(s.avatar_url)}">` : `<div style="width:100%;height:100%;border-radius:50%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--accent-blue),var(--accent-green));color:white;font-weight:600;font-size:20px;border:2px solid var(--sidebar-bg)">${(s.username||'?')[0].toUpperCase()}</div>`}
         </div>
-        <span class="k-story-username">${esc((s.username||'').substring(0,8))}</span>
+        <span class="k-story-username">${esc((s.username||'').substring(0, USERNAME_MAX_CHARS))}</span>
       </div>`;
     }).join('');
     row.innerHTML = html;
@@ -60,7 +63,7 @@ K.stories = {
       if (s.media_type !== 'video') {
         const fill = $('storyProgress')?.querySelectorAll('.k-story-progress-fill')[i];
         if (fill) { fill.style.transition = 'width 5s linear'; fill.style.width = '100%'; }
-        K.stories._storyTimer = setTimeout(() => { if (i+1 < stories.length) show(i+1); else K.stories.close(); }, 5000);
+        K.stories._storyTimer = setTimeout(() => { if (i+1 < stories.length) show(i+1); else K.stories.close(); }, STORY_AUTO_ADVANCE_MS);
       }
       try { K.api.post(V2 + `/stories/${s.story_id}/view`); } catch(_) {}
     };

@@ -1,3 +1,9 @@
+const SETTINGS_SWITCH_DELAY_MS = 100;
+const CHAT_LIST_POLL_MS = 15000;
+const MESSAGES_POLL_MS = 5000;
+const STORIES_POLL_MS = 60000;
+const SAVED_POLL_MS = 30000;
+
 K.profile = {
   async save() {
     const name = $('editDisplayName')?.value?.trim();
@@ -80,13 +86,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const ps = K.state._pendingSettings;
     delete K.state._pendingSettings;
     K.views.show('settings');
-    setTimeout(() => K.settings.switchTab(ps), 100);
+    setTimeout(() => K.settings.switchTab(ps), SETTINGS_SWITCH_DELAY_MS);
   }
 
   K._pollIntervals = [
-    setInterval(() => K.chat.loadList(), 15000),
-    setInterval(() => { if (K.state.activeChat) K.chat.loadMessages(K.state.activeChat.type, K.state.activeChat.id); }, 5000),
-    setInterval(() => K.stories.load(), 60000),
-    setInterval(() => K.saved.load(), 30000)
+    setInterval(() => K.chat.loadList(), CHAT_LIST_POLL_MS),
+    setInterval(() => { if (K.state.activeChat) K.chat.loadMessages(K.state.activeChat.type, K.state.activeChat.id); }, MESSAGES_POLL_MS),
+    setInterval(() => K.stories.load(), STORIES_POLL_MS),
+    setInterval(() => K.saved.load(), SAVED_POLL_MS)
   ];
 });

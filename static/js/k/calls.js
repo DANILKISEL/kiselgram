@@ -1,3 +1,5 @@
+const SECOND_MS = 1000;
+
 K.calls = {
   _timer: null, _started: null,
   start(url, peerId) {
@@ -10,11 +12,11 @@ K.calls = {
     const vcp = $('videoCallPeer'); if (vcp) vcp.textContent = 'In call';
     K.calls._started = Date.now();
     K.calls._updateTimer();
-    K.calls._timer = setInterval(K.calls._updateTimer, 1000);
+    K.calls._timer = setInterval(K.calls._updateTimer, SECOND_MS);
   },
   _updateTimer() {
     if (!K.calls._started) return;
-    const elapsed = Math.floor((Date.now() - K.calls._started) / 1000);
+    const elapsed = Math.floor((Date.now() - K.calls._started) / SECOND_MS);
     const m = String(Math.floor(elapsed / 60)).padStart(2, '0');
     const s = String(elapsed % 60).padStart(2, '0');
     const t = m + ':' + s;

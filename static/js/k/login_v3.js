@@ -4,6 +4,8 @@ K.loginV3 = {
 
   _hasClose() { return K.auth.accounts && K.auth.accounts.length > 0; },
 
+  _v3Url(path) { return (K.api._base||V2).replace('api.v2', 'api.v3') + path; },
+
   _blankOverlay(blank) {
     const o = $('modalOverlay');
     if (blank) o.style.background = 'var(--bg-primary)';
@@ -80,7 +82,7 @@ K.loginV3 = {
     err.style.display = 'none';
     btn.disabled = true; btn.textContent = 'Checking...';
     try {
-      const d = await K.api.post((K.api._base||V2).replace('api.v2', 'api.v3') + '/auth/check-email', {email});
+      const d = await K.api.post(K.loginV3._v3Url('/auth/check-email'), {email});
       if (!d.success) { err.textContent = d.error?.message || 'Error'; err.style.display = 'block'; btn.disabled = false; btn.textContent = 'Continue'; return; }
       K.loginV3._state.email = email;
       if (d.data.exists) {
@@ -113,7 +115,7 @@ K.loginV3 = {
 
   async _sendOtpEmail() {
     try {
-      await K.api.post((K.api._base||V2).replace('api.v2', 'api.v3') + '/auth/send-otp-email', {email: K.loginV3._state.email});
+      await K.api.post(K.loginV3._v3Url('/auth/send-otp-email'), {email: K.loginV3._state.email});
       K.ui.toast('Code sent to your email', 'success');
     } catch(_) {
       K.ui.toast('Failed to send email', 'error');
@@ -122,7 +124,7 @@ K.loginV3 = {
 
   async _sendOtp() {
     K.loginV3._startFallbackTimer();
-    try { await K.api.post((K.api._base||V2).replace('api.v2', 'api.v3') + '/auth/send-otp', {email: K.loginV3._state.email}); } catch(_) { K.ui.toast('Failed to send OTP', 'error'); }
+    try { await K.api.post(K.loginV3._v3Url('/auth/send-otp'), {email: K.loginV3._state.email}); } catch(_) { K.ui.toast('Failed to send OTP', 'error'); }
   },
   _startFallbackTimer() {
     if (K.loginV3._otpFallbackTimer) { clearTimeout(K.loginV3._otpFallbackTimer); K.loginV3._otpFallbackTimer = null; }
@@ -141,7 +143,7 @@ K.loginV3 = {
     err.style.display = 'none';
     btn.disabled = true; btn.textContent = 'Verifying...';
     try {
-      const d = await K.api.post((K.api._base||V2).replace('api.v2', 'api.v3') + '/auth/verify-otp', {email: K.loginV3._state.email, code});
+      const d = await K.api.post(K.loginV3._v3Url('/auth/verify-otp'), {email: K.loginV3._state.email, code});
       if (!d.success) { err.textContent = d.error?.message || 'Invalid code'; err.style.display = 'block'; btn.disabled = false; btn.textContent = 'Verify Code'; return; }
       K.loginV3._state.otp_verified = true;
       K.loginV3._stepPass();
@@ -168,7 +170,7 @@ K.loginV3 = {
     const btn = $('v3PassBtn'); const err = $('v3PassError');
     btn.disabled = true; btn.textContent = 'Signing in...';
     try {
-      const d = await K.api.post((K.api._base||V2).replace('api.v2', 'api.v3') + '/auth/login-otp-only', {
+      const d = await K.api.post(K.loginV3._v3Url('/auth/login-otp-only'), {
         email: K.loginV3._state.email,
         otp_verified: true,
       });
@@ -188,7 +190,7 @@ K.loginV3 = {
     err.style.display = 'none';
     btn.disabled = true; btn.textContent = 'Signing in...';
     try {
-      const d = await K.api.post((K.api._base||V2).replace('api.v2', 'api.v3') + '/auth/login-password', {
+      const d = await K.api.post(K.loginV3._v3Url('/auth/login-password'), {
         email: K.loginV3._state.email,
         password,
         otp_verified: true,
@@ -218,7 +220,7 @@ K.loginV3 = {
   },
 
   async _sendRegCode() {
-    try { await K.api.post((K.api._base||V2).replace('api.v2', 'api.v3') + '/auth/register-send-code', {email: K.loginV3._state.email}); } catch(_) { K.ui.toast('Failed to send code', 'error'); }
+    try { await K.api.post(K.loginV3._v3Url('/auth/register-send-code'), {email: K.loginV3._state.email}); } catch(_) { K.ui.toast('Failed to send code', 'error'); }
   },
 
   async _submitRegCode() {
@@ -228,7 +230,7 @@ K.loginV3 = {
     err.style.display = 'none';
     btn.disabled = true; btn.textContent = 'Verifying...';
     try {
-      const d = await K.api.post((K.api._base||V2).replace('api.v2', 'api.v3') + '/auth/register-verify-code', {email: K.loginV3._state.email, code});
+      const d = await K.api.post(K.loginV3._v3Url('/auth/register-verify-code'), {email: K.loginV3._state.email, code});
       if (!d.success) { err.textContent = d.error?.message || 'Invalid code'; err.style.display = 'block'; btn.disabled = false; btn.textContent = 'Verify Email'; return; }
       K.loginV3._state.email_verified = true;
       K.loginV3._stepRegFinish();
@@ -240,7 +242,7 @@ K.loginV3 = {
   async _stepRegFinish() {
     let avatars = [];
     try {
-      const d = await K.api.get((K.api._base||V2).replace('api.v2', 'api.v3') + '/auth/preloaded-avatars');
+      const d = await K.api.get(K.loginV3._v3Url('/auth/preloaded-avatars'));
       if (d.success && d.data) avatars = d.data.avatars || [];
     } catch(_) {}
     const avatarHtml = avatars.length ? avatars.map((a, i) =>
@@ -274,7 +276,7 @@ K.loginV3 = {
     err.style.display = 'none';
     btn.disabled = true; btn.textContent = 'Creating...';
     try {
-      const d = await K.api.post((K.api._base||V2).replace('api.v2', 'api.v3') + '/auth/register-finish', {
+      const d = await K.api.post(K.loginV3._v3Url('/auth/register-finish'), {
         email: K.loginV3._state.email,
         username, display_name, bio,
         avatar: K.loginV3._state.selectedAvatar || '',
