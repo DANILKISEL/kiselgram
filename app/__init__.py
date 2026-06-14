@@ -3,7 +3,7 @@ import os
 import threading
 import time
 from datetime import datetime, timedelta
-from flask import Flask, redirect, session, render_template, make_response
+from flask import Flask, redirect, request, session, render_template, make_response, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_migrate import Migrate
@@ -151,8 +151,14 @@ def create_app():
         resp.headers['X-User-Id'] = str(user_id)
         return resp
 
+    @app.route('/health')
+    def health():
+        return {'status': 'ok'}
+
     @app.route('/', methods=['GET'])
     def index():
+        if request.host.startswith('admin.'):
+            return redirect(url_for('spav2_admin.admin_page'))
         return render_template("kiselgram-home.html")
 
     @app.route('/logout', methods=['GET'])

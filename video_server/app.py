@@ -305,7 +305,7 @@ def nf(e): return jsonify({'error':'Not found'}),404
 
 def run():
     print(f"Video server on {app.config['HOST']}:{app.config['PORT']}")
-    socketio.run(app, host=app.config['HOST'], port=app.config['PORT'], debug=True, allow_unsafe_werkzeug=True)
+    socketio.run(app, host=app.config['HOST'], port=app.config['PORT'], debug=False, allow_unsafe_werkzeug=False)
 
 if __name__ == '__main__':
     run()

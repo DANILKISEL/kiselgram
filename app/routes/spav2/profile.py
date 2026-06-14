@@ -97,7 +97,9 @@ def upload_avatar():
     if file.filename == '':
         return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'No file selected'}}), 400
 
-    ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'jpg'
+    ext = (file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'jpg')
+    if ext not in {'jpg', 'jpeg', 'png', 'webp'}:
+        return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'Invalid file type'}}), 400
     filename = f"avatar_{current_user.id}_{os.urandom(4).hex()}.{ext}"
     upload_dir = os.path.join('uploads', 'avatars')
     os.makedirs(upload_dir, exist_ok=True)

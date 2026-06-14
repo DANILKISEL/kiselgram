@@ -12,8 +12,8 @@ const K = {
     user: null, chats: [], contacts: [], stories: [],
     activeChat: null, replyTo: null, online: navigator.onLine,
     blockedUsers: [],
-    pinned: JSON.parse(localStorage.getItem('k_pinned')||'[]'),
-    folders: JSON.parse(localStorage.getItem('k_folders')||'[]'),
+    pinned: (() => { try { return JSON.parse(localStorage.getItem('k_pinned')||'[]'); } catch(e) { return []; } })(),
+    folders: (() => { try { return JSON.parse(localStorage.getItem('k_folders')||'[]'); } catch(e) { return []; } })(),
     activeFolder: null,
     saveURL() {
       const p = new URLSearchParams(window.location.search);

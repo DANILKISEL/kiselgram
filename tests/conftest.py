@@ -166,3 +166,11 @@ def login_as(client, user_obj):
     with client.session_transaction() as sess:
         sess["user_id"] = user_obj.id
         sess["username"] = user_obj.username
+
+
+@pytest.fixture(autouse=True)
+def clear_rate_limiter(app):
+    """Clear the in-memory rate limiter before each test."""
+    from app.utils.security import rate_limiter
+    rate_limiter._store.clear()
+    yield

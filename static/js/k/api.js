@@ -24,5 +24,6 @@ K.api = {
     return this._fetch(url, { method: 'POST', headers: h, body: isForm ? body : JSON.stringify(body) });
   },
   async put(url, body) { return this._fetch(url, { method: 'PUT', headers: this._headers({'Content-Type':'application/json'}), body: JSON.stringify(body) }); },
-  async del(url) { return this._fetch(url, {method: 'DELETE', headers: this._headers()}); }
+  async del(url) { return this._fetch(url, {method: 'DELETE', headers: this._headers()}); },
+  async delete(url) { return this.del(url); }
 };

@@ -38,14 +38,14 @@ K.settings = {
   setHero(url) {
     const bg = $('splashScreen')?.querySelector('.k-splash-bg');
     if (bg) {
-      if (url) { bg.style.backgroundImage = 'url(' + url + ')'; localStorage.setItem('k_hero_url', url); }
+      if (url) { bg.style.backgroundImage = 'url("' + url.replace(/["\\]/g, '') + '")'; localStorage.setItem('k_hero_url', url); }
       else { bg.style.backgroundImage = ''; localStorage.removeItem('k_hero_url'); }
     }
     K.settings.saveToServer();
   },
   loadHero() {
     const url = localStorage.getItem('k_hero_url');
-    if (url) { const bg = $('splashScreen')?.querySelector('.k-splash-bg'); if (bg) bg.style.backgroundImage = 'url(' + url + ')'; }
+    if (url) { const bg = $('splashScreen')?.querySelector('.k-splash-bg'); if (bg) bg.style.backgroundImage = 'url("' + url.replace(/["\\]/g, '') + '")'; }
     const hu = $('heroUrlInput'); if (hu) hu.value = url || '';
   },
   async loadPrivacy() {
@@ -138,8 +138,9 @@ K.settings = {
     bar.innerHTML = `<button class="k-folder-btn ${!af?'active':''}" onclick="K.state.activeFolder=null;K.settings.renderFolderBar();K.chat.loadList()">All</button>` +
       folders.map(f => `<button class="k-folder-btn ${af===f.name?'active':''}" onclick="K.state.activeFolder='${esc(f.name)}';K.settings.renderFolderBar();K.chat.loadList()">${esc(f.name)}</button>`).join('');
   },
+  _savedThemes() { try { return JSON.parse(localStorage.getItem('k_saved_themes')||'[]'); } catch(e) { return []; } },
   saveCurrentTheme() {
-    const saved = JSON.parse(localStorage.getItem('k_saved_themes')||'[]');
+    const saved = K.settings._savedThemes();
     const t = {
       name: 'Theme ' + (saved.length + 1),
       version: 1,
@@ -157,7 +158,7 @@ K.settings = {
   },
   renderSavedThemes() {
     const list = $('themeList'); if (!list) return;
-    const saved = JSON.parse(localStorage.getItem('k_saved_themes')||'[]');
+    const saved = K.settings._savedThemes();
     if (!saved.length) { list.innerHTML = '<div style="padding:12px;color:var(--text-muted);font-size:13px">No saved themes</div>'; return; }
     list.innerHTML = saved.map((t, i) =>
       `<div class="k-settings-item">
@@ -172,7 +173,7 @@ K.settings = {
     if (cl) cl.innerHTML = list.innerHTML;
   },
   applySavedTheme(idx) {
-    const saved = JSON.parse(localStorage.getItem('k_saved_themes')||'[]');
+    const saved = K.settings._savedThemes();
     const t = saved[idx]; if (!t) return;
     K.settings._applyTheme(t.theme === 'dark');
     K.settings.setFontSize(t.font_size);
@@ -183,7 +184,7 @@ K.settings = {
     K.ui.toast('Theme applied: ' + t.name, 'success');
   },
   deleteSavedTheme(idx) {
-    const saved = JSON.parse(localStorage.getItem('k_saved_themes')||'[]');
+    const saved = K.settings._savedThemes();
     saved.splice(idx, 1);
     localStorage.setItem('k_saved_themes', JSON.stringify(saved));
     K.settings.saveToServer();
@@ -232,7 +233,7 @@ K.settings = {
       font_size: localStorage.getItem('k_font_size') || 'medium',
       color_my: localStorage.getItem('k_color_my') || '#5e72e4',
       color_their: localStorage.getItem('k_color_their') || '#e8e8e8',
-      saved_themes: JSON.parse(localStorage.getItem('k_saved_themes')||'[]'),
+      saved_themes: K.settings._savedThemes(),
       music_tracks: K.music._tracks || []
     };
     try {

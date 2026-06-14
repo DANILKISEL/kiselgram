@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_DB: kiselgram
       POSTGRES_USER: kiselgram_user
-      POSTGRES_PASSWORD: String-123
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
     restart: always
@@ -13,26 +13,31 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    security_opt:
+      - no-new-privileges:true
 
   app:
-    build: .
+    image: kiselgram-app:latest
     command: gunicorn wsgi:app -b 0.0.0.0:5000 --workers 4 --timeout 120 --access-logfile - --error-logfile -
     volumes:
       - uploads:/app/uploads
       - instance:/app/instance
       - ./config/kis.toml:/app/config/kis.toml:ro
     environment:
-      - DATABASE_URL=postgresql://kiselgram_user:String-123@db:5432/kiselgram
+      - DATABASE_URL=${DATABASE_URL}
       - VIDEO_HOST=video
       - VIDEO_PORT=5001
       - VIDEO_EXTERNAL_URL=https://web.kiselgram.ru
+      - MAILADMIN_INTERNAL_KEY=${MAILADMIN_INTERNAL_KEY}
     depends_on:
       db:
         condition: service_healthy
     restart: always
+    security_opt:
+      - no-new-privileges:true
 
   video:
-    build: .
+    image: kiselgram-app:latest
     command: python video_server/app.py
     volumes:
       - ./config/kis.toml:/app/config/kis.toml:ro
@@ -40,16 +45,18 @@ services:
       - VIDEO_PORT=5001
       - VIDEO_HOST=0.0.0.0
       - VIDEO_PRODUCTION=1
-      - DATABASE_URL=postgresql://kiselgram_user:String-123@db:5432/kiselgram
+      - DATABASE_URL=${DATABASE_URL}
       - VIDEO_EXTERNAL_URL=https://web.kiselgram.ru
       - PYTHONUNBUFFERED=1
     depends_on:
       db:
         condition: service_healthy
     restart: always
+    security_opt:
+      - no-new-privileges:true
 
   mailserver:
-    image: ghcr.io/docker-mailserver/docker-mailserver:latest
+    image: ghcr.io/docker-mailserver/docker-mailserver:14.0
     hostname: mail.kiselgram.ru
     ports:
       - "25:25"
@@ -68,18 +75,21 @@ services:
     restart: always
 
   mailadmin:
-    build: mailadmin
+    image: kiselgram-mailadmin:latest
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./mailserver/config:/mailconfig:rw
     environment:
-      MAILADMIN_SECRET: "${MAILADMIN_SECRET:-change-me-in-production}"
+      MAILADMIN_SECRET: "${MAILADMIN_SECRET}"
       MAILADMIN_ADMINS: "${MAILADMIN_ADMINS:-postmaster@kiselgram.ru,postmaster@mail.kiselgram.ru}"
       MAILADMIN_DOMAINS: "${MAILADMIN_DOMAINS:-kiselgram.ru,mail.kiselgram.ru}"
+      MAILADMIN_INTERNAL_KEY: "${MAILADMIN_INTERNAL_KEY}"
     restart: always
+    security_opt:
+      - no-new-privileges:true
 
   nginx:
-    image: nginx:alpine
+    image: nginx:1.27-alpine
     ports:
       - "80:80"
       - "443:443"
@@ -95,6 +105,8 @@ services:
       - video
       - mailadmin
     restart: always
+    security_opt:
+      - no-new-privileges:true
 
 volumes:
   pgdata:
