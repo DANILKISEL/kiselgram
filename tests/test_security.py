@@ -204,11 +204,12 @@ class TestAuthBypass:
 class TestPrivilegeEscalation:
     """Ensure users can't access/modify data they don't own"""
 
-    def test_cannot_edit_others_message(self, logged_in_client, user, user2):
+    def test_cannot_edit_others_message(self, logged_in_client, user, user2, personal_chat):
         from datetime import datetime
         from app.models import Message
         msg = Message(content="Not yours", sender_id=user2.id,
-                      receiver_id=user.id, timestamp=datetime.utcnow())
+                      receiver_id=user.id, chat_id=personal_chat.id,
+                      timestamp=datetime.utcnow())
         db.session.add(msg)
         db.session.commit()
         resp = logged_in_client.post(
