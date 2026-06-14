@@ -1,0 +1,1718 @@
+{
+  "info": {
+    "name": "Kiselgram API v2",
+    "description": "V2 API endpoints for Kiselgram messaging platform.\n\nBase URL: {{base_url}}/api.v2/api\nAuth: Bearer token via {{auth_token}} variable\n\nRegister → Login → use session_token as bearer token for other requests.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "kiselgram"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:5000", "type": "string" },
+    { "key": "auth_token", "value": "", "type": "string" },
+    { "key": "user_id", "value": "", "type": "string" },
+    { "key": "chat_id", "value": "", "type": "string" },
+    { "key": "group_id", "value": "", "type": "string" },
+    { "key": "channel_id", "value": "", "type": "string" },
+    { "key": "message_id", "value": "", "type": "string" },
+    { "key": "story_id", "value": "", "type": "string" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{auth_token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"testuser\",\n    \"email\": \"test@example.com\",\n    \"password\": \"Str0ng!Pass\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "auth", "register"]
+            },
+            "description": "Create new account. Rate-limited: 5/300s."
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"testuser\",\n    \"password\": \"Str0ng!Pass\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "auth", "login"]
+            },
+            "description": "Login with username+password. Returns session_token — copy to {{auth_token}} variable. Rate-limited: 10/60s."
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "auth", "logout"]
+            },
+            "description": "Clear session. Rate-limited: 10/60s."
+          }
+        },
+        {
+          "name": "Verify Email",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"token\": \"<verification_token_from_register>\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/auth/verify",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "auth", "verify"]
+            },
+            "description": "Verify email via token. Also accepts GET with ?token= param. Rate-limited: 20/60s."
+          }
+        },
+        {
+          "name": "Check Username",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/auth/check_username?username=testuser",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "auth", "check_username"],
+              "query": [{ "key": "username", "value": "testuser" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth v3 (Email/OTP Login)",
+      "item": [
+        {
+          "name": "Check Email",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"user@example.com\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/auth/check-email",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "auth", "check-email"]
+            },
+            "description": "Check if email exists in system."
+          }
+        },
+        {
+          "name": "Send OTP (chat)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"user@example.com\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/auth/send-otp",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "auth", "send-otp"]
+            },
+            "description": "Send OTP via Kiselgram chat. Rate-limited: 5/300s."
+          }
+        },
+        {
+          "name": "Send OTP (email)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"user@example.com\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/auth/send-otp-email",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "auth", "send-otp-email"]
+            },
+            "description": "Send OTP via email fallback. Rate-limited: 5/300s."
+          }
+        },
+        {
+          "name": "Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"user@example.com\",\n    \"code\": \"123456\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/auth/verify-otp",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "auth", "verify-otp"]
+            },
+            "description": "Verify OTP code. Rate-limited: 10/60s."
+          }
+        },
+        {
+          "name": "Login with Password (after OTP)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"user@example.com\",\n    \"password\": \"Str0ng!Pass\",\n    \"otp_verified\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/auth/login-password",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "auth", "login-password"]
+            },
+            "description": "Login with password after OTP verification. Rate-limited: 5/60s."
+          }
+        },
+        {
+          "name": "Login OTP-only (no password)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"user@example.com\",\n    \"otp_verified\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/auth/login-otp-only",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "auth", "login-otp-only"]
+            },
+            "description": "Login with OTP only (no password). Rate-limited: 5/60s."
+          }
+        },
+        {
+          "name": "Register Send Code",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"newuser@example.com\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/auth/register-send-code",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "auth", "register-send-code"]
+            },
+            "description": "Send registration email code. Rate-limited: 5/300s."
+          }
+        },
+        {
+          "name": "Register Verify Code",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"newuser@example.com\",\n    \"code\": \"123456\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/auth/register-verify-code",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "auth", "register-verify-code"]
+            },
+            "description": "Verify registration code. Rate-limited: 10/60s."
+          }
+        },
+        {
+          "name": "Register Finish",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"newuser@example.com\",\n    \"username\": \"newuser\",\n    \"display_name\": \"New User\",\n    \"bio\": \"Hello!\",\n    \"email_verified\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/auth/register-finish",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "auth", "register-finish"]
+            },
+            "description": "Complete registration. Rate-limited: 5/300s."
+          }
+        },
+        {
+          "name": "List Preloaded Avatars",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/auth/preloaded-avatars",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "auth", "preloaded-avatars"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "QR Login",
+      "item": [
+        {
+          "name": "QR Generate (Mode A)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/auth/qr/generate",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "auth", "qr", "generate"]
+            },
+            "description": "Auth required. Generate QR token for login-from-scanner flow. Rate-limited: 10/60s."
+          }
+        },
+        {
+          "name": "QR Request (Mode B)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/auth/qr/request",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "auth", "qr", "request"]
+            },
+            "description": "Public. Request unclaimed QR token for scan-to-login flow. Rate-limited: 10/60s."
+          }
+        },
+        {
+          "name": "QR Authorize",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"token\": \"<qr_token>\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/auth/qr/authorize",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "auth", "qr", "authorize"]
+            },
+            "description": "Auth required. Authorize a Mode B QR token. Rate-limited: 10/60s."
+          }
+        },
+        {
+          "name": "QR Login (finalize)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"token\": \"<qr_token>\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/auth/qr/login",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "auth", "qr", "login"]
+            },
+            "description": "Public. Finalize QR login — returns user + session_token. Rate-limited: 5/60s."
+          }
+        },
+        {
+          "name": "QR Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/auth/qr/status/<token>",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "auth", "qr", "status", "<token>"]
+            },
+            "description": "Public. Check QR token status (consumed/expired/authorized)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "OAuth",
+      "item": [
+        {
+          "name": "OAuth Login (google/github/discord)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/auth/oauth/<provider>/login",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "auth", "oauth", "<provider>", "login"]
+            },
+            "description": "Initiate OAuth login. Provider: google, github, or discord. Returns 302 redirect."
+          }
+        },
+        {
+          "name": "OAuth Callback",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/auth/oauth/<provider>/callback",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "auth", "oauth", "<provider>", "callback"]
+            },
+            "description": "OAuth callback handler. Returns HTML with postMessage for popup."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Profile",
+      "item": [
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"display_name\": \"New Name\",\n    \"bio\": \"Updated bio\",\n    \"status_emoji\": \"😎\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Get Settings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/profile/settings",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "profile", "settings"]
+            }
+          }
+        },
+        {
+          "name": "Get Privacy Settings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/profile/privacy",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "profile", "privacy"]
+            }
+          }
+        },
+        {
+          "name": "Upload Avatar",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [{ "key": "avatar", "type": "file", "src": "" }]
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/profile/avatar",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "profile", "avatar"]
+            },
+            "description": "Upload avatar image. Rate-limited: 5/120s."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Chat",
+      "item": [
+        {
+          "name": "Get Chat List",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/chat_list",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "chat_list"]
+            },
+            "description": "Get all chats: personal, groups, channels + saved messages."
+          }
+        },
+        {
+          "name": "Get Personal Messages",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/messages/{{user_id}}?after=0&limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "messages", "{{user_id}}"],
+              "query": [
+                { "key": "after", "value": "0" },
+                { "key": "limit", "value": "50" }
+              ]
+            },
+            "description": "Get personal messages with pagination. Use own user_id for saved messages."
+          }
+        },
+        {
+          "name": "Get Typing Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/typing/personal/{{chat_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "typing", "personal", "{{chat_id}}"]
+            },
+            "description": "Get users currently typing. chat_type: personal or group."
+          }
+        },
+        {
+          "name": "Get Bot Webapp",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/bot/<bot_id>/webapp",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "bot", "<bot_id>", "webapp"]
+            }
+          }
+        },
+        {
+          "name": "Update Bot Webapp",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"webapp_url\": \"https://example.com/bot-app\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/bot/<bot_id>/webapp",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "bot", "<bot_id>", "webapp"]
+            },
+            "description": "Update bot webapp URL (owner only). Must be HTTPS."
+          }
+        },
+        {
+          "name": "List Bots",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/bots",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "bots"]
+            }
+          }
+        },
+        {
+          "name": "Create Bot",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"my_bot\",\n    \"display_name\": \"My Bot\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/bots",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "bots"]
+            },
+            "description": "Create a new bot. Returns bot_token (shown once)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Messages",
+      "item": [
+        {
+          "name": "Send Personal Message",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"receiver_id\": {{user_id}},\n    \"content\": \"Hello!\",\n    \"reply_to_id\": null\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/send_message",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "send_message"]
+            }
+          }
+        },
+        {
+          "name": "Set Typing",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/typing/personal/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "typing", "personal", "{{user_id}}"]
+            },
+            "description": "Signal typing. chat_type: personal or group."
+          }
+        },
+        {
+          "name": "Mark Read",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/mark_read/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "mark_read", "{{user_id}}"]
+            },
+            "description": "Mark messages from a user as read."
+          }
+        },
+        {
+          "name": "Edit Message",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"content\": \"Updated content\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/messages/{{message_id}}/edit",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "messages", "{{message_id}}", "edit"]
+            },
+            "description": "Edit own message (sender only)."
+          }
+        },
+        {
+          "name": "Delete Message",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/messages/{{message_id}}/delete",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "messages", "{{message_id}}", "delete"]
+            },
+            "description": "Soft-delete own message."
+          }
+        },
+        {
+          "name": "Add Reaction (toggle)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"message_id\": {{message_id}},\n    \"reaction_type\": \"👍\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/reactions/add",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "reactions", "add"]
+            },
+            "description": "Toggle reaction on a message."
+          }
+        },
+        {
+          "name": "Get Reactions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/reactions/{{message_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "reactions", "{{message_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Groups",
+      "item": [
+        {
+          "name": "List Groups",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/groups",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "groups"]
+            }
+          }
+        },
+        {
+          "name": "Get Group",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/groups/{{group_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "groups", "{{group_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Group Members",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/groups/{{group_id}}/members?offset=0&limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "groups", "{{group_id}}", "members"],
+              "query": [
+                { "key": "offset", "value": "0" },
+                { "key": "limit", "value": "50" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Group Messages",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/group_messages/{{group_id}}?after=0&limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "group_messages", "{{group_id}}"],
+              "query": [
+                { "key": "after", "value": "0" },
+                { "key": "limit", "value": "50" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Group",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"My Group\",\n    \"description\": \"Group description\",\n    \"member_ids\": []\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/groups/create",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "groups", "create"]
+            }
+          }
+        },
+        {
+          "name": "Send Group Message",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"group_id\": {{group_id}},\n    \"content\": \"Hello group!\",\n    \"reply_to_id\": null\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/send_group_message",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "send_group_message"]
+            }
+          }
+        },
+        {
+          "name": "Update Group",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Updated Name\",\n    \"description\": \"Updated description\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/groups/{{group_id}}/update",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "groups", "{{group_id}}", "update"]
+            },
+            "description": "Auth required (owner or admin)."
+          }
+        },
+        {
+          "name": "Change Member Role",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"role\": \"admin\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/groups/{{group_id}}/members/<user_id>/role",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "groups", "{{group_id}}", "members", "<user_id>", "role"]
+            },
+            "description": "Auth required (owner only). Role: admin or member."
+          }
+        },
+        {
+          "name": "Join Group (invite link)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/join_group/<invite_link>",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "join_group", "<invite_link>"]
+            }
+          }
+        },
+        {
+          "name": "Leave Group",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/leave_group/{{group_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "leave_group", "{{group_id}}"]
+            },
+            "description": "Owner cannot leave."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Channels",
+      "item": [
+        {
+          "name": "Get Channel",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/channels/{{channel_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "channels", "{{channel_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Channel Messages",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/channel_messages/{{channel_id}}?after=0&limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "channel_messages", "{{channel_id}}"],
+              "query": [
+                { "key": "after", "value": "0" },
+                { "key": "limit", "value": "50" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Channel",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"My Channel\",\n    \"description\": \"Channel description\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/channels/create",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "channels", "create"]
+            }
+          }
+        },
+        {
+          "name": "Send Channel Message",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"channel_id\": {{channel_id}},\n    \"content\": \"Channel update\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/send_channel_message",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "send_channel_message"]
+            },
+            "description": "Auth required (owner or admin)."
+          }
+        },
+        {
+          "name": "Subscribe to Channel",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/channels/{{channel_id}}/subscribe",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "channels", "{{channel_id}}", "subscribe"]
+            }
+          }
+        },
+        {
+          "name": "Unsubscribe from Channel",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/channels/{{channel_id}}/unsubscribe",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "channels", "{{channel_id}}", "unsubscribe"]
+            }
+          }
+        },
+        {
+          "name": "Update Channel",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Updated Channel\",\n    \"description\": \"Updated description\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/channels/{{channel_id}}/update",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "channels", "{{channel_id}}", "update"]
+            },
+            "description": "Auth required (owner only)."
+          }
+        },
+        {
+          "name": "Add Channel Admin",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"user_id\": {{user_id}}\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/channels/{{channel_id}}/admins",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "channels", "{{channel_id}}", "admins"]
+            },
+            "description": "Auth required (owner only)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Contacts",
+      "item": [
+        {
+          "name": "List Contacts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/contacts",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "contacts"]
+            }
+          }
+        },
+        {
+          "name": "Add Contact",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"contact_id\": {{user_id}}\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/contacts",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "contacts"]
+            }
+          }
+        },
+        {
+          "name": "Rename Contact",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"contact_id\": {{user_id}},\n    \"name\": \"Custom Name\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/contacts/rename",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "contacts", "rename"]
+            }
+          }
+        },
+        {
+          "name": "Remove Contact",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/contacts/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "contacts", "{{user_id}}"]
+            }
+          }
+        },
+        {
+          "name": "List Blocked Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/blocked_users",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "blocked_users"]
+            }
+          }
+        },
+        {
+          "name": "Block User",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/block_user/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "block_user", "{{user_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Unblock User",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/unblock_user/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "unblock_user", "{{user_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Calls",
+      "item": [
+        {
+          "name": "Call History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/calls/history",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "calls", "history"]
+            }
+          }
+        },
+        {
+          "name": "Make Call",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"receiver_id\": {{user_id}},\n    \"call_type\": \"voice\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/calls/make",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "calls", "make"]
+            },
+            "description": "Initiate call. call_type: voice or video."
+          }
+        },
+        {
+          "name": "Create Video Room",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"chat_id\": {{chat_id}},\n    \"chat_type\": \"personal\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/video/create-room",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "video", "create-room"]
+            },
+            "description": "Create WebRTC video room via video server."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Stories",
+      "item": [
+        {
+          "name": "Get Stories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/stories",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "stories"]
+            }
+          }
+        },
+        {
+          "name": "Create Story",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "media", "type": "file", "src": "" },
+                { "key": "caption", "value": "Story caption" },
+                { "key": "privacy", "value": "everyone" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/stories/create",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "stories", "create"]
+            }
+          }
+        },
+        {
+          "name": "View Story",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/stories/{{story_id}}/view",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "stories", "{{story_id}}", "view"]
+            }
+          }
+        },
+        {
+          "name": "Like Story (toggle)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/stories/{{story_id}}/like",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "stories", "{{story_id}}", "like"]
+            }
+          }
+        },
+        {
+          "name": "React to Story",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"reaction\": \"heart\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/stories/{{story_id}}/reaction",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "stories", "{{story_id}}", "reaction"]
+            },
+            "description": "Valid reactions: heart, fire, laugh, wow, sad, angry."
+          }
+        },
+        {
+          "name": "Reply to Story",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"reply_text\": \"Nice story!\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/stories/{{story_id}}/reply",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "stories", "{{story_id}}", "reply"]
+            }
+          }
+        },
+        {
+          "name": "Story Stats (owner)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/stories/{{story_id}}/stats",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "stories", "{{story_id}}", "stats"]
+            },
+            "description": "Story owner only."
+          }
+        },
+        {
+          "name": "Delete Story",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/stories/{{story_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "stories", "{{story_id}}"]
+            },
+            "description": "Story owner only."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Search",
+      "item": [
+        {
+          "name": "Global Search",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/search/global?q=test",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "search", "global"],
+              "query": [{ "key": "q", "value": "test" }]
+            },
+            "description": "Search users, groups, channels. Min 2 chars."
+          }
+        },
+        {
+          "name": "Search Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/users?search=test",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "users"],
+              "query": [{ "key": "search", "value": "test" }]
+            },
+            "description": "Search users only. Min 2 chars."
+          }
+        },
+        {
+          "name": "Get User Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/users/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "users", "{{user_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get User Music",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/users/{{user_id}}/music",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "users", "{{user_id}}", "music"]
+            }
+          }
+        },
+        {
+          "name": "Get Shared Files",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/users/{{user_id}}/files",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "users", "{{user_id}}", "files"]
+            }
+          }
+        },
+        {
+          "name": "Search in Chat",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"chat_id\": {{chat_id}},\n    \"query\": \"search term\",\n    \"chat_type\": \"personal\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/search_in_chat",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "search_in_chat"]
+            }
+          }
+        },
+        {
+          "name": "Recent Searches (GET)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/recent_searches",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "recent_searches"]
+            }
+          }
+        },
+        {
+          "name": "Recent Searches (POST)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"query\": \"search term\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/recent_searches",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "recent_searches"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sessions",
+      "item": [
+        {
+          "name": "List Sessions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/sessions",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "sessions"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Saved Messages",
+      "item": [
+        {
+          "name": "Get Saved Messages",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/saved_messages?after=0&limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "saved_messages"],
+              "query": [
+                { "key": "after", "value": "0" },
+                { "key": "limit", "value": "50" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Save Message",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"message_id\": {{message_id}},\n    \"note\": \"Optional note\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/saved_messages",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "saved_messages"]
+            }
+          }
+        },
+        {
+          "name": "Update Saved Note",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"note\": \"Updated note\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/saved_messages/<saved_id>/note",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "saved_messages", "<saved_id>", "note"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Music",
+      "item": [
+        {
+          "name": "List Music Library",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/music/library",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "music", "library"]
+            }
+          }
+        },
+        {
+          "name": "Add Music Track",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"file_url\": \"/uploads/music/track.mp3\",\n    \"file_name\": \"track.mp3\",\n    \"artist\": \"Artist\",\n    \"title\": \"Song Title\",\n    \"duration\": 180,\n    \"source_message_id\": null\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/music/library",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "music", "library"]
+            }
+          }
+        },
+        {
+          "name": "Remove Music Track",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/music/library/<track_id>",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "music", "library", "<track_id>"]
+            },
+            "description": "Owner only."
+          }
+        }
+      ]
+    },
+    {
+      "name": "K Settings",
+      "item": [
+        {
+          "name": "Get K Settings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/k/settings",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "k", "settings"]
+            }
+          }
+        },
+        {
+          "name": "Save K Settings",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"settings\": {}\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/k/settings",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "k", "settings"]
+            },
+            "description": "Full replace of user K settings."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Admin Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/admin/dashboard",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "admin", "dashboard"]
+            },
+            "description": "Admin required. Get stats: total_users, total_reports, etc."
+          }
+        },
+        {
+          "name": "List Reports",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/admin/reports?status=pending",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "admin", "reports"],
+              "query": [{ "key": "status", "value": "pending" }]
+            },
+            "description": "Admin required. Filter by status: pending, resolved, dismissed."
+          }
+        },
+        {
+          "name": "Resolve Report",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/admin/reports/<report_id>/resolve",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "admin", "reports", "<report_id>", "resolve"]
+            },
+            "description": "Admin required."
+          }
+        },
+        {
+          "name": "Dismiss Report",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/admin/reports/<report_id>/dismiss",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "admin", "reports", "<report_id>", "dismiss"]
+            },
+            "description": "Admin required."
+          }
+        },
+        {
+          "name": "Take Action on Report",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"action_type\": \"warn\",\n    \"user_id\": {{user_id}}\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/admin/reports/<report_id>/action",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "admin", "reports", "<report_id>", "action"]
+            },
+            "description": "Admin required. action_type: warn, delete_message, ban_user, timeout."
+          }
+        },
+        {
+          "name": "List Users (admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/admin/users?page=1",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "admin", "users"],
+              "query": [{ "key": "page", "value": "1" }]
+            },
+            "description": "Admin required. Paginated user list."
+          }
+        },
+        {
+          "name": "Toggle Admin",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/admin/users/{{user_id}}/toggle-admin",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "admin", "users", "{{user_id}}", "toggle-admin"]
+            },
+            "description": "Admin required. Toggle user admin status."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Bot Webhook",
+      "item": [
+        {
+          "name": "Bot Incoming Webhook",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"event\": \"message\",\n    \"data\": {\n        \"chat_id\": 1,\n        \"content\": \"Hello from bot\"\n    }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/bots/webhook/<bot_token>",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "bots", "webhook", "<bot_token>"]
+            },
+            "description": "External services POST events for a bot, authenticated by bot token."
+          }
+        },
+        {
+          "name": "Set Bot Webhook URL",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"bot_id\": 1,\n    \"webhook_url\": \"https://example.com/webhook\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/bots/webhook",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "bots", "webhook"]
+            },
+            "description": "Auth required (bot owner). Set outgoing webhook URL (must be HTTPS)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Push Notifications",
+      "item": [
+        {
+          "name": "Subscribe Push",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"endpoint\": \"https://push.example.com/...\",\n    \"keys\": {\n        \"p256dh\": \"<p256dh_key>\",\n        \"auth\": \"<auth_key>\"\n    }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/push/subscribe",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "push", "subscribe"]
+            }
+          }
+        },
+        {
+          "name": "Unsubscribe Push",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"endpoint\": \"https://push.example.com/...\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/push/unsubscribe",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "push", "unsubscribe"]
+            }
+          }
+        },
+        {
+          "name": "VAPID Public Key",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api.v2/api/push/vapid-public-key",
+              "host": ["{{base_url}}"],
+              "path": ["api.v2", "api", "push", "vapid-public-key"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -113,5 +113,5 @@ def deliver_webhook_event(bot, event, data):
         payload = _json.dumps({'event': event, 'data': data}).encode()
         req = urllib.request.Request(url, data=payload, headers={'Content-Type': 'application/json'}, method='POST')
         urllib.request.urlopen(req, timeout=10)
-    except Exception:
-        pass
+    except Exception as e:
+        current_app.logger.error(f"Webhook delivery failed to {url}: {e}")

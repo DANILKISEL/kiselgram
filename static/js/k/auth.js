@@ -94,7 +94,7 @@ K.auth = {
   },
   async logout() {
     if (await K.ui.confirm('Sign out?')) {
-      try { await K.api.post(V2 + '/auth/logout'); } catch(e) {}
+      try { await K.api.post(V2 + '/auth/logout'); } catch(_) {}
       const wasActive = this.activeIdx;
       this.accounts.splice(wasActive, 1);
       if (this.accounts.length === 0) { this._save(); window.location.href = '/'; return; }

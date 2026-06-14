@@ -145,7 +145,7 @@ def get_blocked_user_ids(user_id):
     try:
         blocks = BlockedUser.query.filter_by(user_id=user_id).all()
         return [b.blocked_user_id for b in blocks]
-    except:
+    except Exception:
         return []
 
 def has_active_story(user_id):
@@ -155,7 +155,7 @@ def has_active_story(user_id):
             Story.user_id == user_id,
             Story.created_at >= cutoff
         ).count() > 0
-    except:
+    except Exception:
         return False
 
 def user_to_dict(user):
