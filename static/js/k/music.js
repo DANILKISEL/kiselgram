@@ -151,7 +151,7 @@ K.music = {
     K.music._currentIdx = -1;
     K.music._urlTrack = { url, title, artist, message_id: messageId };
     K.music._audio = new Audio(url);
-    K.music._audio.volume = parseFloat(localStorage.getItem('k_music_volume')||'1');
+    K.music._audio.volume = parseFloat(localStorage.getItem('k_music_volume')||'1') || 1;
     K.music._audio.onended = () => { K.music.stop(); };
     K.music._audio.play().catch(() => { K.ui.toast('Playback failed', 'error'); K.music.stop(); });
     K.music.showPlayer();
