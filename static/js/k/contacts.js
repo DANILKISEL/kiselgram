@@ -42,7 +42,7 @@ K.contacts = {
     }
   },
   search(q) {
-    const filtered = q ? K.state.contacts.filter(c => (c.display_name||c.username).toLowerCase().includes(q.toLowerCase())) : K.state.contacts;
+    const filtered = q ? (K.state.contacts||[]).filter(c => (c.display_name||c.username).toLowerCase().includes(q.toLowerCase())) : (K.state.contacts||[]);
     K.contacts.render(filtered);
   }
 };

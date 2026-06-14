@@ -77,7 +77,7 @@ K.auth = {
       }
       return {success: false, error: d.error?.message || 'Registration failed'};
     } catch(e) {
-      return {success: false, error: 'Server error'};
+      return {success: false, error: e.body?.error?.message || e.message || 'Server error'};
     }
   },
   switchAccount(idx) {
@@ -110,8 +110,8 @@ K.auth = {
     ).join('') + `<div class="k-acc-tab k-acc-add" onclick="K.loginV3.showPicker()" title="Add account">+</div>`;
   },
   showAddAccount() {
-    const o = $('modalOverlay'); o.style.display = 'flex';
-    $('modalContent').innerHTML = `
+    const o = $('modalOverlay'); if (o) o.style.display = 'flex';
+    const mc = $('modalContent'); if (mc) mc.innerHTML = `
       <div class="k-modal-header"><h3>Add Account</h3><button class="k-modal-close" onclick="K.modals.close()"><i class="fas fa-times"></i></button></div>
       <div class="k-modal-body">
         <input class="k-input" id="loginUser" placeholder="Username" autocomplete="off">
@@ -152,8 +152,8 @@ K.auth = {
   },
 
   showQRRequest() {
-    const o = $('modalOverlay'); o.style.display = 'flex';
-    $('modalContent').innerHTML = `
+    const o = $('modalOverlay'); if (o) o.style.display = 'flex';
+    const mc = $('modalContent'); if (mc) mc.innerHTML = `
       <div class="k-modal-header"><h3>QR Login</h3><button class="k-modal-close" onclick="K.modals.close()"><i class="fas fa-times"></i></button></div>
       <div class="k-modal-body" style="text-align:center">
         <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">Scan this QR with a device that's already logged in</p>
@@ -211,13 +211,13 @@ K.auth = {
                 K.ui.toast('Logged in!', 'success');
                 setTimeout(() => location.reload(), 500);
               }
-            } catch(_) {}
+            } catch(_) { K.auth._qrStopPoll(); return; }
           } else if (d.data.consumed || d.data.expired) {
             K.auth._qrStopPoll();
             $('qrRequestStatus').innerHTML = '<span style="color:var(--error)">Expired. <a href="#" onclick="K.auth._qrRequest();return false" style="color:var(--accent-blue)">Regenerate</a></span>';
           }
         }
-      } catch(_) {}
+      } catch(_) { K.auth._qrStopPoll(); }
     }, 2000);
   },
 
@@ -269,7 +269,7 @@ K.auth = {
       let r;
       if (K.auth._loginMode === 'register') {
         const email = $('loginEmail')?.value?.trim();
-        if (!email) { K.ui.toast('Enter your email', 'error'); if (btn) btn.disabled = false; return; }
+        if (!email) { K.ui.toast('Enter your email', 'error'); return; }
         r = await K.auth.register(user, email, pass);
       } else {
         r = await K.auth.login(user, pass);

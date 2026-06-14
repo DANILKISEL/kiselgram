@@ -30,7 +30,7 @@ K.chat = {
     const af = K.state.activeFolder;
     let filtered = chats;
     if (af) {
-      const f = K.state.folders.find(x => x.name === af);
+      const f = (K.state.folders||[]).find(x => x.name === af);
       if (f?.chats?.length) {
         const ids = new Set(f.chats.map(x => x.type+':'+x.id));
         filtered = chats.filter(chat => {
@@ -97,11 +97,11 @@ K.chat = {
     $('inputArea')?.classList.remove('k-hidden');
     $('replyBar')?.classList.remove('k-hidden');
     $('typingIndicator')?.classList.remove('k-hidden');
-    $('chatView').classList.add('active');
+    $('chatView')?.classList.add('active');
     document.querySelectorAll('.k-panel').forEach(p => p.classList.remove('active'));
     if (window.innerWidth > 768) { const cp = $('panel-chats'); if (cp) cp.classList.add('active'); }
-    $('chatMenu').style.display = 'none';
-    $('chatInfo').style.display = 'none';
+    if ($('chatMenu')) $('chatMenu').style.display = 'none';
+    if ($('chatInfo')) $('chatInfo').style.display = 'none';
     await K.chat.loadHeader(type, id);
     await K.chat.loadMessages(type, id);
     $('messageInput').focus();
@@ -222,7 +222,7 @@ K.chat = {
         K.chat.renderMessages(msgs);
         if (K.chat._hasMore) mc.insertAdjacentHTML('afterend', '<div id="loadMoreTrigger" style="text-align:center;padding:8px"><button class="k-btn k-btn-secondary" onclick="K.chat.loadMore()">Load older messages</button></div>');
       }
-    } catch(e) { if (!append && firstLoad) mc.innerHTML = '<div class="k-empty"><i class="fas fa-exclamation-triangle"></i><h3>Error</h3><p onclick="K.chat.loadMessages(type,id)" style="color:var(--accent-blue);cursor:pointer">Tap to retry</p></div>'; }
+    } catch(e) { if (!append && firstLoad) mc.innerHTML = '<div class="k-empty"><i class="fas fa-exclamation-triangle"></i><h3>Error</h3><p onclick="K.chat.loadMessages(\''+type+'\','+id+')" style="color:var(--accent-blue);cursor:pointer">Tap to retry</p></div>'; }
   },
   async loadMore() {
     if (!K.state.activeChat) return;
@@ -593,7 +593,7 @@ K.chat = {
       const idx = f.chats.findIndex(x => x.type === type && x.id === id);
       if (idx >= 0) f.chats.splice(idx, 1);
       else f.chats.push({type, id});
-      K.state.folders = K.state.folders.map(x => x.name === fname ? f : x);
+      K.state.folders = (K.state.folders||[]).map(x => x.name === fname ? f : x);
       localStorage.setItem('k_folders', JSON.stringify(K.state.folders));
       K.settings.saveToServer();
       K.chat.loadList();

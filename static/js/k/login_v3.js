@@ -158,7 +158,7 @@ K.loginV3 = {
         <input class="k-input" id="v3Pass" type="password" placeholder="Password" autocomplete="current-password" style="text-align:center;font-size:16px">
         <div id="v3PassError" style="font-size:12px;color:var(--error);margin-bottom:8px;display:none"></div>
         <button class="k-btn k-btn-primary" id="v3PassBtn" style="width:100%;padding:12px;font-size:14px" onclick="K.loginV3._submitPass()">Sign in</button>
-        <p style="margin-top:8px;font-size:12px"><a href="#" onclick="K.loginV3._loginOtpOnly()" style="color:var(--text-muted)">Skip password (less secure)</a></p>
+        <p style="margin-top:8px;font-size:12px"><a href="#" onclick="K.loginV3._loginOtpOnly();return false" style="color:var(--text-muted)">Skip password (less secure)</a></p>
       </div>`;
     setTimeout(() => $('v3Pass')?.focus(), 100);
     $('v3Pass').addEventListener('keydown', (e) => { if (e.key === 'Enter') K.loginV3._submitPass(); });
