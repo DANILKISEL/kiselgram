@@ -1,9 +1,11 @@
+const SAVED_LIMIT = 50;
+
 K.saved = {
   async load() {
     const list = $('savedMessagesList'); if (!list) return;
     list.innerHTML = K.ui.loader();
     try {
-      const d = await K.api.get(V2 + '/saved_messages?limit=50');
+      const d = await K.api.get(V2 + '/saved_messages?limit=' + SAVED_LIMIT);
       if (d.success) {
         const msgs = d.data?.messages || [];
         if (!msgs.length) { list.innerHTML = '<div class="k-empty"><i class="fas fa-bookmark"></i><h3>No saved messages</h3></div>'; return; }

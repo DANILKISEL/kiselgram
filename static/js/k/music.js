@@ -1,3 +1,5 @@
+const PROGRESS_INTERVAL_MS = 250;
+
 K.music = {
   _tracks: (() => { try { return JSON.parse(localStorage.getItem('k_music_tracks')||'[]'); } catch(e) { return []; } })(),
   _currentIdx: -1,
@@ -107,7 +109,7 @@ K.music = {
   },
   _startProgress() {
     clearInterval(K.music._progTimer);
-    K.music._progTimer = setInterval(K.music._updateProgress, 250);
+    K.music._progTimer = setInterval(K.music._updateProgress, PROGRESS_INTERVAL_MS);
     K.music._updateProgress();
   },
   _updateProgress() {

@@ -1,3 +1,9 @@
+const MOBILE_BREAKPOINT = 768;
+const CONSECUTIVE_MSG_GAP = 300000;
+const MAX_INPUT_HEIGHT = 100;
+const TYPING_DEBOUNCE = 500;
+const TYPING_COOLDOWN = 4000;
+
 K.chat = {
   _initActions_ran: false,
   _initActions() {
@@ -99,7 +105,7 @@ K.chat = {
     $('typingIndicator')?.classList.remove('k-hidden');
     $('chatView')?.classList.add('active');
     document.querySelectorAll('.k-panel').forEach(p => p.classList.remove('active'));
-    if (window.innerWidth > 768) { const cp = $('panel-chats'); if (cp) cp.classList.add('active'); }
+    if (window.innerWidth > MOBILE_BREAKPOINT) { const cp = $('panel-chats'); if (cp) cp.classList.add('active'); }
     if ($('chatMenu')) $('chatMenu').style.display = 'none';
     if ($('chatInfo')) $('chatInfo').style.display = 'none';
     await K.chat.loadHeader(type, id);
@@ -125,7 +131,7 @@ K.chat = {
     $('inputArea')?.classList.add('k-hidden');
     $('replyBar')?.classList.add('k-hidden');
     $('typingIndicator')?.classList.add('k-hidden');
-    if (window.innerWidth <= 768) $('chatView').classList.remove('active');
+    if (window.innerWidth <= MOBILE_BREAKPOINT) $('chatView').classList.remove('active');
   },
   async loadHeader(type, id) {
     const nameEl = $('chatName'), statusEl = $('chatStatus'), avatarEl = $('chatAvatar');
@@ -189,7 +195,7 @@ K.chat = {
           if (statusEl) { statusEl.textContent = (ch.subscriber_count||0)+' subscribers'; statusEl.className = 'k-chat-header-status'; }
         }
       }
-    } catch(e) { console.error('Chat header load:', e); }
+    } catch(e) { K.ui.toast('Failed to load chat info', 'error'); }
   },
   async loadMessages(type, id, append=false) {
     const mc = $('messagesContainer'); if (!mc) return;
@@ -245,7 +251,7 @@ K.chat = {
         html += `<div class="k-date-divider"><span>${label}</span></div>`;
       }
       const isOwn = m.sender_id === uid || m.is_own;
-      const consecutive = m.sender_id === lastSender && lastTime && (safeDate(m.timestamp)?.getTime()||0) - (safeDate(lastTime)?.getTime()||0) < 300000;
+      const consecutive = m.sender_id === lastSender && lastTime && (safeDate(m.timestamp)?.getTime()||0) - (safeDate(lastTime)?.getTime()||0) < CONSECUTIVE_MSG_GAP;
       html += K.chat._messageHtml(m, isOwn, consecutive);
       lastSender = m.sender_id; lastTime = m.timestamp;
     }
@@ -331,10 +337,10 @@ K.chat = {
     _typingTimer: null,
     handle() {
       const input = $('messageInput'), btn = $('sendBtn');
-      if (input) { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 100) + 'px'; }
+      if (input) { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, MAX_INPUT_HEIGHT) + 'px'; }
       if (btn) btn.disabled = !(input?.value.trim());
       clearTimeout(K.chat.input._typingTimer);
-      K.chat.input._typingTimer = setTimeout(() => K.chat._sendTyping(), 500);
+      K.chat.input._typingTimer = setTimeout(() => K.chat._sendTyping(), TYPING_DEBOUNCE);
     },
     keydown(e) {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); K.chat.send(); return; }
@@ -388,7 +394,7 @@ K.chat = {
     K.chat._typingSent = true;
     const { type, id } = K.state.activeChat;
     try { await K.api.post(V2 + `/typing/${type}/${id}`); } catch(_) {}
-    setTimeout(() => { K.chat._typingSent = false; }, 4000);
+    setTimeout(() => { K.chat._typingSent = false; }, TYPING_COOLDOWN);
   },
   reply: {
     set(msgId, text) {

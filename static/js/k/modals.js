@@ -1,3 +1,6 @@
+const SEARCH_DEBOUNCE = 300;
+const MIN_SEARCH_LENGTH = 2;
+
 K.modals = {
   show(name) {
     const overlay = $('modalOverlay'), content = $('modalContent');
@@ -19,7 +22,7 @@ K.modals = {
   },
   _searchNewChat: debounce(async (q) => {
     const r = $('newChatResults'); if (!r) return;
-    if (!q || q.length < 2) { r.innerHTML = '<div style="padding:16px;color:var(--text-muted);text-align:center">Type at least 2 characters</div>'; return; }
+    if (!q || q.length < MIN_SEARCH_LENGTH) { r.innerHTML = '<div style="padding:16px;color:var(--text-muted);text-align:center">Type at least 2 characters</div>'; return; }
     r.innerHTML = K.ui.loader();
     try {
       const d = await K.api.get(V2 + `/users?search=${encodeURIComponent(q)}`);
@@ -33,7 +36,7 @@ K.modals = {
         </div>`
       ).join('');
     } catch(e) { r.innerHTML = '<div style="padding:16px;color:var(--text-muted);text-align:center">Search failed</div>'; }
-  }, 300),
+  }, SEARCH_DEBOUNCE),
   createGroup() {
     return `
       <div class="k-modal-header"><h3>Create Group</h3><button class="k-modal-close" onclick="K.modals.close()"><i class="fas fa-times"></i></button></div>
@@ -95,8 +98,8 @@ K.modals = {
           <div class="k-contact-info"><div class="k-contact-name">${esc(u.display_name||u.username)}</div><div class="k-contact-username">@${esc(u.username)}</div></div>
         </div>`
       ).join('');
-    } catch(e) { console.error('Group search:', e); }
-  }, 300),
+    } catch(e) { K.ui.toast('Failed to search users', 'error'); }
+  }, SEARCH_DEBOUNCE),
   _addMember(id, name) {
     K.modals._groupMemberIds.push(id); K.modals._groupMemberNames.push(name);
     $('groupSelectedMembers').innerHTML = K.modals._groupMemberNames.map((n,i) =>
@@ -228,6 +231,6 @@ K.modals = {
           <div class="k-contact-info"><div class="k-contact-name">${esc(u.display_name||u.username)}</div><div class="k-contact-username">@${esc(u.username)}</div></div>
         </div>`
       ).join('');
-    } catch(e) { console.error('User search:', e); }
-  }, 300)
+    } catch(e) { K.ui.toast('Failed to search users', 'error'); }
+  }, SEARCH_DEBOUNCE)
 };

@@ -10,7 +10,7 @@ K.admin = {
         K.admin.loadReports();
         K.admin.loadUsers();
       }
-    } catch(e) { console.error('Admin init:', e); }
+    } catch(e) { K.ui.toast('Failed to load admin panel', 'error'); }
   },
   async loadDashboard() {
     const el = $('adminDashboard'); if (!el) return;
@@ -79,7 +79,7 @@ K.admin = {
     } catch(e) { K.ui.toast('Error', 'error'); }
   },
   async actionReport(id, userId, actionType) {
-    if (!K.ui.confirm('Take action: ' + actionType + '?')) return;
+    if (!await K.ui.confirm('Take action: ' + actionType + '?')) return;
     try {
       const d = await K.api.post('/api/admin/reports/' + id + '/action', {action_type: actionType, user_id: userId});
       if (d.success) { K.ui.toast('Action applied', 'success'); K.admin.loadReports(); }
@@ -105,6 +105,6 @@ K.admin = {
     try {
       const d = await K.api.post('/api/admin/users/' + userId + '/toggle-admin');
       if (d.success) { K.ui.toast('Admin toggled', 'success'); K.admin.loadUsers(); }
-    } catch(e) { console.error('Toggle admin:', e); }
+    } catch(e) { K.ui.toast('Failed to toggle admin', 'error'); }
   }
 };

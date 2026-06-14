@@ -1,5 +1,12 @@
 'use strict';
 
+const USERNAME_MIN_LENGTH = 3;
+const PASSWORD_MIN_LENGTH = 6;
+const CHATS_PER_PAGE = 100;
+const MESSAGES_PER_PAGE = 20;
+const CONTENT_PREVIEW_MAX = 200;
+const OTPS_PER_PAGE = 50;
+
 K.adminPage = {
   _allUsers: [],
   _chatDetailPage: 1,
@@ -140,8 +147,8 @@ K.adminPage = {
       password: ($('addPassword')||{}).value || '',
       is_admin: ($('addIsAdmin')||{}).checked || false
     };
-    if (!data.username || data.username.length < 3) { K.ui.toast('Username must be at least 3 characters', 'error'); return; }
-    if (data.password.length < 6) { K.ui.toast('Password must be at least 6 characters', 'error'); return; }
+    if (!data.username || data.username.length < USERNAME_MIN_LENGTH) { K.ui.toast('Username must be at least ' + USERNAME_MIN_LENGTH + ' characters', 'error'); return; }
+    if (data.password.length < PASSWORD_MIN_LENGTH) { K.ui.toast('Password must be at least ' + PASSWORD_MIN_LENGTH + ' characters', 'error'); return; }
     try {
       const d = await K.api.post('/api/admin/users/create', data);
       if (d.success) { bootstrap.Modal.getInstance($('addUserModal')).hide(); this.loadUsers(); K.ui.toast('User created', 'success'); }
@@ -176,7 +183,7 @@ K.adminPage = {
   async savePassword() {
     const id = ($('passwordUserId')||{}).value;
     const pwd = ($('newPassword')||{}).value;
-    if (!pwd || pwd.length < 6) { K.ui.toast('Password must be at least 6 characters', 'error'); return; }
+    if (!pwd || pwd.length < PASSWORD_MIN_LENGTH) { K.ui.toast('Password must be at least ' + PASSWORD_MIN_LENGTH + ' characters', 'error'); return; }
     try {
       const d = await K.api.post('/api/admin/users/' + id + '/set-password', {password: pwd});
       if (d.success) { bootstrap.Modal.getInstance($('passwordModal')).hide(); K.ui.toast('Password updated', 'success'); }
@@ -204,7 +211,7 @@ K.adminPage = {
 
   async loadChats() {
     const chatType = ($('chatTypeFilter') ? $('chatTypeFilter').value : '');
-    const url = '/api/admin/chats?per_page=100' + (chatType ? '&chat_type=' + chatType : '');
+    const url = '/api/admin/chats?per_page=' + CHATS_PER_PAGE + (chatType ? '&chat_type=' + chatType : '');
     try {
       const d = await K.api.get(url);
       if (!d.success) return;
@@ -280,7 +287,7 @@ K.adminPage = {
 
   async _loadChatMessages(chatId, page) {
     try {
-      const d = await K.api.get('/api/admin/chats/' + chatId + '/messages?page=' + page + '&per_page=20');
+      const d = await K.api.get('/api/admin/chats/' + chatId + '/messages?page=' + page + '&per_page=' + MESSAGES_PER_PAGE);
       if (!d.success) return;
       const data = d.data;
       this._chatDetailPage = page;
@@ -290,7 +297,7 @@ K.adminPage = {
       const msgs = (data.messages || []).map(m => {
         const content = m.is_deleted
           ? '<span class="text-muted fst-italic">Deleted</span>'
-          : esc((m.content||'').substring(0, 200)) + ((m.content||'').length > 200 ? '...' : '');
+          : esc((m.content||'').substring(0, CONTENT_PREVIEW_MAX)) + ((m.content||'').length > CONTENT_PREVIEW_MAX ? '...' : '');
         const fileIcon = m.has_attachment ? ' <i class="fas fa-paperclip" title="' + esc(m.file_type||'attachment') + '"></i>' : '';
         return '<div style="padding:8px;margin-bottom:6px;border-radius:8px;background:var(--hover);border-left:3px solid ' + (m.is_deleted ? '#bbb' : 'var(--accent)') + '">'
           + '<div style="font-size:12px"><strong>' + esc(m.sender_username) + '</strong> <span class="text-muted">' + (m.timestamp ? new Date(m.timestamp).toLocaleString() : '') + '</span>' + fileIcon + '</div>'
@@ -393,7 +400,7 @@ K.adminPage = {
 
   async loadTwofaOtps() {
     try {
-      const d = await K.api.get('/api/admin/2fa/otps?per_page=50');
+      const d = await K.api.get('/api/admin/2fa/otps?per_page=' + OTPS_PER_PAGE);
       if (!d.success) return;
       if ($('twofaBody')) {
         $('twofaBody').innerHTML = (d.data?.otps || []).map(o => {
