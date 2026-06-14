@@ -22,6 +22,7 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=app.config['TRUSTED_PROXIES'], x_pro
 socketio = SocketIO(app, cors_allowed_origins=["https://kiselgram.ru", "https://web.kiselgram.ru"], ping_timeout=60, ping_interval=25)
 
 rooms, participants, calls, user_socks = {}, {}, {}, {}
+MAX_ROOM_AGE_EMPTY = 300
 
 _main_app = None
 def _ensure_db():
@@ -48,7 +49,9 @@ def _cleanup():
     while True:
         time.sleep(300); now = time.time()
         for rid in list(rooms.keys()):
-            if now - rooms[rid].get('_ts', 0) > app.config['MAX_ROOM_AGE'] and not participants.get(rid):
+            age = now - rooms[rid].get('_ts', 0)
+            max_age = MAX_ROOM_AGE_EMPTY if not participants.get(rid) else app.config['MAX_ROOM_AGE']
+            if age > max_age:
                 rooms.pop(rid, None); participants.pop(rid, None)
         for cid in list(calls.keys()):
             if now - calls[cid].get('_ts', 0) > 300: calls.pop(cid, None)
@@ -230,7 +233,8 @@ def h_identify(data):
     """Call this right after connect so the server knows which user this socket belongs to."""
     uid = str(data.get('user_id',''))
     if uid:
-        user_socks.setdefault(uid, set()).add(request.sid)
+        user_socks.setdefault(uid, set()).clear()
+        user_socks[uid].add(request.sid)
 
 @socketio.on('join-room')
 def handle_join(data):
@@ -289,7 +293,7 @@ def h_leave(d): _remove_user(d.get('room'))
 def h_disconnect():
     # Remove from user_socks
     for uid, sids in list(user_socks.items()):
-        if request.sid in sids: sids.discard(request.sid); break
+        sids.discard(request.sid)
     for rid in list(participants):
         if request.sid in participants.get(rid,{}): _remove_user(rid); break
 
@@ -298,7 +302,12 @@ def _remove_user(rid):
     user = participants[rid].pop(request.sid)
     leave_room(f'room-{rid}')
     emit('user-left',{'sid':request.sid,'username':user.get('username')},room=f'room-{rid}')
-    if not participants[rid]: logger.info(f"Room {rid} empty")
+    if not participants[rid]:
+        for c in list(calls.values()):
+            if c['room_id'] == rid:
+                c['state'] = 'ended'
+                break
+        logger.info(f"Room {rid} empty")
 
 @app.errorhandler(404)
 def nf(e): return jsonify({'error':'Not found'}),404

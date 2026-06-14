@@ -43,9 +43,9 @@ K.stories = {
     const storyGroup = K.state.stories.find(s => s.user_id === userId);
     const stories = storyGroup?.stories; if (!stories?.length) return;
     const viewer = $('storyViewer'); viewer.style.display = 'flex'; viewer.style.flexDirection = 'column';
-    let idx = 0, timer = null;
+    let idx = 0;
     const show = (i) => {
-      if (timer) clearTimeout(timer);
+      if (K.stories._storyTimer) { clearTimeout(K.stories._storyTimer); K.stories._storyTimer = null; }
       const s = stories[i]; if (!s) { K.stories.close(); return; }
       K.stories._activeStory = s;
       $('storyViewerName').textContent = storyGroup.username;
@@ -60,7 +60,7 @@ K.stories = {
       if (s.media_type !== 'video') {
         const fill = $('storyProgress')?.querySelectorAll('.k-story-progress-fill')[i];
         if (fill) { fill.style.transition = 'width 5s linear'; fill.style.width = '100%'; }
-        timer = setTimeout(() => { if (i+1 < stories.length) show(i+1); else K.stories.close(); }, 5000);
+        K.stories._storyTimer = setTimeout(() => { if (i+1 < stories.length) show(i+1); else K.stories.close(); }, 5000);
       }
       try { K.api.post(V2 + `/stories/${s.story_id}/view`); } catch(_) {}
     };
@@ -74,6 +74,7 @@ K.stories = {
     $('storyViewer').style.display = 'none';
     K.stories._activeStory = null;
     if (K.stories._keyHandler) document.removeEventListener('keydown', K.stories._keyHandler);
+    if (K.stories._storyTimer) { clearTimeout(K.stories._storyTimer); K.stories._storyTimer = null; }
   },
   async like() {
     const viewer = $('storyViewer'); if (viewer.style.display !== 'flex') return;

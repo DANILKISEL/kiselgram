@@ -82,8 +82,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     setTimeout(() => K.settings.switchTab(ps), 100);
   }
 
-  setInterval(() => K.chat.loadList(), 15000);
-  setInterval(() => { if (K.state.activeChat) K.chat.loadMessages(K.state.activeChat.type, K.state.activeChat.id); }, 5000);
-  setInterval(() => K.stories.load(), 60000);
-  setInterval(() => K.saved.load(), 30000);
+  K._pollIntervals = [
+    setInterval(() => K.chat.loadList(), 15000),
+    setInterval(() => { if (K.state.activeChat) K.chat.loadMessages(K.state.activeChat.type, K.state.activeChat.id); }, 5000),
+    setInterval(() => K.stories.load(), 60000),
+    setInterval(() => K.saved.load(), 30000)
+  ];
 });

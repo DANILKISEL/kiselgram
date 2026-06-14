@@ -45,3 +45,7 @@ window.esc = esc;
 window.fmtTime = fmtTime;
 window.debounce = debounce;
 window.V2 = V2;
+
+window.addEventListener('beforeunload', function() {
+  if (K._pollIntervals) K._pollIntervals.forEach(clearInterval);
+});
