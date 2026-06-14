@@ -172,13 +172,12 @@ K.auth = {
 
   async _qrRequest() {
     try {
-      const d = await K.api.post(V2.replace('api.v2', 'api.v3') + '/auth/qr/request');
+      const d = await K.api.post(V3 + '/auth/qr/request');
       if (!d.success || !d.data) {
         $('qrRequestContainer').innerHTML = '<div style="color:var(--error)">Failed</div>';
         return;
       }
       const token = d.data.token;
-      K.auth._qrRequestToken = token;
       const container = $('qrRequestContainer');
       container.innerHTML = '<div id="qrReqCanvas" style="border-radius:12px;overflow:hidden"></div>';
       new QRCode('qrReqCanvas', {text: token, width: 200, height: 200, colorDark: '#000000', colorLight: '#ffffff'});
@@ -194,13 +193,13 @@ K.auth = {
     K.auth._qrStopPoll();
     K.auth._qrTimer = setInterval(async () => {
       try {
-        const d = await K.api.get(V2.replace('api.v2', 'api.v3') + '/auth/qr/status/' + token);
+        const d = await K.api.get(V3 + '/auth/qr/status/' + token);
         if (d.success && d.data) {
           if (d.data.authorized && !d.data.consumed) {
             K.auth._qrStopPoll();
             $('qrRequestStatus').innerHTML = '<span style="color:var(--success)"><i class="fas fa-check-circle"></i> Authorized! Logging in...</span>';
             try {
-              const r = await K.api.post(V2.replace('api.v2', 'api.v3') + '/auth/qr/login', {token});
+              const r = await K.api.post(V3 + '/auth/qr/login', {token});
               if (r.success && r.data && r.data.session_token) {
                 const u = r.data.user;
                 K.auth.accounts.push({username: u.username, displayName: u.display_name || u.username, avatarUrl: u.avatar_url || '', userId: u.user_id, token: r.data.session_token});

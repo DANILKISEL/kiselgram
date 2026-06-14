@@ -7,6 +7,7 @@ const safeDate = (val) => { if (val == null || val === '') return null; const d 
 const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
 
 const V2 = '/api.v2/api';
+const V3 = '/api.v3/api';
 
 const K = {
   state: {
@@ -45,6 +46,7 @@ window.esc = esc;
 window.fmtTime = fmtTime;
 window.debounce = debounce;
 window.V2 = V2;
+window.V3 = V3;
 
 window.addEventListener('beforeunload', function() {
   if (K._pollIntervals) K._pollIntervals.forEach(clearInterval);
