@@ -73,10 +73,8 @@ def qr_authorize():
         qr.consumed_at = datetime.now(timezone.utc).replace(tzinfo=None)
         db.session.commit()
         return jsonify({'success': False, 'error': {'code': 'EXPIRED_TOKEN', 'message': 'QR code has expired'}}), 400
-    if qr.user_id is not None:
-        return jsonify({'success': False, 'error': {'code': 'ALREADY_LINKED', 'message': 'This QR is already linked to a user'}}), 400
-
-    qr.user_id = user.id
+    if qr.user_id is None:
+        qr.user_id = user.id
     qr.authorized_by_id = user.id
     db.session.commit()
 
