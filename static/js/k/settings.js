@@ -78,16 +78,13 @@ K.settings = {
       }
     } catch(e) { console.error('Load sessions:', e); }
   },
-  setMyColor(color) {
-    document.documentElement.style.setProperty('--bubble-my', color);
-    localStorage.setItem('k_color_my', color);
+  _setBubbleColor(cssVar, storageKey, color) {
+    document.documentElement.style.setProperty(cssVar, color);
+    localStorage.setItem(storageKey, color);
     K.settings.saveToServer();
   },
-  setTheirColor(color) {
-    document.documentElement.style.setProperty('--bubble-their', color);
-    localStorage.setItem('k_color_their', color);
-    K.settings.saveToServer();
-  },
+  setMyColor(color) { K.settings._setBubbleColor('--bubble-my', 'k_color_my', color); },
+  setTheirColor(color) { K.settings._setBubbleColor('--bubble-their', 'k_color_their', color); },
   addFolder() {
     const name = prompt('Folder name:');
     if (name && name.trim()) {
