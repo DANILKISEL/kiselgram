@@ -56,7 +56,7 @@ K.qrlogin = {
   async _generate() {
     try {
       const ep = K.qrlogin._isUnAuth ? '/auth/qr/request' : '/auth/qr/generate';
-      const d = await K.api.post(V2.replace('api.v2', 'api.v3') + ep);
+      const d = await K.api.post(V3 + ep);
       if (!d.success || !d.data) {
         $('qrCodeContainer').innerHTML = '<div style="color:var(--error)">Failed to generate QR code</div>';
         return;
@@ -75,7 +75,7 @@ K.qrlogin = {
 
   async _completeLogin() {
     try {
-      const d = await K.api.post(V2.replace('api.v2', 'api.v3') + '/auth/qr/login', {token: K.qrlogin._currentToken});
+      const d = await K.api.post(V3 + '/auth/qr/login', {token: K.qrlogin._currentToken});
       if (d.success && d.data) {
         K.loginV3._state.user = d.data.user;
         K.loginV3._state.session_token = d.data.session_token;
@@ -93,7 +93,7 @@ K.qrlogin = {
     if (!token) { K.ui.toast('Enter a token', 'error'); return; }
     const st = $('qrScanStatus');
     try {
-      const d = await K.api.post(V2.replace('api.v2', 'api.v3') + '/auth/qr/authorize', {token});
+      const d = await K.api.post(V3 + '/auth/qr/authorize', {token});
       if (d.success) {
         st.innerHTML = '<span style="color:var(--success)"><i class="fas fa-check-circle"></i> Login authorized! Tell the other device to continue.</span>';
       } else {
@@ -110,7 +110,7 @@ K.qrlogin = {
     if (!token) return;
     K.qrlogin._timer = setInterval(async () => {
       try {
-        const d = await K.api.get(V2.replace('api.v2', 'api.v3') + '/auth/qr/status/' + token);
+        const d = await K.api.get(V3 + '/auth/qr/status/' + token);
         if (d.success && d.data) {
           if (d.data.consumed) {
             K.qrlogin._stopPolling();

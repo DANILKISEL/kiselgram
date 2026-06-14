@@ -1,8 +1,6 @@
 K.calls = {
-  _roomUrl: null, _peerId: null, _timer: null, _started: null,
+  _timer: null, _started: null,
   start(url, peerId) {
-    K.calls._roomUrl = url;
-    K.calls._peerId = peerId;
     const overlay = $('videoOverlay');
     const frame = $('videoFrame');
     if (overlay) overlay.style.display = 'flex';
@@ -39,8 +37,6 @@ K.calls = {
     const vm = $('videoMinimized'); if (vm) vm.style.display = 'none';
     const frame = $('videoFrame');
     if (frame) frame.innerHTML = '<div class="k-loader" style="margin:auto"></div>';
-    K.calls._roomUrl = null;
-    K.calls._peerId = null;
     K.chat.loadList();
   },
   async load() {
