@@ -12,7 +12,7 @@ _TYPING_TIMEOUT = 5
 
 
 def _serialize_message(msg, current_user_id=None):
-    from app.models import Reaction as ReactionModel
+    from app.models import Reaction
     d = {
         'message_id': msg.id,
         'sender_id': msg.sender_id,
@@ -32,7 +32,7 @@ def _serialize_message(msg, current_user_id=None):
         d['sender_avatar_url'] = msg.sender.avatar_url
     if msg.reply_to:
         d['reply_to_id'] = msg.reply_to.id
-    reactions = ReactionModel.query.filter_by(message_id=msg.id).all()
+    reactions = Reaction.query.filter_by(message_id=msg.id).all()
     for r in reactions:
         d['reactions'][r.reaction_type] = d['reactions'].get(r.reaction_type, 0) + 1
     return d

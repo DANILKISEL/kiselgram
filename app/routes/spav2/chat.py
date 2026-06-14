@@ -3,7 +3,7 @@ import re
 from flask import Blueprint, request, jsonify, session
 from datetime import datetime
 from app import db
-from app.models import User, Message, Chat, ChatMember, ChatSubscriber, PinnedChat, BlockedUser
+from app.models import User, Message, Chat, ChatMember, ChatSubscriber, PinnedChat, BlockedUser, Reaction
 from app.utils.helpers import get_current_user_id, get_blocked_user_ids, has_active_story
 from app.utils.security import sanitize_string
 
@@ -24,29 +24,7 @@ def _serialize_peer(user):
     }
 
 
-def _serialize_message(msg, current_user_id):
-    from app.models import Reaction as ReactionModel
-    d = {
-        'message_id': msg.id,
-        'sender_id': msg.sender_id,
-        'receiver_id': msg.receiver_id,
-        'content': msg.content,
-        'reply_to_id': None,
-        'file_path': msg.file_path,
-        'file_url': f"/uploads/{msg.file_path}" if msg.file_path else None,
-        'file_type': msg.file_type,
-        'is_read': msg.is_read,
-        'timestamp': msg.timestamp.isoformat() if msg.timestamp else None,
-        'edited_at': msg.edited_at.isoformat() if msg.edited_at else None,
-        'reactions': {}
-    }
-    if msg.sender:
-        d['sender_username'] = msg.sender.username
-        d['sender_avatar_url'] = msg.sender.avatar_url
-    reactions = ReactionModel.query.filter_by(message_id=msg.id).all()
-    for r in reactions:
-        d['reactions'][r.reaction_type] = d['reactions'].get(r.reaction_type, 0) + 1
-    return d
+from app.routes.spav2.messages import _serialize_message
 
 
 @spav2_chat_bp.route('/chat_list', methods=['GET'])

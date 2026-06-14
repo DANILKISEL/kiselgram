@@ -1,7 +1,7 @@
 from datetime import datetime
 from flask import Blueprint, request, jsonify, session
 from app import db
-from app.models import User, Chat, ChatMember, Contact, BlockedUser, Message, UserMusic
+from app.models import User, Chat, ChatMember, Contact, BlockedUser, Message, UserMusic, ChatSubscriber, RecentSearch
 from app.utils.helpers import get_current_user_id, get_current_user
 
 spav2_search_bp = Blueprint('spav2_search', __name__, url_prefix='/api')
@@ -51,7 +51,6 @@ def global_search():
         })
 
     # Channels
-    from app.models import ChatSubscriber
     chan_ids = set(s.chat_id for s in ChatSubscriber.query.with_entities(ChatSubscriber.chat_id).filter_by(user_id=current_user_id).all())
     channels = Chat.query.filter(Chat.id.in_(chan_ids), Chat.name.ilike(q), Chat.chat_type == 'channel').limit(10).all()
     chan_counts = dict(db.session.query(ChatSubscriber.chat_id, db.func.count(ChatSubscriber.id)).filter(ChatSubscriber.chat_id.in_([c.id for c in channels])).group_by(ChatSubscriber.chat_id).all()) if channels else {}
@@ -243,7 +242,6 @@ def recent_searches():
     if not current_user_id:
         return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED', 'message': 'Not authenticated'}}), 401
 
-    from app.models import RecentSearch
     searches = RecentSearch.query.filter_by(user_id=current_user_id).order_by(RecentSearch.created_at.desc()).limit(10).all()
     return jsonify({'success': True, 'data': {'searches': [
         {'search_id': s.id, 'query': s.query, 'created_at': s.created_at.isoformat() if s.created_at else None}
@@ -262,7 +260,6 @@ def add_recent_search():
     if not query:
         return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'query is required'}}), 400
 
-    from app.models import RecentSearch
     existing = RecentSearch.query.filter_by(user_id=current_user_id, query=query).first()
     if existing:
         existing.created_at = datetime.utcnow()

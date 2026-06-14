@@ -418,6 +418,7 @@
 <script src="{{ url_for('static', filename='js/k/qrlogin.js') }}"></script>
 <script src="{{ url_for('static', filename='js/k/login_v3.js') }}"></script>
 <script>
+if (K.isDesktop) document.title = 'Kiselgram Desktop';
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/static/js/sw.js').catch(function(){});
 }

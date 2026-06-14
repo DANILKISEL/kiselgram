@@ -4,7 +4,7 @@ import secrets
 from datetime import datetime
 from flask import Blueprint, request, jsonify
 from app import db
-from app.models import User, Chat, ChatMember, GroupPermission, Message, File
+from app.models import User, Chat, ChatMember, GroupPermission, Message, File, Reply
 from app.utils.helpers import get_current_user_id
 
 spav2_groups_bp = Blueprint('spav2_groups', __name__, url_prefix='/api')
@@ -219,7 +219,6 @@ def send_group_message():
     if reply_to_id:
         original = Message.query.get(reply_to_id)
         if original:
-            from app.models import Reply
             db.session.add(Reply(original_message_id=reply_to_id, reply_message_id=msg.id))
 
     db.session.commit()

@@ -142,7 +142,14 @@ The JavaFX desktop app was moved to `~/PycharmProjects/kiselgram-desktop`. See i
 - `Kiselgram-windows.zip` (1.5 MB, needs Java 21)
 - `Kiselgram-K.app.zip` (2 KB, macOS Chrome launcher for the K version)
 
-**PWA:** The K version (`/k` route) has a dedicated manifest (`static/manifest_k.json`) and registers the service worker (`static/js/sw.js`). Install via Chrome/Edge address bar "Install" button — opens as a standalone window.
+**PWA:** The K version (`/k` route) has a dedicated manifest (`static/manifest_k.json`) and registers the service worker (`static/js/sw.js`). Install via Chrome/Edge address bar "Install" button — opens as a standalone window. Pass `?view=desktop` to change title to "Kiselgram Desktop".
+
+**Python webview wrapper** (`desktop_app.py` in repo root, also copied to `~/PycharmProjects/kiselgram-desktop/`):
+```bash
+pip3 install pywebview
+python3 desktop_app.py                              # production (web.kiselgram.ru)
+python3 desktop_app.py http://localhost:5000/k?view=desktop  # local dev
+```
 
 API notes (server-side, applies to all clients including desktop):
 - `AuthApi.pollQr()` -> server path: `/auth/qr/status/{token}`

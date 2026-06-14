@@ -9,7 +9,10 @@ const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = se
 const V2 = '/api.v2/api';
 const V3 = '/api.v3/api';
 
+const isDesktopView = new URLSearchParams(window.location.search).get('view') === 'desktop';
+
 const K = {
+  isDesktop: isDesktopView,
   state: {
     user: null, chats: [], contacts: [], stories: [],
     activeChat: null, replyTo: null, online: navigator.onLine,
