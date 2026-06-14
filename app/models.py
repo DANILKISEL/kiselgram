@@ -32,7 +32,7 @@ class User(db.Model):
 
     # Notification settings
     notification_sound = db.Column(db.String(50), default='default')
-    per_chat_sounds = db.Column(db.JSON, default={})
+    per_chat_sounds = db.Column(db.JSON, default=dict)
     mute_all = db.Column(db.Boolean, default=False)
     do_not_disturb = db.Column(db.Boolean, default=False)
 
@@ -123,18 +123,24 @@ class User(db.Model):
             return False
         return check_password_hash(self.password_hash, password)
 
+    def __repr__(self):
+        return f'<User(id={self.id}, username={self.username!r})>'
+
 
 class UserPremium(db.Model):
     """Separate premium model for users"""
     __tablename__ = 'user_premium'
 
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), primary_key=True)
     is_premium = db.Column(db.Boolean, default=False)
     premium_since = db.Column(db.DateTime, nullable=True)
     premium_expires_at = db.Column(db.DateTime, nullable=True)
     premium_auto_renew = db.Column(db.Boolean, default=False)
     premium_payment_method = db.Column(db.String(50), nullable=True)
     premium_plan = db.Column(db.String(20), nullable=True)
+
+    def __repr__(self):
+        return f'<UserPremium(user_id={self.user_id}, premium={self.is_premium})>'
 
 
 # ============ UNIFIED CHAT MODEL ============
@@ -148,14 +154,14 @@ class Chat(db.Model):
     name = db.Column(db.String(100), nullable=True)       # For group/channel; personal uses other user's name
     description = db.Column(db.Text, nullable=True)
     avatar_url = db.Column(db.String(500), nullable=True)
-    owner_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # For group/channel; null for personal
+    owner_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)  # For group/channel; null for personal
     is_public = db.Column(db.Boolean, default=True)       # For group/channel
     invite_link = db.Column(db.String(100), unique=True, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # For personal chats: the two participants are stored in ChatMember with role='participant'
-    user1_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
-    user2_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
+    user1_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True, index=True)
+    user2_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True, index=True)
 
     # Relationships
     members = db.relationship('ChatMember', backref='chat', lazy='dynamic', cascade='all, delete-orphan')
@@ -168,18 +174,24 @@ class Chat(db.Model):
         db.CheckConstraint("chat_type IN ('personal', 'group', 'channel')"),
     )
 
+    def __repr__(self):
+        return f'<Chat(id={self.id}, type={self.chat_type!r}, name={self.name!r})>'
+
 
 class ChatMember(db.Model):
     """Members of a group chat (or participants in personal chat)"""
     __tablename__ = 'chat_members'
 
     id = db.Column(db.Integer, primary_key=True)
-    chat_id = db.Column(db.Integer, db.ForeignKey('chats.id'), nullable=False, index=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    chat_id = db.Column(db.Integer, db.ForeignKey('chats.id', ondelete='CASCADE'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
     role = db.Column(db.String(20), default='member')  # 'owner', 'admin', 'member', 'participant'
     joined_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     __table_args__ = (db.UniqueConstraint('chat_id', 'user_id', name='unique_chat_member'),)
+
+    def __repr__(self):
+        return f'<ChatMember(chat_id={self.chat_id}, user_id={self.user_id}, role={self.role!r})>'
 
 
 class ChatSubscriber(db.Model):
@@ -187,11 +199,14 @@ class ChatSubscriber(db.Model):
     __tablename__ = 'chat_subscribers'
 
     id = db.Column(db.Integer, primary_key=True)
-    chat_id = db.Column(db.Integer, db.ForeignKey('chats.id'), nullable=False, index=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    chat_id = db.Column(db.Integer, db.ForeignKey('chats.id', ondelete='CASCADE'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     subscribed_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     __table_args__ = (db.UniqueConstraint('chat_id', 'user_id', name='unique_chat_subscriber'),)
+
+    def __repr__(self):
+        return f'<ChatSubscriber(chat_id={self.chat_id}, user_id={self.user_id})>'
 
 
 class GroupPermission(db.Model):
@@ -208,18 +223,24 @@ class GroupPermission(db.Model):
     can_delete_messages = db.Column(db.Boolean, default=False)
     can_ban_users = db.Column(db.Boolean, default=False)
 
+    def __repr__(self):
+        return f'<GroupPermission(chat_id={self.chat_id}, role={self.role!r})>'
+
 
 class ChannelAdmin(db.Model):
     """Channel admins with specific permissions (chat_type='channel')"""
     __tablename__ = 'channel_admins'
 
     chat_id = db.Column(db.Integer, db.ForeignKey('chats.id', ondelete='CASCADE'), primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), primary_key=True)
     can_post = db.Column(db.Boolean, default=True)
     can_edit = db.Column(db.Boolean, default=False)
     can_delete = db.Column(db.Boolean, default=False)
     can_add_admins = db.Column(db.Boolean, default=False)
     added_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<ChannelAdmin(chat_id={self.chat_id}, user_id={self.user_id})>'
 
 
 # ============ MESSAGE MODELS ============
@@ -229,9 +250,9 @@ class Message(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     content = db.Column(db.Text, nullable=True)
-    sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
-    chat_id = db.Column(db.Integer, db.ForeignKey('chats.id'), nullable=False, index=True)
-    receiver_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)  # For personal chat, the other user
+    sender_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
+    chat_id = db.Column(db.Integer, db.ForeignKey('chats.id', ondelete='CASCADE'), nullable=False, index=True)
+    receiver_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=True, index=True)  # For personal chat, the other user
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     is_read = db.Column(db.Boolean, default=False)
     telegram_message_id = db.Column(db.String(50), nullable=True)
@@ -262,7 +283,7 @@ class Message(db.Model):
     edited_at = db.Column(db.DateTime, nullable=True)
 
     # Relationships
-    file_id = db.Column(db.Integer, db.ForeignKey('files.id'), nullable=True)
+    file_id = db.Column(db.Integer, db.ForeignKey('files.id', ondelete='SET NULL'), nullable=True)
     file = db.relationship('File', backref=db.backref('messages', lazy='dynamic'), lazy=True)
 
     reactions = db.relationship('Reaction', backref='message', lazy=True, cascade='all, delete-orphan')
@@ -270,6 +291,9 @@ class Message(db.Model):
     reply_to = db.relationship('Reply', foreign_keys='Reply.reply_message_id', backref='reply_message', uselist=False, lazy=True)
     forwards_from = db.relationship('Forward', foreign_keys='Forward.original_message_id', backref='original_message', lazy=True)
     forwards_to = db.relationship('Forward', foreign_keys='Forward.forwarded_message_id', backref='forwarded_message', uselist=False, lazy=True)
+
+    def __repr__(self):
+        return f'<Message(id={self.id}, sender_id={self.sender_id}, chat_id={self.chat_id})>'
 
 
 class File(db.Model):
@@ -281,40 +305,54 @@ class File(db.Model):
     file_size = db.Column(db.Integer, nullable=True)
     thumbnail_path = db.Column(db.String(500), nullable=True)
     preview_size = db.Column(db.String(10), default='medium')
-    uploader_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    uploader_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<File(id={self.id}, name={self.file_name!r}, type={self.file_type!r})>'
 
 
 class Reaction(db.Model):
     __tablename__ = 'reaction'
 
     id = db.Column(db.Integer, primary_key=True)
-    message_id = db.Column(db.Integer, db.ForeignKey('message.id'), nullable=False, index=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    message_id = db.Column(db.Integer, db.ForeignKey('message.id', ondelete='CASCADE'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
     reaction_type = db.Column(db.String(20), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     __table_args__ = (db.UniqueConstraint('message_id', 'user_id', 'reaction_type', name='unique_user_message_reaction'),)
+
+    def __repr__(self):
+        return f'<Reaction(message_id={self.message_id}, user_id={self.user_id}, type={self.reaction_type!r})>'
 
 
 class Reply(db.Model):
     __tablename__ = 'reply'
 
     id = db.Column(db.Integer, primary_key=True)
-    original_message_id = db.Column(db.Integer, db.ForeignKey('message.id'), nullable=False)
-    reply_message_id = db.Column(db.Integer, db.ForeignKey('message.id'), nullable=False)
+    original_message_id = db.Column(db.Integer, db.ForeignKey('message.id', ondelete='CASCADE'), nullable=False)
+    reply_message_id = db.Column(db.Integer, db.ForeignKey('message.id', ondelete='CASCADE'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<Reply(original={self.original_message_id}, reply={self.reply_message_id})>'
 
 
 class Forward(db.Model):
     __tablename__ = 'forward'
 
     id = db.Column(db.Integer, primary_key=True)
-    original_message_id = db.Column(db.Integer, db.ForeignKey('message.id'), nullable=False)
-    forwarded_message_id = db.Column(db.Integer, db.ForeignKey('message.id'), nullable=False)
-    forwarded_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    original_message_id = db.Column(db.Integer, db.ForeignKey('message.id', ondelete='CASCADE'), nullable=False)
+    forwarded_message_id = db.Column(db.Integer, db.ForeignKey('message.id', ondelete='CASCADE'), nullable=False)
+    forwarded_by_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     original_sender_name = db.Column(db.String(80), nullable=True)
+
+    __table_args__ = (db.UniqueConstraint('original_message_id', 'forwarded_message_id', 'forwarded_by_id', name='unique_forward'),)
+
+    def __repr__(self):
+        return f'<Forward(original={self.original_message_id}, fwd={self.forwarded_message_id})>'
 
 
 # ============ STORY MODELS ============
@@ -323,7 +361,7 @@ class Story(db.Model):
     __tablename__ = 'stories'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
     media_path = db.Column(db.String(500), nullable=False)
     media_type = db.Column(db.String(20), default='image')
     caption = db.Column(db.Text)
@@ -337,37 +375,51 @@ class Story(db.Model):
     privacy_settings = db.relationship('StoryPrivacy', backref='story', uselist=False, cascade='all, delete-orphan')
     allowed_users = db.relationship('StoryAllowedUser', backref='story', cascade='all, delete-orphan')
 
+    def __repr__(self):
+        return f'<Story(id={self.id}, user_id={self.user_id}, type={self.media_type!r})>'
+
 
 class StoryView(db.Model):
     __tablename__ = 'story_views'
 
     id = db.Column(db.Integer, primary_key=True)
-    story_id = db.Column(db.Integer, db.ForeignKey('stories.id'), nullable=False, index=True)
-    viewer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    story_id = db.Column(db.Integer, db.ForeignKey('stories.id', ondelete='CASCADE'), nullable=False, index=True)
+    viewer_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     viewed_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (db.UniqueConstraint('story_id', 'viewer_id', name='unique_story_view'),)
+
+    def __repr__(self):
+        return f'<StoryView(story_id={self.story_id}, viewer_id={self.viewer_id})>'
 
 
 class StoryLike(db.Model):
     __tablename__ = 'story_likes'
 
     id = db.Column(db.Integer, primary_key=True)
-    story_id = db.Column(db.Integer, db.ForeignKey('stories.id'), nullable=False, index=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    story_id = db.Column(db.Integer, db.ForeignKey('stories.id', ondelete='CASCADE'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     __table_args__ = (db.UniqueConstraint('story_id', 'user_id', name='unique_story_like'),)
+
+    def __repr__(self):
+        return f'<StoryLike(story_id={self.story_id}, user_id={self.user_id})>'
 
 
 class StoryReaction(db.Model):
     __tablename__ = 'story_reactions'
 
     id = db.Column(db.Integer, primary_key=True)
-    story_id = db.Column(db.Integer, db.ForeignKey('stories.id'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    story_id = db.Column(db.Integer, db.ForeignKey('stories.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     reaction = db.Column(db.String(10), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     __table_args__ = (db.UniqueConstraint('story_id', 'user_id', name='unique_story_reaction'),)
+
+    def __repr__(self):
+        return f'<StoryReaction(story_id={self.story_id}, user_id={self.user_id}, reaction={self.reaction!r})>'
 
 
 class StoryPrivacy(db.Model):
@@ -376,12 +428,18 @@ class StoryPrivacy(db.Model):
     story_id = db.Column(db.Integer, db.ForeignKey('stories.id', ondelete='CASCADE'), primary_key=True)
     privacy_type = db.Column(db.String(20), default='everyone')
 
+    def __repr__(self):
+        return f'<StoryPrivacy(story_id={self.story_id})>'
+
 
 class StoryAllowedUser(db.Model):
     __tablename__ = 'story_allowed_users'
 
     story_id = db.Column(db.Integer, db.ForeignKey('stories.id', ondelete='CASCADE'), primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), primary_key=True)
+
+    def __repr__(self):
+        return f'<StoryAllowedUser(story_id={self.story_id}, user_id={self.user_id})>'
 
 
 # ============ CONTACT MODELS ============
@@ -390,12 +448,15 @@ class Contact(db.Model):
     __tablename__ = 'contacts'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
-    contact_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
+    contact_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     custom_name = db.Column(db.String(80), nullable=True)  # Property: a contact can have a name
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     __table_args__ = (db.UniqueConstraint('user_id', 'contact_id', name='unique_contact'),)
+
+    def __repr__(self):
+        return f'<Contact(user_id={self.user_id}, contact_id={self.contact_id})>'
 
 
 # ============ CALL MODELS ============
@@ -404,12 +465,15 @@ class Call(db.Model):
     __tablename__ = 'calls'
 
     id = db.Column(db.Integer, primary_key=True)
-    caller_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    receiver_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    caller_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    receiver_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     call_type = db.Column(db.String(10), default='audio')  # 'audio' or 'video'
     status = db.Column(db.String(20), default='ringing')   # ringing, answered, ended
     duration = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<Call(id={self.id}, caller={self.caller_id}, receiver={self.receiver_id})>'
 
 
 class VideoCall(db.Model):
@@ -418,7 +482,7 @@ class VideoCall(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     room_id = db.Column(db.String(50), unique=True, nullable=False)
-    creator_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    creator_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     call_type = db.Column(db.String(10), default='video')
     status = db.Column(db.String(20), default='active')
     started_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -426,18 +490,26 @@ class VideoCall(db.Model):
     duration = db.Column(db.Integer, default=0)
     participant_count = db.Column(db.Integer, default=1)
 
+    def __repr__(self):
+        return f'<VideoCall(id={self.id}, room={self.room_id!r})>'
+
 
 class VideoCallParticipant(db.Model):
     """Participants in a video call"""
     __tablename__ = 'video_call_participants'
 
     id = db.Column(db.Integer, primary_key=True)
-    call_id = db.Column(db.Integer, db.ForeignKey('video_calls.id'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    call_id = db.Column(db.Integer, db.ForeignKey('video_calls.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     joined_at = db.Column(db.DateTime, default=datetime.utcnow)
     left_at = db.Column(db.DateTime, nullable=True)
     audio_only = db.Column(db.Boolean, default=False)
     screensharing = db.Column(db.Boolean, default=False)
+
+    __table_args__ = (db.UniqueConstraint('call_id', 'user_id', name='unique_call_participant'),)
+
+    def __repr__(self):
+        return f'<VideoCallParticipant(call_id={self.call_id}, user_id={self.user_id})>'
 
 
 # ============ OTHER MODELS (USER PROPERTIES) ============
@@ -446,19 +518,22 @@ class BlockedUser(db.Model):
     __tablename__ = 'blocked_users'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
-    blocked_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
+    blocked_user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     blocked_user = db.relationship('User', foreign_keys=[blocked_user_id], backref='blocked_by')
     __table_args__ = (db.UniqueConstraint('user_id', 'blocked_user_id', name='unique_block'),)
+
+    def __repr__(self):
+        return f'<BlockedUser(user_id={self.user_id}, blocked={self.blocked_user_id})>'
 
 
 class UserSession(db.Model):
     __tablename__ = 'user_sessions'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
     session_token = db.Column(db.String(255), unique=True, nullable=False)
     device = db.Column(db.String(200), nullable=True)
     ip_address = db.Column(db.String(45), nullable=True)
@@ -467,50 +542,72 @@ class UserSession(db.Model):
     last_activity = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)
 
+    def __repr__(self):
+        return f'<UserSession(id={self.id}, user_id={self.user_id}, device={self.device!r})>'
+
 
 class Report(db.Model):
     __tablename__ = 'reports'
 
     id = db.Column(db.Integer, primary_key=True)
-    reporter_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
-    reported_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
-    reported_message_id = db.Column(db.Integer, db.ForeignKey('message.id'), nullable=True)
+    reporter_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
+    reported_user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    reported_message_id = db.Column(db.Integer, db.ForeignKey('message.id', ondelete='SET NULL'), nullable=True)
     reason = db.Column(db.Text, nullable=False)
     status = db.Column(db.String(20), default='pending', index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     reported_message = db.relationship('Message', foreign_keys=[reported_message_id])
 
+    def __repr__(self):
+        return f'<Report(id={self.id}, reporter={self.reporter_id}, status={self.status!r})>'
+
 
 class PushSubscription(db.Model):
+    __tablename__ = 'push_subscriptions'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     endpoint = db.Column(db.Text, nullable=False)
     p256dh = db.Column(db.Text, nullable=False)
     auth = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (db.UniqueConstraint('user_id', 'endpoint', name='unique_user_endpoint'),)
+
+    def __repr__(self):
+        return f'<PushSubscription(id={self.id}, user_id={self.user_id})>'
 
 
 class Favorite(db.Model):
     __tablename__ = 'favorites'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     file_type = db.Column(db.String(20), nullable=True)
     file_path = db.Column(db.String(500), nullable=True)
     file_name = db.Column(db.String(255), nullable=True)
     note = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    __table_args__ = (db.UniqueConstraint('user_id', 'file_path', name='unique_user_favorite'),)
+
+    def __repr__(self):
+        return f'<Favorite(id={self.id}, user_id={self.user_id})>'
+
 
 class RecentSearch(db.Model):
     __tablename__ = 'recent_searches'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     search_query = db.Column(db.String(200), nullable=False)
     search_type = db.Column(db.String(20), default='all')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (db.UniqueConstraint('user_id', 'search_query', name='unique_user_search'),)
+
+    def __repr__(self):
+        return f'<RecentSearch(id={self.id}, user_id={self.user_id}, query={self.search_query!r})>'
 
 
 class PreloadedAvatar(db.Model):
@@ -521,50 +618,64 @@ class PreloadedAvatar(db.Model):
     display_name = db.Column(db.String(50))
     category = db.Column(db.String(20), default='default')
 
+    def __repr__(self):
+        return f'<PreloadedAvatar(id={self.id}, filename={self.filename!r})>'
+
 
 class PinnedChat(db.Model):
     """Pinned chats for a user"""
     __tablename__ = 'pinned_chats'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     chat_type = db.Column(db.String(20), nullable=False)   # 'personal', 'group', 'channel'
     chat_id = db.Column(db.Integer, nullable=False)
     pinned_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     __table_args__ = (db.UniqueConstraint('user_id', 'chat_type', 'chat_id', name='unique_pin'),)
 
+    def __repr__(self):
+        return f'<PinnedChat(user_id={self.user_id}, chat_type={self.chat_type!r}, chat_id={self.chat_id})>'
+
 
 class EmailVerification(db.Model):
     __tablename__ = 'email_verifications'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=True)
     email = db.Column(db.String(128), nullable=True, index=True)
     token = db.Column(db.String(100), unique=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     expires_at = db.Column(db.DateTime, nullable=False)
     verified = db.Column(db.Boolean, default=False)
 
+    def __repr__(self):
+        return f'<EmailVerification(id={self.id}, email={self.email!r})>'
+
 
 class UserMusic(db.Model):
     __tablename__ = 'user_music'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
     file_url = db.Column(db.String(500), nullable=False)
     file_name = db.Column(db.String(255), nullable=True)
     artist = db.Column(db.String(255), nullable=True)
     title = db.Column(db.String(255), nullable=True)
     duration = db.Column(db.Integer, default=0)
-    source_message_id = db.Column(db.Integer, db.ForeignKey('message.id'), nullable=True)
+    source_message_id = db.Column(db.Integer, db.ForeignKey('message.id', ondelete='SET NULL'), nullable=True)
     added_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (db.UniqueConstraint('user_id', 'file_url', name='unique_user_music'),)
+
+    def __repr__(self):
+        return f'<UserMusic(id={self.id}, user_id={self.user_id}, title={self.title!r})>'
 
 
 class UserKSettings(db.Model):
     """Per-user K SPA settings stored as JSON blob"""
     __tablename__ = 'user_k_settings'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, unique=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, unique=True)
     settings = db.Column(db.JSON, default=dict)
 
     def to_dict(self):
@@ -572,6 +683,9 @@ class UserKSettings(db.Model):
             'user_id': self.user_id,
             'settings': self.settings or {}
         }
+
+    def __repr__(self):
+        return f'<UserKSettings(user_id={self.user_id})>'
 
 
 class QrLoginToken(db.Model):
@@ -588,15 +702,21 @@ class QrLoginToken(db.Model):
     user = db.relationship('User', backref='qr_login_tokens', lazy=True, foreign_keys=[user_id])
     authorized_by = db.relationship('User', backref='qr_authorized_tokens', lazy=True, foreign_keys=[authorized_by_id])
 
+    def __repr__(self):
+        return f'<QrLoginToken(id={self.id}, token={self.token!r})>'
+
 
 class Referral(db.Model):
     __tablename__ = 'referrals'
     id = db.Column(db.Integer, primary_key=True)
-    inviter_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
-    invited_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, unique=True)
+    inviter_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
+    invited_user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, unique=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     inviter = db.relationship('User', foreign_keys=[inviter_id], backref='referrals_made')
     invited = db.relationship('User', foreign_keys=[invited_user_id], backref='referral_invite')
+
+    def __repr__(self):
+        return f'<Referral(inviter={self.inviter_id}, invited={self.invited_user_id})>'
 
 
 class LoginOtp(db.Model):
@@ -609,3 +729,6 @@ class LoginOtp(db.Model):
     used = db.Column(db.Boolean, default=False)
 
     user = db.relationship('User', backref='login_otps', lazy=True)
+
+    def __repr__(self):
+        return f'<LoginOtp(id={self.id}, user_id={self.user_id}, used={self.used})>'
