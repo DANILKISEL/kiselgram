@@ -40,7 +40,13 @@ def get_stories():
     for (uid,) in db.session.query(Message.sender_id).filter_by(receiver_id=current_user_id).distinct().limit(500):
         visible_ids.add(uid)
 
-    stories = Story.query.filter(Story.created_at >= cutoff, Story.user_id.in_(visible_ids)).order_by(Story.created_at.desc()).all()
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+    per_page = min(max(per_page, 1), 100)
+
+    stories = Story.query.options(db.joinedload(Story.user)).filter(
+        Story.created_at >= cutoff, Story.user_id.in_(visible_ids)
+    ).order_by(Story.created_at.desc()).offset((page - 1) * per_page).limit(per_page).all()
 
     story_ids = [s.id for s in stories]
     my_likes = {s_id for s_id, in db.session.query(StoryLike.story_id).filter(StoryLike.story_id.in_(story_ids), StoryLike.user_id == current_user_id).all()} if story_ids else set()
@@ -54,6 +60,8 @@ def get_stories():
         uid = story.user_id
         if uid not in user_map:
             user = story.user
+            if not user or user.is_deleted:
+                continue
             user_map[uid] = {
                 'user_id': uid,
                 'username': user.username,
@@ -79,7 +87,9 @@ def get_stories():
         max(s['created_at'] or '' for s in x['stories']) if x['stories'] else ''
     ))
 
-    return jsonify({'success': True, 'data': {'stories': result}})
+    total = Story.query.filter(Story.created_at >= cutoff, Story.user_id.in_(visible_ids)).count()
+    pages = (total + per_page - 1) // per_page if per_page else 0
+    return jsonify({'success': True, 'data': {'stories': result, 'page': page, 'per_page': per_page, 'total': total, 'pages': pages}})
 
 
 @spav2_stories_bp.route('/stories/create', methods=['POST'])
@@ -121,7 +131,11 @@ def create_story():
     if hasattr(story, 'privacy_type'):
         story.privacy_type = privacy
     db.session.add(story)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'DB_ERROR', 'message': 'Failed to save story'}}), 500
 
     return jsonify({'success': True, 'data': {'story': _story_to_dict(story, current_user_id)}}), 201
 
@@ -132,11 +146,17 @@ def view_story(story_id):
     if not current_user_id:
         return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED', 'message': 'Not authenticated'}}), 401
 
-    story = Story.query.get_or_404(story_id)
+    story = Story.query.get(story_id)
+    if not story:
+        return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'Story not found'}}), 404
     existing = StoryView.query.filter_by(story_id=story_id, viewer_id=current_user_id).first()
     if not existing:
         db.session.add(StoryView(story_id=story_id, viewer_id=current_user_id, viewed_at=datetime.utcnow()))
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': {'code': 'DB_ERROR', 'message': 'Failed to record view'}}), 500
         viewed_at = datetime.utcnow().isoformat()
     else:
         viewed_at = existing.viewed_at.isoformat() if existing.viewed_at else datetime.utcnow().isoformat()
@@ -157,7 +177,11 @@ def like_story(story_id):
     else:
         db.session.add(StoryLike(story_id=story_id, user_id=current_user_id))
         liked = True
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'DB_ERROR', 'message': 'Failed to update like'}}), 500
 
     count = StoryLike.query.filter_by(story_id=story_id).count()
     return jsonify({'success': True, 'data': {'story_id': story_id, 'liked': liked, 'like_count': count}})
@@ -181,7 +205,11 @@ def react_to_story(story_id):
         existing.reaction = reaction
     else:
         db.session.add(StoryReaction(story_id=story_id, user_id=current_user_id, reaction=reaction))
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'DB_ERROR', 'message': 'Failed to save reaction'}}), 500
 
     count = StoryReaction.query.filter_by(story_id=story_id).count()
     return jsonify({'success': True, 'data': {'story_id': story_id, 'reaction': reaction, 'reaction_count': count}})
@@ -198,7 +226,9 @@ def reply_to_story(story_id):
     if not reply_text:
         return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'reply_text is required'}}), 400
 
-    story = Story.query.get_or_404(story_id)
+    story = Story.query.get(story_id)
+    if not story:
+        return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'Story not found'}}), 404
     a, b = sorted([current_user_id, story.user_id])
     chat = Chat.query.filter_by(chat_type='personal', user1_id=a, user2_id=b).first()
     if not chat:
@@ -208,7 +238,11 @@ def reply_to_story(story_id):
 
     msg = Message(content=reply_text, sender_id=current_user_id, receiver_id=story.user_id, chat_id=chat.id, timestamp=datetime.utcnow())
     db.session.add(msg)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'DB_ERROR', 'message': 'Failed to send reply'}}), 500
 
     return jsonify({'success': True, 'data': {'message': {
         'message_id': msg.id, 'sender_id': msg.sender_id,
@@ -224,7 +258,9 @@ def story_stats(story_id):
     if not current_user_id:
         return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED', 'message': 'Not authenticated'}}), 401
 
-    story = Story.query.get_or_404(story_id)
+    story = Story.query.get(story_id)
+    if not story:
+        return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'Story not found'}}), 404
     if story.user_id != current_user_id:
         return jsonify({'success': False, 'error': {'code': 'FORBIDDEN', 'message': 'Not authorized'}}), 403
 
@@ -239,7 +275,7 @@ def story_stats(story_id):
         all_user_ids.add(l.user_id)
     for r in reactions_q:
         all_user_ids.add(r.user_id)
-    users_map = {u.id: u for u in User.query.filter(User.id.in_(all_user_ids)).all()} if all_user_ids else {}
+    users_map = {u.id: u for u in User.query.filter(User.id.in_(all_user_ids), User.is_deleted == False).all()} if all_user_ids else {}
 
     # Group reactions by type from already-loaded data
     reaction_groups = {}
@@ -282,7 +318,9 @@ def delete_story(story_id):
     if not current_user_id:
         return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED', 'message': 'Not authenticated'}}), 401
 
-    story = Story.query.get_or_404(story_id)
+    story = Story.query.get(story_id)
+    if not story:
+        return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'Story not found'}}), 404
     if story.user_id != current_user_id:
         return jsonify({'success': False, 'error': {'code': 'FORBIDDEN', 'message': 'Not authorized'}}), 403
 
@@ -291,5 +329,9 @@ def delete_story(story_id):
         if os.path.exists(full):
             os.remove(full)
     db.session.delete(story)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'DB_ERROR', 'message': 'Failed to delete story'}}), 500
     return jsonify({'success': True, 'data': {'message': 'Story deleted'}})

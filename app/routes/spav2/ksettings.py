@@ -16,7 +16,11 @@ def get_settings():
     if not ks:
         ks = UserKSettings(user_id=current_user_id, settings={})
         db.session.add(ks)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Database error'}}), 500
 
     return jsonify({'success': True, 'data': ks.to_dict()})
 
@@ -39,5 +43,9 @@ def save_settings():
     else:
         ks.settings = settings
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Database error'}}), 500
     return jsonify({'success': True, 'data': ks.to_dict()})

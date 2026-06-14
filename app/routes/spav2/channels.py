@@ -19,7 +19,7 @@ def get_channel(channel_id):
         return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'Channel not found'}}), 404
 
     is_subscribed = ChatSubscriber.query.filter_by(user_id=current_user_id, chat_id=channel_id).first() is not None
-    owner = User.query.get(chat.owner_id)
+    owner = User.query.filter(User.id == chat.owner_id, User.is_deleted.is_(False)).first() if chat.owner_id else None
 
     admins_list = []
     if chat.owner_id:
@@ -98,7 +98,11 @@ def create_channel():
     db.session.flush()
 
     db.session.add(ChatSubscriber(user_id=current_user_id, chat_id=chat.id))
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': str(e)}}), 500
 
     return jsonify({'success': True, 'data': {'channel': {
         'channel_id': chat.id, 'name': chat.name, 'description': chat.description,
@@ -130,7 +134,11 @@ def send_channel_message():
 
     msg = Message(sender_id=current_user_id, chat_id=channel_id, receiver_id=current_user_id, content=content, timestamp=datetime.utcnow())
     db.session.add(msg)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': str(e)}}), 500
 
     return jsonify({'success': True, 'data': {'message': {
         'message_id': msg.id, 'sender_id': msg.sender_id,
@@ -155,7 +163,11 @@ def subscribe(channel_id):
     existing = ChatSubscriber.query.filter_by(user_id=current_user_id, chat_id=channel_id).first()
     if not existing:
         db.session.add(ChatSubscriber(user_id=current_user_id, chat_id=channel_id))
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': str(e)}}), 500
 
     count = ChatSubscriber.query.filter_by(chat_id=channel_id).count()
     return jsonify({'success': True, 'data': {
@@ -173,7 +185,11 @@ def unsubscribe(channel_id):
     sub = ChatSubscriber.query.filter_by(user_id=current_user_id, chat_id=channel_id).first()
     if sub:
         db.session.delete(sub)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': str(e)}}), 500
 
     count = ChatSubscriber.query.filter_by(chat_id=channel_id).count()
     return jsonify({'success': True, 'data': {
@@ -198,9 +214,13 @@ def update_channel(channel_id):
         chat.name = data['name']
     if 'description' in data:
         chat.description = data['description']
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': str(e)}}), 500
 
-    owner = User.query.get(chat.owner_id)
+    owner = User.query.filter(User.id == chat.owner_id, User.is_deleted.is_(False)).first() if chat.owner_id else None
     return jsonify({'success': True, 'data': {
         'channel_id': chat.id, 'name': chat.name, 'description': chat.description,
         'avatar_url': chat.avatar_url, 'owner_id': chat.owner_id,
@@ -227,14 +247,18 @@ def add_admin(channel_id):
     if not user_id:
         return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'user_id is required'}}), 400
 
-    user = User.query.get(user_id)
+    user = User.query.filter(User.id == user_id, User.is_deleted.is_(False)).first()
     if not user:
         return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'User not found'}}), 404
 
     sub = ChatSubscriber.query.filter_by(user_id=user_id, chat_id=channel_id).first()
     if not sub:
         db.session.add(ChatSubscriber(user_id=user_id, chat_id=channel_id))
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': str(e)}}), 500
 
     return jsonify({'success': True, 'data': {
         'channel_id': channel_id, 'user_id': user_id,

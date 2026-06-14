@@ -1,4 +1,6 @@
 from flask import Blueprint, request, jsonify
+from math import ceil
+from sqlalchemy.exc import IntegrityError
 from app import db
 from app.models import User, Referral
 from app.utils.helpers import get_current_user_id
@@ -12,7 +14,7 @@ def referral_info():
     if not current_user_id:
         return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED', 'message': 'Not authenticated'}}), 401
 
-    user = User.query.get(current_user_id)
+    user = User.query.filter_by(id=current_user_id, is_deleted=False).first()
     if not user:
         return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'User not found'}}), 404
 
@@ -38,26 +40,30 @@ def use_referral():
     if not code or not user_id:
         return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'ref and user_id required'}}), 400
 
-    inviter = User.query.filter_by(username=code).first()
+    inviter = User.query.filter_by(username=code, is_deleted=False).first()
     if not inviter:
         return jsonify({'success': False, 'error': {'code': 'INVALID_CODE', 'message': 'Invalid referral code'}}), 404
 
     if inviter.id == user_id:
         return jsonify({'success': False, 'error': {'code': 'SELF_REFERRAL', 'message': 'Cannot refer yourself'}}), 400
 
-    existing = Referral.query.filter_by(invited_user_id=user_id).first()
-    if existing:
-        return jsonify({'success': True, 'data': {'already_applied': True}})
-
     ref = Referral(inviter_id=inviter.id, invited_user_id=user_id)
     db.session.add(ref)
-    db.session.flush()
+    try:
+        db.session.flush()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'success': True, 'data': {'already_applied': True}})
 
     count = Referral.query.filter_by(inviter_id=inviter.id).count()
     if count >= 10 and not inviter.is_premium:
         inviter.is_premium = True
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Failed to apply referral'}}), 500
 
     return jsonify({'success': True, 'data': {
         'inviter_username': inviter.username,
@@ -72,11 +78,27 @@ def referral_list():
     if not current_user_id:
         return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED', 'message': 'Not authenticated'}}), 401
 
-    refs = Referral.query.filter_by(inviter_id=current_user_id).order_by(Referral.created_at.desc()).all()
-    users = User.query.filter(User.id.in_([r.invited_user_id for r in refs])).all()
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    page = max(1, page)
+    per_page = max(1, min(100, per_page))
+
+    total = Referral.query.filter_by(inviter_id=current_user_id).count()
+    pages = ceil(total / per_page) if total else 0
+
+    refs = Referral.query.filter_by(inviter_id=current_user_id).order_by(Referral.created_at.desc()).offset((page - 1) * per_page).limit(per_page).all()
+    users = User.query.filter(User.id.in_([r.invited_user_id for r in refs]), User.is_deleted == False).all()
     user_map = {u.id: u for u in users}
 
-    return jsonify({'success': True, 'data': [{
-        'username': user_map[r.invited_user_id].username if r.invited_user_id in user_map else 'deleted',
-        'created_at': r.created_at.isoformat(),
-    } for r in refs]})
+    return jsonify({'success': True, 'data': {
+        'referrals': [{
+            'username': user_map[r.invited_user_id].username if r.invited_user_id in user_map else 'deleted',
+            'created_at': r.created_at.isoformat(),
+        } for r in refs],
+        'pagination': {
+            'page': page,
+            'per_page': per_page,
+            'total': total,
+            'pages': pages,
+        },
+    }})

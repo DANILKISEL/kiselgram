@@ -1,6 +1,7 @@
 import time
 from datetime import datetime
 from flask import Blueprint, request, jsonify, session
+from sqlalchemy.orm import joinedload, selectinload
 from app import db
 from app.models import User, Message, Reaction, Reply, Forward, BlockedUser, Chat, ChatMember, File
 from app.utils.helpers import get_current_user_id, message_to_dict
@@ -12,7 +13,6 @@ _TYPING_TIMEOUT = 5
 
 
 def _serialize_message(msg, current_user_id=None):
-    from app.models import Reaction
     d = {
         'message_id': msg.id,
         'sender_id': msg.sender_id,
@@ -32,8 +32,7 @@ def _serialize_message(msg, current_user_id=None):
         d['sender_avatar_url'] = msg.sender.avatar_url
     if msg.reply_to:
         d['reply_to_id'] = msg.reply_to.id
-    reactions = Reaction.query.filter_by(message_id=msg.id).all()
-    for r in reactions:
+    for r in msg.reactions:
         d['reactions'][r.reaction_type] = d['reactions'].get(r.reaction_type, 0) + 1
     return d
 
@@ -65,7 +64,7 @@ def send_personal_message():
         if BlockedUser.query.filter_by(user_id=receiver_id, blocked_user_id=current_user_id).first():
             return jsonify({'success': False, 'error': {'code': 'USER_BLOCKED', 'message': 'You cannot send messages to this user'}}), 403
 
-        receiver = User.query.get(receiver_id)
+        receiver = User.query.filter_by(id=receiver_id, is_deleted=False).first()
         if not receiver:
             return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'User not found'}}), 404
 
@@ -85,7 +84,11 @@ def send_personal_message():
         if original:
             db.session.add(Reply(original_message_id=reply_to_id, reply_message_id=msg.id))
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Database error'}}), 500
     return jsonify({'success': True, 'data': {'message': _serialize_message(msg, current_user_id)}}), 201
 
 
@@ -96,7 +99,11 @@ def mark_read(user_id):
         return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED', 'message': 'Not authenticated'}}), 401
 
     count = Message.query.filter_by(sender_id=user_id, receiver_id=current_user_id, is_read=False).update({'is_read': True, 'read_at': datetime.utcnow()})
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Database error'}}), 500
     return jsonify({'success': True, 'data': {'marked_count': count, 'peer_user_id': user_id}})
 
 
@@ -106,7 +113,9 @@ def edit_message(message_id):
     if not current_user_id:
         return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED', 'message': 'Not authenticated'}}), 401
 
-    msg = Message.query.get_or_404(message_id)
+    msg = Message.query.get(message_id)
+    if not msg:
+        return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'Message not found'}}), 404
     if msg.sender_id != current_user_id:
         return jsonify({'success': False, 'error': {'code': 'FORBIDDEN', 'message': 'You can only edit your own messages'}}), 403
 
@@ -117,7 +126,11 @@ def edit_message(message_id):
 
     msg.content = content
     msg.edited_at = datetime.utcnow()
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Database error'}}), 500
     return jsonify({'success': True, 'data': {'message': _serialize_message(msg, current_user_id)}})
 
 
@@ -162,7 +175,11 @@ def add_reaction():
     else:
         db.session.add(Reaction(message_id=message_id, user_id=current_user_id, reaction_type=reaction_type))
         has_reacted = True
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Database error'}}), 500
 
     count = Reaction.query.filter_by(message_id=message_id, reaction_type=reaction_type).count()
     return jsonify({'success': True, 'data': {
@@ -179,12 +196,18 @@ def delete_message(message_id):
     if not current_user_id:
         return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED', 'message': 'Not authenticated'}}), 401
 
-    msg = Message.query.get_or_404(message_id)
+    msg = Message.query.get(message_id)
+    if not msg:
+        return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'Message not found'}}), 404
     if msg.sender_id != current_user_id:
         return jsonify({'success': False, 'error': {'code': 'FORBIDDEN', 'message': 'You can only delete your own messages'}}), 403
 
     msg.is_deleted = True
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Database error'}}), 500
     return jsonify({'success': True, 'data': {'message_id': message_id}})
 
 
@@ -194,7 +217,7 @@ def get_reactions(message_id):
     if not current_user_id:
         return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED', 'message': 'Not authenticated'}}), 401
 
-    reactions = Reaction.query.filter_by(message_id=message_id).all()
+    reactions = Reaction.query.options(selectinload(Reaction.user)).filter_by(message_id=message_id).all()
     grouped = {}
     for r in reactions:
         if r.reaction_type not in grouped:

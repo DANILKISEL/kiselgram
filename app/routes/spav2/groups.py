@@ -10,10 +10,10 @@ from app.utils.helpers import get_current_user_id
 spav2_groups_bp = Blueprint('spav2_groups', __name__, url_prefix='/api')
 
 
-def _serialize_group(chat, member_count=None):
+def _serialize_group(chat, member_count=None, last_message=None):
     if member_count is None:
         member_count = ChatMember.query.filter_by(chat_id=chat.id).count()
-    last = Message.query.filter_by(chat_id=chat.id).order_by(Message.timestamp.desc()).first()
+    last = last_message or Message.query.filter_by(chat_id=chat.id).order_by(Message.timestamp.desc()).first()
     return {
         'group_id': chat.id,
         'name': chat.name,
@@ -40,19 +40,44 @@ def get_groups():
     if not current_user_id:
         return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED', 'message': 'Not authenticated'}}), 401
 
+    page = request.args.get('page', 1, type=int)
+    per_page = min(request.args.get('per_page', 50, type=int), 100)
+
     memberships = ChatMember.query.filter_by(user_id=current_user_id).all()
     chat_ids = [m.chat_id for m in memberships]
     chats_map = {c.id: c for c in Chat.query.filter(Chat.id.in_(chat_ids)).all()} if chat_ids else {}
     counts = dict(db.session.query(ChatMember.chat_id, db.func.count(ChatMember.id)).filter(ChatMember.chat_id.in_(chat_ids)).group_by(ChatMember.chat_id).all()) if chat_ids else {}
+
+    last_msg_for_group = {}
+    if chat_ids:
+        group_last_ids = db.session.query(
+            db.func.max(Message.id).label('msg_id')
+        ).filter(
+            Message.chat_id.in_(chat_ids)
+        ).group_by(Message.chat_id).subquery()
+
+        group_msgs = Message.query.filter(
+            Message.id.in_(db.session.query(group_last_ids.c.msg_id))
+        ).all()
+        last_msg_for_group = {m.chat_id: m for m in group_msgs}
+
     groups = []
     for m in memberships:
         chat = chats_map.get(m.chat_id)
         if chat:
-            g = _serialize_group(chat, member_count=counts.get(chat.id, 0))
+            g = _serialize_group(chat, member_count=counts.get(chat.id, 0), last_message=last_msg_for_group.get(chat.id))
             g['my_role'] = m.role
             groups.append(g)
 
-    return jsonify({'success': True, 'data': {'groups': groups}})
+    total = len(groups)
+    pages = (total + per_page - 1) // per_page if total else 1
+    start = (page - 1) * per_page
+    page_groups = groups[start:start + per_page]
+
+    return jsonify({'success': True, 'data': {
+        'groups': page_groups,
+        'pagination': {'page': page, 'per_page': per_page, 'total': total, 'pages': pages}
+    }})
 
 
 @spav2_groups_bp.route('/groups/<int:group_id>', methods=['GET'])
@@ -69,7 +94,7 @@ def get_group(group_id):
     if not membership and not chat.is_public:
         return jsonify({'success': False, 'error': {'code': 'FORBIDDEN', 'message': 'You are not a member'}}), 403
 
-    owner = User.query.get(chat.owner_id)
+    owner = User.query.filter(User.id == chat.owner_id, User.is_deleted.is_(False)).first() if chat.owner_id else None
     return jsonify({'success': True, 'data': {
         'group_id': chat.id,
         'name': chat.name,
@@ -91,14 +116,16 @@ def get_group_members(group_id):
     if not current_user_id:
         return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED', 'message': 'Not authenticated'}}), 401
 
-    offset = request.args.get('offset', 0, type=int)
-    limit = min(request.args.get('limit', 50, type=int), 100)
+    page = request.args.get('page', 1, type=int)
+    per_page = min(request.args.get('per_page', 50, type=int), 100)
 
-    memberships = ChatMember.query.filter_by(chat_id=group_id).offset(offset).limit(limit).all()
+    memberships = ChatMember.query.filter_by(chat_id=group_id).offset((page - 1) * per_page).limit(per_page).all()
     total = ChatMember.query.filter_by(chat_id=group_id).count()
+    user_ids = [m.user_id for m in memberships]
+    users_map = {u.id: u for u in User.query.filter(User.id.in_(user_ids), User.is_deleted.is_(False)).all()} if user_ids else {}
     members = []
     for m in memberships:
-        user = User.query.get(m.user_id)
+        user = users_map.get(m.user_id)
         if user:
             members.append({
                 'user_id': user.id,
@@ -108,10 +135,11 @@ def get_group_members(group_id):
                 'joined_at': m.joined_at.isoformat() if m.joined_at else None
             })
 
+    pages = (total + per_page - 1) // per_page if total else 1
     return jsonify({'success': True, 'data': {
         'group_id': group_id,
         'members': members,
-        'pagination': {'offset': offset, 'limit': limit, 'has_more': len(members) == limit, 'total': total}
+        'pagination': {'page': page, 'per_page': per_page, 'total': total, 'pages': pages}
     }})
 
 
@@ -189,7 +217,11 @@ def create_group():
         db.session.add(GroupPermission(chat_id=chat.id, role=role, can_send_messages=True, can_send_media=True,
                                         can_add_members=role != 'member', can_pin_messages=role != 'member',
                                         can_change_info=role != 'member', can_delete_messages=role != 'member', can_ban_users=role == 'owner'))
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': str(e)}}), 500
 
     return jsonify({'success': True, 'data': {'group': _serialize_group(chat)}}), 201
 
@@ -221,7 +253,11 @@ def send_group_message():
         if original:
             db.session.add(Reply(original_message_id=reply_to_id, reply_message_id=msg.id))
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': str(e)}}), 500
     return jsonify({'success': True, 'data': {'message': {
         'message_id': msg.id,
         'sender_id': msg.sender_id,
@@ -262,7 +298,11 @@ def update_group(group_id):
         if not isinstance(val, str) or len(val) > 2000:
             return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'Description must be a string (max 2000 characters)'}}), 400
         chat.description = val
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': str(e)}}), 500
     return jsonify({'success': True, 'data': {'group': _serialize_group(chat)}})
 
 
@@ -289,9 +329,13 @@ def update_member_role(group_id, user_id):
 
     target.role = role
     target.updated_at = datetime.utcnow()
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': str(e)}}), 500
 
-    user = User.query.get(user_id)
+    user = User.query.filter(User.id == user_id, User.is_deleted.is_(False)).first()
     return jsonify({'success': True, 'data': {
         'group_id': group_id, 'user_id': user_id,
         'username': user.username if user else None,
@@ -312,9 +356,13 @@ def join_group(invite_link):
     existing = ChatMember.query.filter_by(user_id=current_user_id, chat_id=chat.id).first()
     if not existing:
         db.session.add(ChatMember(user_id=current_user_id, chat_id=chat.id, role='member'))
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': str(e)}}), 500
 
-    owner = User.query.get(chat.owner_id)
+    owner = User.query.filter(User.id == chat.owner_id, User.is_deleted.is_(False)).first() if chat.owner_id else None
     return jsonify({'success': True, 'data': {
         'group': {
             'group_id': chat.id, 'name': chat.name, 'description': chat.description,
@@ -340,5 +388,9 @@ def leave_group(group_id):
         return jsonify({'success': False, 'error': {'code': 'OWNER_CANNOT_LEAVE', 'message': 'Owner cannot leave the group. Transfer ownership or delete the group.'}}), 403
 
     db.session.delete(membership)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': str(e)}}), 500
     return jsonify({'success': True, 'data': {'message': 'Successfully left the group', 'group_id': group_id}})
