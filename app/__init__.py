@@ -123,21 +123,21 @@ def create_app():
     try:
         from app.routes.spav2.admin import spav2_admin_bp
         app.register_blueprint(spav2_admin_bp)
-    except ImportError:
-        pass
+    except ImportError as e:
+        app.logger.warning(f"Admin blueprint not loaded: {e}")
     try:
         from app.routes.spav2.push import spav2_push_bp
         app.register_blueprint(spav2_push_bp)
-    except ImportError:
-        pass
+    except ImportError as e:
+        app.logger.warning(f"Push blueprint not loaded: {e}")
 
     # Register video blueprint if enabled
     if app.config.get('VIDEO_ENABLED', False):
         try:
             from app.routes.video_integration import video_int_bp
             app.register_blueprint(video_int_bp)
-        except ImportError:
-            pass
+        except ImportError as e:
+            app.logger.warning(f"Video blueprint not loaded: {e}")
 
     # ================================================================
     # Nginx reverse proxy internal endpoint – returns the current user ID
@@ -207,8 +207,8 @@ def create_app():
                                 os.remove(p)
                         db.session.delete(story)
                     db.session.commit()
-                except Exception:
-                    pass
+                except Exception as e:
+                    app.logger.error(f"Story cleanup error: {e}")
                 time.sleep(1800)
 
     t = threading.Thread(target=story_cleanup_loop, daemon=True)

@@ -6,7 +6,7 @@ K.contacts = {
         K.state.contacts = d.data?.contacts || [];
         K.contacts.render(K.state.contacts);
       }
-    } catch(e) {}
+    } catch(e) { console.error('Contacts load:', e); }
   },
   render(contacts) {
     const c = $('contactsList'); if (!c) return;

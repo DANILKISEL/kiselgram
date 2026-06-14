@@ -334,4 +334,5 @@ def list_preloaded_avatars():
         images = [f for f in files if f.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp'))]
         return jsonify({'success': True, 'data': {'avatars': images}})
     except Exception as e:
-        return jsonify({'success': True, 'data': {'avatars': []}})
+        current_app.logger.error(f"Failed to list preloaded avatars: {e}")
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Failed to list avatars'}})

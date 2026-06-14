@@ -105,7 +105,7 @@ K.chat = {
     await K.chat.loadHeader(type, id);
     await K.chat.loadMessages(type, id);
     $('messageInput').focus();
-    if (type === 'personal') { try { await K.api.post(V2 + `/mark_read/${id}`); K.chat.loadList(); } catch(e) {} }
+    if (type === 'personal') { try { await K.api.post(V2 + `/mark_read/${id}`); K.chat.loadList(); } catch(_) {} }
   },
   headerClick() {
     if (!K.state.activeChat || K.state.activeChat.type !== 'personal') return;
@@ -189,7 +189,7 @@ K.chat = {
           if (statusEl) { statusEl.textContent = (ch.subscriber_count||0)+' subscribers'; statusEl.className = 'k-chat-header-status'; }
         }
       }
-    } catch(e) {}
+    } catch(e) { console.error('Chat header load:', e); }
   },
   async loadMessages(type, id, append=false) {
     const mc = $('messagesContainer'); if (!mc) return;
@@ -387,7 +387,7 @@ K.chat = {
     if (!K.state.activeChat || K.chat._typingSent) return;
     K.chat._typingSent = true;
     const { type, id } = K.state.activeChat;
-    try { await K.api.post(V2 + `/typing/${type}/${id}`); } catch(e) {}
+    try { await K.api.post(V2 + `/typing/${type}/${id}`); } catch(_) {}
     setTimeout(() => { K.chat._typingSent = false; }, 4000);
   },
   reply: {
@@ -413,7 +413,7 @@ K.chat = {
         const d = await K.api.post(V2 + '/reactions/add', { message_id: msgId, reaction_type: emoji });
         if (d.success) K.chat.loadMessages(K.state.activeChat.type, K.state.activeChat.id);
         else K.ui.toast('React failed', 'error');
-      } catch(e) {}
+      } catch(_) {}
       return;
     }
     const picker = document.querySelector('.k-reaction-picker');

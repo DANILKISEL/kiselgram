@@ -4,7 +4,7 @@ K.api = {
     try {
       const acc = K.auth.accounts[K.auth.activeIdx];
       if (acc && acc.token) h['Authorization'] = 'Bearer ' + acc.token;
-    } catch(e) {}
+    } catch(_) {}
     return h;
   },
   async _fetch(url, opts) {

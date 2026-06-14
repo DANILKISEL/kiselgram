@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kiselgram — 14 Features</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+            background: #0d1117; color: #c9d1d9;
+            -webkit-font-smoothing: antialiased;
+            padding: 40px 16px;
+        }
+        .container { max-width: 680px; margin: 0 auto; }
+        h1 {
+            font-size: 32px; font-weight: 800; color: #f0f6fc;
+            text-align: center; margin-bottom: 8px;
+        }
+        h1 span { color: #fb6340; }
+        .subtitle {
+            text-align: center; color: #8b949e; font-size: 14px;
+            margin-bottom: 40px; border-bottom: 1px solid #21262d; padding-bottom: 24px;
+        }
+        .post {
+            background: #161b22; border: 1px solid #30363d;
+            border-radius: 14px; padding: 24px; margin-bottom: 16px;
+            transition: border-color 0.2s;
+        }
+        .post:hover { border-color: #fb6340; }
+        .post-header {
+            display: flex; align-items: center; gap: 14px; margin-bottom: 12px;
+        }
+        .post-num {
+            width: 36px; height: 36px; border-radius: 10px;
+            background: rgba(251,99,64,0.15); color: #fb6340;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 14px; flex-shrink: 0;
+        }
+        .post-emoji { font-size: 28px; flex-shrink: 0; }
+        .post-title {
+            font-size: 18px; font-weight: 700; color: #f0f6fc;
+        }
+        .post-body { font-size: 14px; line-height: 1.7; color: #c9d1d9; margin-bottom: 12px; white-space: pre-wrap; }
+        .post-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+        .post-tags span {
+            padding: 3px 10px; background: rgba(251,99,64,0.08);
+            border: 1px solid rgba(251,99,64,0.2); border-radius: 14px;
+            font-size: 11px; color: #fb6340; font-weight: 500;
+        }
+        .copy-btn {
+            float: right; padding: 4px 12px; font-size: 11px;
+            background: transparent; border: 1px solid #30363d;
+            color: #8b949e; border-radius: 6px; cursor: pointer;
+            transition: all 0.2s;
+        }
+        .copy-btn:hover { border-color: #fb6340; color: #fb6340; }
+        .copy-btn.copied { border-color: #2dce89; color: #2dce89; }
+        .telegram-hint {
+            background: #1c2128; border: 1px solid #30363d;
+            border-radius: 10px; padding: 16px; margin-bottom: 24px;
+            font-size: 13px; color: #8b949e; line-height: 1.6;
+        }
+        .telegram-hint kbd {
+            background: #21262d; padding: 2px 6px; border-radius: 4px;
+            font-size: 12px; color: #c9d1d9;
+        }
+        .footer {
+            text-align: center; padding: 24px 0;
+            color: #484f58; font-size: 13px;
+        }
+        @media (max-width: 500px) {
+            .post { padding: 16px; }
+            .post-title { font-size: 16px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <h1>Kisel<span>gram</span></h1>
+    <div class="subtitle">14 posts — 14 features. Copy &amp; paste to Telegram.</div>
+
+    <div class="telegram-hint">
+        Click <strong>Copy</strong> on any post to copy its Telegram-ready text,
+        or <button class="copy-btn" onclick="copyAll()" style="float:none;display:inline;padding:2px 10px;margin:0 4px;font-size:12px;">Copy All</button>
+        to copy everything at once.
+        In Telegram, paste as <kbd>Ctrl+V</kbd> / <kbd>Cmd+V</kbd>.
+        <b>Bold</b>, <i>italic</i> and <code>monospace</code> formatting shown — Telegram supports Markdown.
+    </div>
+
+    <!-- ===== POST 1 ===== -->
+    <div class="post" id="post1">
+        <button class="copy-btn" onclick="copyPost(1)">Copy</button>
+        <div class="post-header">
+            <div class="post-num">1</div>
+            <div class="post-emoji">⚡</div>
+            <div class="post-title">Instant Messaging</div>
+        </div>
+        <div class="post-body">Real‑time chat with <b>read receipts</b>, <b>typing indicators</b>, <b>emoji reactions</b>, inline <b>replies</b>, and full <b>Markdown formatting</b>. Every message delivered in milliseconds. Whether it's a quick text or a formatted block of code — Kiselgram keeps it fast and fluid.</div>
+        <div class="post-tags">
+            <span>Markdown</span><span>Reactions</span><span>Replies</span><span>Read receipts</span><span>Lightning fast</span>
+        </div>
+    </div>
+
+    <!-- ===== POST 2 ===== -->
+    <div class="post" id="post2">
+        <button class="copy-btn" onclick="copyPost(2)">Copy</button>
+        <div class="post-header">
+            <div class="post-num">2</div>
+            <div class="post-emoji">👥</div>
+            <div class="post-title">Group Chats</div>
+        </div>
+        <div class="post-body">Create communities of any size with <b>role‑based permissions</b>: Owner, Admin, and Member. Granular controls over who can send messages, add members, pin posts, ban users, or delete content. Shareable <b>invite links</b> make joining effortless.</div>
+        <div class="post-tags">
+            <span>Roles & permissions</span><span>Invite links</span><span>Pinned messages</span><span>Member management</span>
+        </div>
+    </div>
+
+    <!-- ===== POST 3 ===== -->
+    <div class="post" id="post3">
+        <button class="copy-btn" onclick="copyPost(3)">Copy</button>
+        <div class="post-header">
+            <div class="post-num">3</div>
+            <div class="post-emoji">📢</div>
+            <div class="post-title">Channels</div>
+        </div>
+        <div class="post-body">Broadcast messages to an <b>unlimited</b> number of subscribers. Only admins can post — perfect for news, announcements, and content creators. Public by default with shareable <b>invite links</b> and subscriber counts visible to everyone.</div>
+        <div class="post-tags">
+            <span>Unlimited subscribers</span><span>Broadcast</span><span>Admin controls</span><span>Public</span>
+        </div>
+    </div>
+
+    <!-- ===== POST 4 ===== -->
+    <div class="post" id="post4">
+        <button class="copy-btn" onclick="copyPost(4)">Copy</button>
+        <div class="post-header">
+            <div class="post-num">4</div>
+            <div class="post-emoji">📹</div>
+            <div class="post-title">Video Calls</div>
+        </div>
+        <div class="post-body">High‑quality <b>peer‑to‑peer</b> WebRTC video calls. Create rooms with custom names and invite anyone with a link — <b>no account required</b> to join. Up to <b>50 participants</b> per room with in‑call chat, audio/video toggles, and screen sharing.</div>
+        <div class="post-tags">
+            <span>WebRTC</span><span>Up to 50</span><span>No account needed</span><span>Screen sharing</span>
+        </div>
+    </div>
+
+    <!-- ===== POST 5 ===== -->
+    <div class="post" id="post5">
+        <button class="copy-btn" onclick="copyPost(5)">Copy</button>
+        <div class="post-header">
+            <div class="post-num">5</div>
+            <div class="post-emoji">📸</div>
+            <div class="post-title">Stories</div>
+        </div>
+        <div class="post-body">Share photos, videos, and music that <b>disappear after 24 hours</b>. Choose between <b>everyone</b> or <b>close friends</b> only. React with emojis, like a story, or reply privately to keep the conversation going. View tracking lets you see who watched.</div>
+        <div class="post-tags">
+            <span>24h expiry</span><span>Privacy controls</span><span>Reactions</span><span>View tracking</span>
+        </div>
+    </div>
+
+    <!-- ===== POST 6 ===== -->
+    <div class="post" id="post6">
+        <button class="copy-btn" onclick="copyPost(6)">Copy</button>
+        <div class="post-header">
+            <div class="post-num">6</div>
+            <div class="post-emoji">🔖</div>
+            <div class="post-title">Saved Messages</div>
+        </div>
+        <div class="post-body">Bookmark <b>any message</b> from any chat into a dedicated "Saved Messages" collection. Add <b>personal notes</b> to each saved item for context. Your private reference library — searchable, always accessible, never expires.</div>
+        <div class="post-tags">
+            <span>Bookmarks</span><span>Personal notes</span><span>Searchable</span><span>Never expires</span>
+        </div>
+    </div>
+
+    <!-- ===== POST 7 ===== -->
+    <div class="post" id="post7">
+        <button class="copy-btn" onclick="copyPost(7)">Copy</button>
+        <div class="post-header">
+            <div class="post-num">7</div>
+            <div class="post-emoji">🎵</div>
+            <div class="post-title">Music Library</div>
+        </div>
+        <div class="post-body">Collect audio messages into a personal <b>in‑app music player</b>. Browse by title, artist, and duration. Each track links back to the original message. Share your <b>music profile</b> with others and discover what your friends are listening to.</div>
+        <div class="post-tags">
+            <span>In-app player</span><span>Music profiles</span><span>Track metadata</span><span>Discovery</span>
+        </div>
+    </div>
+
+    <!-- ===== POST 8 ===== -->
+    <div class="post" id="post8">
+        <button class="copy-btn" onclick="copyPost(8)">Copy</button>
+        <div class="post-header">
+            <div class="post-num">8</div>
+            <div class="post-emoji">🔍</div>
+            <div class="post-title">Global Search</div>
+        </div>
+        <div class="post-body">Unified search across <b>users</b>, <b>groups</b>, <b>channels</b>, and <b>messages</b>. Find shared files, music, and contacts instantly. Browse all media exchanged with a specific person. Recent searches auto‑saved for quick access.</div>
+        <div class="post-tags">
+            <span>Unified</span><span>Message search</span><span>User lookup</span><span>Recent searches</span>
+        </div>
+    </div>
+
+    <!-- ===== POST 9 ===== -->
+    <div class="post" id="post9">
+        <button class="copy-btn" onclick="copyPost(9)">Copy</button>
+        <div class="post-header">
+            <div class="post-num">9</div>
+            <div class="post-emoji">📎</div>
+            <div class="post-title">File Sharing</div>
+        </div>
+        <div class="post-body">Send <b>images</b>, <b>documents</b>, <b>video</b>, and <b>audio</b> with drag‑and‑drop simplicity. <b>16MB per file</b> limit with extension whitelist for security. Preview images and play media inline without leaving the chat.</div>
+        <div class="post-tags">
+            <span>Drag & drop</span><span>16MB limit</span><span>Inline preview</span><span>Secure</span>
+        </div>
+    </div>
+
+    <!-- ===== POST 10 ===== -->
+    <div class="post" id="post10">
+        <button class="copy-btn" onclick="copyPost(10)">Copy</button>
+        <div class="post-header">
+            <div class="post-num">10</div>
+            <div class="post-emoji">🎨</div>
+            <div class="post-title">Full Customization</div>
+        </div>
+        <div class="post-body">Make Kiselgram yours with <b>Premium themes</b>, <b>custom fonts</b>, <b>chat wallpapers</b>, <b>bubble colors</b>, and adjustable font sizes. Switch between <b>light</b> and <b>dark mode</b>. Your messenger, your look.</div>
+        <div class="post-tags">
+            <span>Themes</span><span>Wallpapers</span><span>Custom fonts</span><span>Dark/light mode</span>
+        </div>
+    </div>
+
+    <!-- ===== POST 11 ===== -->
+    <div class="post" id="post11">
+        <button class="copy-btn" onclick="copyPost(11)">Copy</button>
+        <div class="post-header">
+            <div class="post-num">11</div>
+            <div class="post-emoji">🛡️</div>
+            <div class="post-title">Security &amp; Privacy</div>
+        </div>
+        <div class="post-body"><b>Bearer‑token auth</b> keeps your sessions safe. <b>CSP headers</b> prevent XSS attacks. <b>In‑memory rate limiting</b> stops abuse. Granular <b>privacy controls</b> let you choose who sees your last seen, profile photo, and online status — Everyone, Contacts, or Nobody.</div>
+        <div class="post-tags">
+            <span>CSP headers</span><span>Rate limiting</span><span>Privacy controls</span><span>Token auth</span>
+        </div>
+    </div>
+
+    <!-- ===== POST 12 ===== -->
+    <div class="post" id="post12">
+        <button class="copy-btn" onclick="copyPost(12)">Copy</button>
+        <div class="post-header">
+            <div class="post-num">12</div>
+            <div class="post-emoji">🤖</div>
+            <div class="post-title">Bot Platform</div>
+        </div>
+        <div class="post-body">Create <b>bot accounts</b> with webhook integrations. Build interactive <b>web apps</b> that open as fullscreen iframes inside the chat. <b>Incoming and outgoing webhooks</b> connect Kiselgram to any external service. Endless automation possibilities.</div>
+        <div class="post-tags">
+            <span>Webhooks</span><span>Web apps</span><span>Bot tokens</span><span>Automation</span>
+        </div>
+    </div>
+
+    <!-- ===== POST 13 ===== -->
+    <div class="post" id="post13">
+        <button class="copy-btn" onclick="copyPost(13)">Copy</button>
+        <div class="post-header">
+            <div class="post-num">13</div>
+            <div class="post-emoji">🔄</div>
+            <div class="post-title">Multi‑Account &amp; QR Login</div>
+        </div>
+        <div class="post-body">Sign into <b>multiple accounts</b> and switch seamlessly. <b>QR code login</b> makes connecting your desktop client effortless — scan from your phone and you're in. All your identities, one interface.</div>
+        <div class="post-tags">
+            <span>Multi-account</span><span>QR login</span><span>Desktop client</span><span>Quick switch</span>
+        </div>
+    </div>
+
+    <!-- ===== POST 14 ===== -->
+    <div class="post" id="post14">
+        <button class="copy-btn" onclick="copyPost(14)">Copy</button>
+        <div class="post-header">
+            <div class="post-num">14</div>
+            <div class="post-emoji">📊</div>
+            <div class="post-title">Admin Panel</div>
+        </div>
+        <div class="post-body">Full <b>moderation dashboard</b> at <code>admin.kiselgram.ru</code>. Manage users, handle reports, inspect chats, administer mail accounts, and generate promo codes. Everything you need to run the platform — no command line required.</div>
+        <div class="post-tags">
+            <span>Reports</span><span>User management</span><span>Mail admin</span><span>Promo codes</span>
+        </div>
+    </div>
+
+    <div class="footer">
+        Kiselgram — <a href="https://kiselgram.ru" style="color:#fb6340;text-decoration:none;">kiselgram.ru</a>
+    </div>
+
+</div>
+
+<script>
+function copyAll() {
+    let all = '';
+    for (let n = 1; n <= 14; n++) {
+        const post = document.getElementById('post' + n);
+        const title = post.querySelector('.post-title').textContent;
+        const body = post.querySelector('.post-body').innerHTML
+            .replace(/<\/?b>/gi, '**')
+            .replace(/<\/?i>/gi, '_')
+            .replace(/<\/?code>/gi, '`')
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<\/?[^>]+>/g, '');
+        const tags = Array.from(post.querySelectorAll('.post-tags span')).map(s => s.textContent).join(' · ');
+        all += `**#${n} — ${title}**\n\n${body}\n\n${tags}\n\nkiselgram.ru\n\n———\n\n`;
+    }
+    navigator.clipboard.writeText(all).then(() => {
+        const btn = document.querySelector('.telegram-hint .copy-btn');
+        btn.textContent = 'Copied all!';
+        setTimeout(() => { btn.textContent = 'Copy All'; }, 2000);
+    });
+}
+
+function copyPost(n) {
+    const post = document.getElementById('post' + n);
+    const title = post.querySelector('.post-title').textContent;
+    const body = post.querySelector('.post-body').innerHTML
+        .replace(/<\/?b>/g, '**')
+        .replace(/<\/?code>/g, '`')
+        .replace(/<br\s*\/?>/g, '\n');
+    const tags = Array.from(post.querySelectorAll('.post-tags span')).map(s => s.textContent).join(' · ');
+
+    const text = `**#${n} — ${title}**\n\n${body}\n\n${tags}\n\nkiselgram.ru`;
+
+    navigator.clipboard.writeText(text).then(() => {
+        const btn = post.querySelector('.copy-btn');
+        btn.textContent = 'Copied!';
+        btn.classList.add('copied');
+        setTimeout(() => {
+            btn.textContent = 'Copy';
+            btn.classList.remove('copied');
+        }, 2000);
+    }).catch(() => {
+        // fallback
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+    });
+}
+</script>
+
+</body>
+</html>

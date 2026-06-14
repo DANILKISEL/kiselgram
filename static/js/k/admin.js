@@ -10,7 +10,7 @@ K.admin = {
         K.admin.loadReports();
         K.admin.loadUsers();
       }
-    } catch(e) {}
+    } catch(e) { console.error('Admin init:', e); }
   },
   async loadDashboard() {
     const el = $('adminDashboard'); if (!el) return;
@@ -105,6 +105,6 @@ K.admin = {
     try {
       const d = await K.api.post('/api/admin/users/' + userId + '/toggle-admin');
       if (d.success) { K.ui.toast('Admin toggled', 'success'); K.admin.loadUsers(); }
-    } catch(e) {}
+    } catch(e) { console.error('Toggle admin:', e); }
   }
 };

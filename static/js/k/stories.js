@@ -7,7 +7,7 @@ K.stories = {
         K.stories._renderRow();
         K.stories._renderGrid();
       }
-    } catch(e) {}
+    } catch(e) { console.error('Stories load:', e); }
   },
   _renderRow() {
     const row = $('storiesRow'); if (!row) return;
@@ -62,7 +62,7 @@ K.stories = {
         if (fill) { fill.style.transition = 'width 5s linear'; fill.style.width = '100%'; }
         timer = setTimeout(() => { if (i+1 < stories.length) show(i+1); else K.stories.close(); }, 5000);
       }
-      try { K.api.post(V2 + `/stories/${s.story_id}/view`); } catch(e) {}
+      try { K.api.post(V2 + `/stories/${s.story_id}/view`); } catch(_) {}
     };
     show(0);
     const next = () => { if (idx+1 < stories.length) { idx++; show(idx); } else K.stories.close(); };
@@ -82,7 +82,7 @@ K.stories = {
       try {
         const d = await K.api.post(V2 + `/stories/${s.story_id}/like`);
         if (d.success) $('storyLikeCount').textContent = d.data?.like_count ?? 0;
-      } catch(e) {}
+      } catch(_) {}
     }
   },
   async react() {
@@ -91,7 +91,7 @@ K.stories = {
     const emoji = reactions[Math.floor(Math.random()*reactions.length)];
     if (K.stories._activeStory) {
       const s = K.stories._activeStory;
-      try { await K.api.post(V2 + `/stories/${s.story_id}/reaction`, {reaction: emoji}); K.ui.toast('Reacted!', 'success'); } catch(e) {}
+      try { await K.api.post(V2 + `/stories/${s.story_id}/reaction`, {reaction: emoji}); K.ui.toast('Reacted!', 'success'); } catch(_) {}
     }
   },
   async create() {

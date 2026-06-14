@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kiselgram — Twitter Thread</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+            background: #0d1117; color: #c9d1d9;
+            -webkit-font-smoothing: antialiased;
+            padding: 32px 16px;
+        }
+        .container { max-width: 600px; margin: 0 auto; }
+        .header {
+            text-align: center; padding: 24px 0 32px;
+            border-bottom: 1px solid #21262d; margin-bottom: 24px;
+        }
+        .header h1 { font-size: 28px; font-weight: 800; color: #f0f6fc; }
+        .header h1 span { color: #fb6340; }
+        .header p { color: #8b949e; font-size: 13px; margin-top: 8px; }
+        .tweet {
+            background: #161b22; border: 1px solid #30363d;
+            border-radius: 16px; padding: 20px; margin-bottom: 12px;
+            position: relative;
+        }
+        .tweet:hover { border-color: #1d9bf0; }
+        .tweet-meta {
+            display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+        }
+        .tweet-avatar {
+            width: 36px; height: 36px; border-radius: 50%;
+            background: linear-gradient(135deg, #fb6340, #f85a2e);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 14px; color: #fff; flex-shrink: 0;
+        }
+        .tweet-author {
+            font-size: 14px; font-weight: 700; color: #f0f6fc;
+        }
+        .tweet-handle {
+            font-size: 12px; color: #8b949e;
+        }
+        .tweet-num {
+            margin-left: auto; font-size: 12px; color: #484f58;
+            background: #21262d; padding: 2px 10px; border-radius: 12px;
+        }
+        .tweet-body {
+            font-size: 14px; line-height: 1.7; color: #e6edf3;
+            margin-bottom: 10px;
+        }
+        .tweet-body strong { color: #f0f6fc; }
+        .tweet-hashtags {
+            color: #1d9bf0; font-size: 12px; line-height: 1.6;
+        }
+        .tweet-actions {
+            display: flex; gap: 24px; margin-top: 10px;
+            padding-top: 10px; border-top: 1px solid #21262d;
+        }
+        .tweet-actions span {
+            font-size: 12px; color: #484f58;
+            display: flex; align-items: center; gap: 4px;
+        }
+        .tweet-actions svg { width: 16px; height: 16px; fill: #484f58; }
+        .thread-line {
+            width: 2px; height: 20px; background: #30363d;
+            margin: 0 auto;
+        }
+        .copy-btn {
+            position: absolute; top: 16px; right: 16px;
+            padding: 3px 10px; font-size: 11px;
+            background: transparent; border: 1px solid #30363d;
+            color: #8b949e; border-radius: 6px; cursor: pointer;
+            transition: all 0.2s;
+        }
+        .copy-btn:hover { border-color: #1d9bf0; color: #1d9bf0; }
+        .copy-btn.copied { border-color: #2dce89; color: #2dce89; }
+        .copy-thread-btn {
+            display: block; width: 100%; padding: 12px;
+            font-size: 14px; font-weight: 600;
+            background: #1d9bf0; border: none;
+            color: #fff; border-radius: 24px; cursor: pointer;
+            transition: opacity 0.2s; margin: 24px 0;
+        }
+        .copy-thread-btn:hover { opacity: 0.85; }
+        .copy-thread-btn.copied { background: #2dce89; }
+        .footer {
+            text-align: center; padding: 24px 0;
+            color: #484f58; font-size: 13px;
+        }
+        .footer a { color: #1d9bf0; text-decoration: none; }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <div class="header">
+        <h1>Kisel<span>gram</span></h1>
+        <p>🧵 Twitter Thread — 14 tweets, 14 features</p>
+    </div>
+
+    <button class="copy-thread-btn" onclick="copyThread()">📋 Copy Entire Thread</button>
+
+    <!-- TWEET 1 -->
+    <div class="tweet" id="tweet1">
+        <button class="copy-btn" onclick="copyTweet(1)">Copy</button>
+        <div class="tweet-meta">
+            <div class="tweet-avatar">K</div>
+            <div>
+                <div class="tweet-author">Kiselgram</div>
+                <div class="tweet-handle">@kiselgram</div>
+            </div>
+            <div class="tweet-num">1/14</div>
+        </div>
+        <div class="tweet-body">
+            <strong>⚡ Instant Messaging</strong><br>
+            Real-time chat with read receipts, typing indicators, emoji reactions, inline replies, and full Markdown formatting. Every message delivered in milliseconds.
+        </div>
+        <div class="tweet-hashtags">#messaging #realtime #kiselgram</div>
+        <div class="tweet-actions">
+            <span><svg viewBox="0 0 24 24"><path d="M1 8a7 7 0 0 1 7-7h8a7 7 0 0 1 7 7v8a7 7 0 0 1-7 7H8a7 7 0 0 1-7-7V8Z"/></svg> 1.2K</span>
+            <span><svg viewBox="0 0 24 24"><path d="M8 12a1 1 0 0 1 1-1h6a1 1 0 0 1 0 2H9a1 1 0 0 1-1-1Z"/><path d="M12 8a1 1 0 0 1 0 2H9a1 1 0 0 1 0-2h3Z"/><path d="M4 4a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v16a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V4Z"/></svg> 84</span>
+            <span><svg viewBox="0 0 24 24"><path d="M12 .5C5.9.5 1 5.4 1 11.5c0 3.1 1.3 5.9 3.5 7.9l-1 3.6 4-2c1.4.4 2.9.6 4.5.6 6.1 0 11-4.9 11-11S18.1.5 12 .5Z"/></svg> 23</span>
+        </div>
+    </div>
+    <div class="thread-line"></div>
+
+    <!-- TWEET 2 -->
+    <div class="tweet" id="tweet2">
+        <button class="copy-btn" onclick="copyTweet(2)">Copy</button>
+        <div class="tweet-meta">
+            <div class="tweet-avatar">K</div>
+            <div>
+                <div class="tweet-author">Kiselgram</div>
+                <div class="tweet-handle">@kiselgram</div>
+            </div>
+            <div class="tweet-num">2/14</div>
+        </div>
+        <div class="tweet-body">
+            <strong>👥 Group Chats</strong><br>
+            Communities of any size with role-based permissions: Owner, Admin, Member. Granular controls over messages, pins, bans, and invites. Shareable invite links make joining effortless.
+        </div>
+        <div class="tweet-hashtags">#groups #communities #kiselgram</div>
+        <div class="tweet-actions">
+            <span>💬 892</span><span>🔄 67</span><span>❤️ 19</span>
+        </div>
+    </div>
+    <div class="thread-line"></div>
+
+    <!-- TWEET 3 -->
+    <div class="tweet" id="tweet3">
+        <button class="copy-btn" onclick="copyTweet(3)">Copy</button>
+        <div class="tweet-meta">
+            <div class="tweet-avatar">K</div>
+            <div>
+                <div class="tweet-author">Kiselgram</div>
+                <div class="tweet-handle">@kiselgram</div>
+            </div>
+            <div class="tweet-num">3/14</div>
+        </div>
+        <div class="tweet-body">
+            <strong>📢 Channels</strong><br>
+            Broadcast to unlimited subscribers. Only admins post — perfect for news, announcements, and creators. Public with invite links and subscriber counts visible to everyone.
+        </div>
+        <div class="tweet-hashtags">#channels #broadcast #kiselgram</div>
+        <div class="tweet-actions">
+            <span>💬 1.5K</span><span>🔄 112</span><span>❤️ 47</span>
+        </div>
+    </div>
+    <div class="thread-line"></div>
+
+    <!-- TWEET 4 -->
+    <div class="tweet" id="tweet4">
+        <button class="copy-btn" onclick="copyTweet(4)">Copy</button>
+        <div class="tweet-meta">
+            <div class="tweet-avatar">K</div>
+            <div>
+                <div class="tweet-author">Kiselgram</div>
+                <div class="tweet-handle">@kiselgram</div>
+            </div>
+            <div class="tweet-num">4/14</div>
+        </div>
+        <div class="tweet-body">
+            <strong>📹 Video Calls</strong><br>
+            Peer-to-peer WebRTC video calls. Create rooms with custom names, invite anyone with a link — no account required. Up to 50 participants, in-call chat, screen sharing.
+        </div>
+        <div class="tweet-hashtags">#video #webrtc #kiselgram</div>
+        <div class="tweet-actions">
+            <span>💬 654</span><span>🔄 89</span><span>❤️ 33</span>
+        </div>
+    </div>
+    <div class="thread-line"></div>
+
+    <!-- TWEET 5 -->
+    <div class="tweet" id="tweet5">
+        <button class="copy-btn" onclick="copyTweet(5)">Copy</button>
+        <div class="tweet-meta">
+            <div class="tweet-avatar">K</div>
+            <div>
+                <div class="tweet-author">Kiselgram</div>
+                <div class="tweet-handle">@kiselgram</div>
+            </div>
+            <div class="tweet-num">5/14</div>
+        </div>
+        <div class="tweet-body">
+            <strong>📸 Stories</strong><br>
+            Photos, videos, and music that disappear in 24h. Share with everyone or close friends only. React with emojis, like, or reply privately. See who watched.
+        </div>
+        <div class="tweet-hashtags">#stories #ephemeral #kiselgram</div>
+        <div class="tweet-actions">
+            <span>💬 2.1K</span><span>🔄 156</span><span>❤️ 72</span>
+        </div>
+    </div>
+    <div class="thread-line"></div>
+
+    <!-- TWEET 6 -->
+    <div class="tweet" id="tweet6">
+        <button class="copy-btn" onclick="copyTweet(6)">Copy</button>
+        <div class="tweet-meta">
+            <div class="tweet-avatar">K</div>
+            <div>
+                <div class="tweet-author">Kiselgram</div>
+                <div class="tweet-handle">@kiselgram</div>
+            </div>
+            <div class="tweet-num">6/14</div>
+        </div>
+        <div class="tweet-body">
+            <strong>🔖 Saved Messages</strong><br>
+            Bookmark any message from any chat into a dedicated collection. Add personal notes. Your private reference library — searchable, always accessible, never expires.
+        </div>
+        <div class="tweet-hashtags">#bookmarks #saved #kiselgram</div>
+        <div class="tweet-actions">
+            <span>💬 456</span><span>🔄 43</span><span>❤️ 28</span>
+        </div>
+    </div>
+    <div class="thread-line"></div>
+
+    <!-- TWEET 7 -->
+    <div class="tweet" id="tweet7">
+        <button class="copy-btn" onclick="copyTweet(7)">Copy</button>
+        <div class="tweet-meta">
+            <div class="tweet-avatar">K</div>
+            <div>
+                <div class="tweet-author">Kiselgram</div>
+                <div class="tweet-handle">@kiselgram</div>
+            </div>
+            <div class="tweet-num">7/14</div>
+        </div>
+        <div class="tweet-body">
+            <strong>🎵 Music Library</strong><br>
+            Collect audio messages into an in-app music player. Browse by title, artist, duration. Each track links back to the original message. Share your music profile, discover friends' tracks.
+        </div>
+        <div class="tweet-hashtags">#music #discovery #kiselgram</div>
+        <div class="tweet-actions">
+            <span>💬 378</span><span>🔄 56</span><span>❤️ 41</span>
+        </div>
+    </div>
+    <div class="thread-line"></div>
+
+    <!-- TWEET 8 -->
+    <div class="tweet" id="tweet8">
+        <button class="copy-btn" onclick="copyTweet(8)">Copy</button>
+        <div class="tweet-meta">
+            <div class="tweet-avatar">K</div>
+            <div>
+                <div class="tweet-author">Kiselgram</div>
+                <div class="tweet-handle">@kiselgram</div>
+            </div>
+            <div class="tweet-num">8/14</div>
+        </div>
+        <div class="tweet-body">
+            <strong>🔍 Global Search</strong><br>
+            Unified search across users, groups, channels, and messages. Find shared files, music, and contacts instantly. Browse all media exchanged with a person. Auto-saved recent searches.
+        </div>
+        <div class="tweet-hashtags">#search #discovery #kiselgram</div>
+        <div class="tweet-actions">
+            <span>💬 534</span><span>🔄 61</span><span>❤️ 25</span>
+        </div>
+    </div>
+    <div class="thread-line"></div>
+
+    <!-- TWEET 9 -->
+    <div class="tweet" id="tweet9">
+        <button class="copy-btn" onclick="copyTweet(9)">Copy</button>
+        <div class="tweet-meta">
+            <div class="tweet-avatar">K</div>
+            <div>
+                <div class="tweet-author">Kiselgram</div>
+                <div class="tweet-handle">@kiselgram</div>
+            </div>
+            <div class="tweet-num">9/14</div>
+        </div>
+        <div class="tweet-body">
+            <strong>📎 File Sharing</strong><br>
+            Send images, documents, video, and audio with drag-and-drop. 16MB per file with extension whitelist for security. Preview images and play media inline.
+        </div>
+        <div class="tweet-hashtags">#filesharing #secure #kiselgram</div>
+        <div class="tweet-actions">
+            <span>💬 1.8K</span><span>🔄 134</span><span>❤️ 56</span>
+        </div>
+    </div>
+    <div class="thread-line"></div>
+
+    <!-- TWEET 10 -->
+    <div class="tweet" id="tweet10">
+        <button class="copy-btn" onclick="copyTweet(10)">Copy</button>
+        <div class="tweet-meta">
+            <div class="tweet-avatar">K</div>
+            <div>
+                <div class="tweet-author">Kiselgram</div>
+                <div class="tweet-handle">@kiselgram</div>
+            </div>
+            <div class="tweet-num">10/14</div>
+        </div>
+        <div class="tweet-body">
+            <strong>🎨 Full Customization</strong><br>
+            Premium themes, custom fonts, chat wallpapers, bubble colors, adjustable font sizes. Light and dark mode. Your messenger, your look.
+        </div>
+        <div class="tweet-hashtags">#customization #themes #kiselgram</div>
+        <div class="tweet-actions">
+            <span>💬 723</span><span>🔄 88</span><span>❤️ 63</span>
+        </div>
+    </div>
+    <div class="thread-line"></div>
+
+    <!-- TWEET 11 -->
+    <div class="tweet" id="tweet11">
+        <button class="copy-btn" onclick="copyTweet(11)">Copy</button>
+        <div class="tweet-meta">
+            <div class="tweet-avatar">K</div>
+            <div>
+                <div class="tweet-author">Kiselgram</div>
+                <div class="tweet-handle">@kiselgram</div>
+            </div>
+            <div class="tweet-num">11/14</div>
+        </div>
+        <div class="tweet-body">
+            <strong>🛡️ Security & Privacy</strong><br>
+            Bearer-token auth keeps sessions safe. CSP headers prevent XSS. In-memory rate limiting stops abuse. Granular privacy: choose who sees your last seen, photo, and online status.
+        </div>
+        <div class="tweet-hashtags">#security #privacy #kiselgram</div>
+        <div class="tweet-actions">
+            <span>💬 421</span><span>🔄 92</span><span>❤️ 51</span>
+        </div>
+    </div>
+    <div class="thread-line"></div>
+
+    <!-- TWEET 12 -->
+    <div class="tweet" id="tweet12">
+        <button class="copy-btn" onclick="copyTweet(12)">Copy</button>
+        <div class="tweet-meta">
+            <div class="tweet-avatar">K</div>
+            <div>
+                <div class="tweet-author">Kiselgram</div>
+                <div class="tweet-handle">@kiselgram</div>
+            </div>
+            <div class="tweet-num">12/14</div>
+        </div>
+        <div class="tweet-body">
+            <strong>🤖 Bot Platform</strong><br>
+            Create bots with webhook integrations. Build web apps as fullscreen iframes inside chat. Incoming and outgoing webhooks connect to any external service. Endless automation.
+        </div>
+        <div class="tweet-hashtags">#bots #automation #kiselgram</div>
+        <div class="tweet-actions">
+            <span>💬 289</span><span>🔄 73</span><span>❤️ 38</span>
+        </div>
+    </div>
+    <div class="thread-line"></div>
+
+    <!-- TWEET 13 -->
+    <div class="tweet" id="tweet13">
+        <button class="copy-btn" onclick="copyTweet(13)">Copy</button>
+        <div class="tweet-meta">
+            <div class="tweet-avatar">K</div>
+            <div>
+                <div class="tweet-author">Kiselgram</div>
+                <div class="tweet-handle">@kiselgram</div>
+            </div>
+            <div class="tweet-num">13/14</div>
+        </div>
+        <div class="tweet-body">
+            <strong>🔄 Multi-Account & QR Login</strong><br>
+            Sign into multiple accounts and switch seamlessly. QR code login connects your desktop client instantly — scan from your phone and you're in.
+        </div>
+        <div class="tweet-hashtags">#multitasking #qr #kiselgram</div>
+        <div class="tweet-actions">
+            <span>💬 312</span><span>🔄 47</span><span>❤️ 29</span>
+        </div>
+    </div>
+    <div class="thread-line"></div>
+
+    <!-- TWEET 14 -->
+    <div class="tweet" id="tweet14">
+        <button class="copy-btn" onclick="copyTweet(14)">Copy</button>
+        <div class="tweet-meta">
+            <div class="tweet-avatar">K</div>
+            <div>
+                <div class="tweet-author">Kiselgram</div>
+                <div class="tweet-handle">@kiselgram</div>
+            </div>
+            <div class="tweet-num">14/14</div>
+        </div>
+        <div class="tweet-body">
+            <strong>📊 Admin Panel</strong><br>
+            Full moderation dashboard at admin.kiselgram.ru. Manage users, handle reports, inspect chats, administer mail accounts, generate promo codes. No command line needed.
+        </div>
+        <div class="tweet-hashtags">#admin #moderation #kiselgram</div>
+        <div class="tweet-actions">
+            <span>💬 534</span><span>🔄 78</span><span>❤️ 44</span>
+        </div>
+    </div>
+
+    <div style="margin-top: 24px;">
+        <button class="copy-thread-btn" onclick="copyThread()">📋 Copy Entire Thread</button>
+    </div>
+
+    <div class="footer">
+        Kiselgram — <a href="https://kiselgram.ru">kiselgram.ru</a>
+    </div>
+
+</div>
+
+<script>
+function copyTweet(n) {
+    const tweet = document.getElementById('tweet' + n);
+    const text = tweet.querySelector('.tweet-body').innerText.replace(/\n+/g, '\n').trim();
+    const hashtags = tweet.querySelector('.tweet-hashtags').textContent;
+    const full = text + '\n\n' + hashtags + '\n\nkiselgram.ru';
+
+    navigator.clipboard.writeText(full).then(() => {
+        const btn = tweet.querySelector('.copy-btn');
+        btn.textContent = 'Copied!';
+        btn.classList.add('copied');
+        setTimeout(() => {
+            btn.textContent = 'Copy';
+            btn.classList.remove('copied');
+        }, 2000);
+    });
+}
+
+function copyThread() {
+    let all = '';
+    for (let n = 1; n <= 14; n++) {
+        const tweet = document.getElementById('tweet' + n);
+        const text = tweet.querySelector('.tweet-body').innerText.replace(/\n+/g, '\n').trim();
+        const hashtags = tweet.querySelector('.tweet-hashtags').textContent;
+        all += `${n}/${14} — ${text}\n\n${hashtags}\n\nkiselgram.ru\n\n———\n\n`;
+    }
+    navigator.clipboard.writeText(all).then(() => {
+        const buttons = document.querySelectorAll('.copy-thread-btn');
+        buttons.forEach(btn => {
+            btn.textContent = '✓ Copied thread!';
+            btn.classList.add('copied');
+            setTimeout(() => {
+                btn.textContent = '📋 Copy Entire Thread';
+                btn.classList.remove('copied');
+            }, 2500);
+        });
+    });
+}
+</script>
+
+</body>
+</html>

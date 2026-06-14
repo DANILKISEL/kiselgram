@@ -61,7 +61,7 @@ def health_check():
             try:
                 process = psutil.Process()
                 health_data['uptime_seconds'] = int(datetime.now().timestamp() - process.create_time())
-            except:
+            except Exception:
                 pass
 
         # Check database connection
@@ -84,7 +84,7 @@ def health_check():
             result = sock.connect_ex(('127.0.0.1', int(video_port)))
             sock.close()
             health_data['video_server'] = 'connected' if result == 0 else 'disconnected'
-        except:
+        except Exception:
             health_data['video_server'] = 'unknown'
 
         return jsonify(health_data)
@@ -133,7 +133,7 @@ def detailed_health():
                         'free_gb': round(usage.free / (1024**3), 2),
                         'percent': usage.percent
                     }
-            except:
+            except Exception:
                 pass
 
         # Process info
@@ -172,7 +172,7 @@ def detailed_health():
                 'channels': Chat.query.filter(Chat.chat_type == 'channel').count()
             }
             app_info['database_stats'] = db_stats
-        except:
+        except Exception:
             pass
 
         return jsonify({
@@ -342,7 +342,7 @@ def get_stats():
                 latest_message = Message.query.order_by(Message.timestamp.desc()).first()
                 if latest_message:
                     stats['database']['latest_activity'] = latest_message.timestamp.isoformat()
-            except:
+            except Exception:
                 pass
 
         except Exception as e:

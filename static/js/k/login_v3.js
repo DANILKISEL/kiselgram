@@ -122,7 +122,7 @@ K.loginV3 = {
 
   async _sendOtp() {
     K.loginV3._startFallbackTimer();
-    try { await K.api.post((K.api._base||V2).replace('api.v2', 'api.v3') + '/auth/send-otp', {email: K.loginV3._state.email}); } catch(_) {}
+    try { await K.api.post((K.api._base||V2).replace('api.v2', 'api.v3') + '/auth/send-otp', {email: K.loginV3._state.email}); } catch(_) { K.ui.toast('Failed to send OTP', 'error'); }
   },
   _startFallbackTimer() {
     if (K.loginV3._otpFallbackTimer) { clearTimeout(K.loginV3._otpFallbackTimer); K.loginV3._otpFallbackTimer = null; }
@@ -218,7 +218,7 @@ K.loginV3 = {
   },
 
   async _sendRegCode() {
-    try { await K.api.post((K.api._base||V2).replace('api.v2', 'api.v3') + '/auth/register-send-code', {email: K.loginV3._state.email}); } catch(_) {}
+    try { await K.api.post((K.api._base||V2).replace('api.v2', 'api.v3') + '/auth/register-send-code', {email: K.loginV3._state.email}); } catch(_) { K.ui.toast('Failed to send code', 'error'); }
   },
 
   async _submitRegCode() {

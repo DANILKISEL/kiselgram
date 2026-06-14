@@ -56,7 +56,7 @@ K.settings = {
         if (selects[0]) selects[0].value = d.data.last_seen || 'everyone';
         if (selects[1]) selects[1].value = d.data.profile_photo || 'everyone';
       }
-    } catch(e) {}
+    } catch(e) { console.error('Load privacy:', e); }
   },
   async updatePrivacy(key, value) {
     try {
@@ -76,7 +76,7 @@ K.settings = {
           ).join('') : '<div style="color:var(--text-muted);padding:12px">No active sessions</div>';
         }
       }
-    } catch(e) {}
+    } catch(e) { console.error('Load sessions:', e); }
   },
   setMyColor(color) {
     document.documentElement.style.setProperty('--bubble-my', color);
@@ -222,7 +222,7 @@ K.settings = {
         if (s.saved_themes) { localStorage.setItem('k_saved_themes', JSON.stringify(s.saved_themes)); }
         if (s.music_tracks) { K.music._tracks = s.music_tracks; localStorage.setItem('k_music_tracks', JSON.stringify(s.music_tracks)); }
       }
-    } catch(e) {}
+    } catch(e) { console.error('Load server settings:', e); }
   },
   async saveToServer() {
     const settings = {
@@ -238,7 +238,7 @@ K.settings = {
     };
     try {
       await K.api.put(V2 + '/k/settings', {settings});
-    } catch(e) {}
+    } catch(e) { console.error('Save settings:', e); }
   },
   importTheme(input) {
     if (!input?.files?.length) return;

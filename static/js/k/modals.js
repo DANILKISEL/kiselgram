@@ -95,7 +95,7 @@ K.modals = {
           <div class="k-contact-info"><div class="k-contact-name">${esc(u.display_name||u.username)}</div><div class="k-contact-username">@${esc(u.username)}</div></div>
         </div>`
       ).join('');
-    } catch(e) {}
+    } catch(e) { console.error('Group search:', e); }
   }, 300),
   _addMember(id, name) {
     K.modals._groupMemberIds.push(id); K.modals._groupMemberNames.push(name);
@@ -228,6 +228,6 @@ K.modals = {
           <div class="k-contact-info"><div class="k-contact-name">${esc(u.display_name||u.username)}</div><div class="k-contact-username">@${esc(u.username)}</div></div>
         </div>`
       ).join('');
-    } catch(e) {}
+    } catch(e) { console.error('User search:', e); }
   }, 300)
 };
