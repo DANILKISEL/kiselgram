@@ -19,7 +19,7 @@ class TestV2SavedMessages:
 
     def test_save_message(self, logged_in_client, user, user2):
         msg = Message(content="Save me!", sender_id=user2.id,
-                      receiver_id=user.id, timestamp=datetime.utcnow())
+                      receiver_id=user.id, chat_id=1, timestamp=datetime.utcnow())
         db.session.add(msg)
         db.session.commit()
         resp = logged_in_client.post(f"{API_PREFIX}/saved_messages", json={
@@ -33,7 +33,7 @@ class TestV2SavedMessages:
     def test_save_message_already_saved(self, logged_in_client, user, user2):
         msg = Message(content="Already saved", sender_id=user2.id,
                       receiver_id=user.id, is_saved=True,
-                      timestamp=datetime.utcnow())
+                      chat_id=1, timestamp=datetime.utcnow())
         db.session.add(msg)
         db.session.commit()
         resp = logged_in_client.post(f"{API_PREFIX}/saved_messages", json={
@@ -55,7 +55,7 @@ class TestV2SavedMessages:
     def test_get_saved_with_data(self, logged_in_client, user, user2):
         msg = Message(content="Saved item", sender_id=user2.id,
                       receiver_id=user.id, is_saved=True,
-                      timestamp=datetime.utcnow())
+                      chat_id=1, timestamp=datetime.utcnow())
         db.session.add(msg)
         db.session.commit()
         resp = logged_in_client.get(f"{API_PREFIX}/saved_messages")
@@ -74,7 +74,7 @@ class TestV2SavedNote:
     def test_update_saved_note(self, logged_in_client, user, user2):
         msg = Message(content="With note", sender_id=user2.id,
                       receiver_id=user.id, is_saved=True,
-                      timestamp=datetime.utcnow())
+                      chat_id=1, timestamp=datetime.utcnow())
         db.session.add(msg)
         db.session.commit()
         resp = logged_in_client.post(

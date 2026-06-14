@@ -39,7 +39,7 @@ def test_send_and_receive_message(logged_in_client, user, user2):
 def test_mark_read(logged_in_client, user, user2):
     # Create a message from user2 to user
     msg = Message(content="unread", sender_id=user2.id, receiver_id=user.id,
-                  timestamp=datetime.utcnow())
+                  chat_id=1, timestamp=datetime.utcnow())
     db.session.add(msg)
     db.session.commit()
 

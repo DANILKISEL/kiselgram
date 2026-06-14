@@ -37,6 +37,7 @@ class TestBulkData:
                     content=f"Msg {j} from {u.username}",
                     sender_id=u.id,
                     receiver_id=user.id,
+                    chat_id=1,
                     timestamp=datetime.utcnow(),
                 ))
         session.commit()
@@ -54,6 +55,7 @@ class TestBulkData:
                 content=f"Bulk msg {i}",
                 sender_id=user.id,
                 receiver_id=user2.id,
+                chat_id=1,
                 timestamp=datetime.utcnow(),
             ))
         session.commit()

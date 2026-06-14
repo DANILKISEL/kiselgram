@@ -29,7 +29,7 @@ class TestV2Stories:
         db.session.commit()
         # Need a message between users to have visible stories
         db.session.add(Message(content="hi", sender_id=user2.id,
-                               receiver_id=user.id, timestamp=datetime.utcnow()))
+                               receiver_id=user.id, chat_id=1, timestamp=datetime.utcnow()))
         db.session.commit()
         resp = logged_in_client.get(f"{API_PREFIX}/stories")
         assert resp.status_code == 200

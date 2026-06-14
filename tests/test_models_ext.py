@@ -39,7 +39,7 @@ class TestFileModel:
         session.flush()
         msg = Message(content="See doc", sender_id=user.id,
                       receiver_id=user.id, file_id=f.id,
-                      has_attachment=True)
+                      has_attachment=True, chat_id=1)
         session.add(msg)
         session.commit()
         assert msg.file is not None

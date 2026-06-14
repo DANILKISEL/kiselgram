@@ -22,7 +22,10 @@ class TestMessaging:
 
     def test_send_message_with_reply(self, logged_in_client, user, user2):
         from app.models import Reply
-        original = Message(content="Original", sender_id=user.id, receiver_id=user2.id, timestamp=datetime.utcnow())
+        chat = Chat(chat_type="personal")
+        db.session.add(chat)
+        db.session.flush()
+        original = Message(content="Original", sender_id=user.id, receiver_id=user2.id, chat_id=chat.id, timestamp=datetime.utcnow())
         db.session.add(original)
         db.session.commit()
         resp = logged_in_client.post("/api/send_message", json={
@@ -39,10 +42,13 @@ class TestMessaging:
         assert resp.status_code == 400
 
     def test_get_messages(self, logged_in_client, user, user2):
+        chat = Chat(chat_type="personal")
+        db.session.add(chat)
+        db.session.flush()
         for i in range(3):
             db.session.add(Message(
                 content=f"Msg {i}", sender_id=user.id,
-                receiver_id=user2.id, timestamp=datetime.utcnow()))
+                receiver_id=user2.id, chat_id=chat.id, timestamp=datetime.utcnow()))
         db.session.commit()
         resp = logged_in_client.get(f"/api/messages/{user2.id}")
         assert resp.status_code == 200
@@ -51,9 +57,12 @@ class TestMessaging:
 
     def test_get_messages_after_id(self, logged_in_client, user, user2):
         from app import db
+        chat = Chat(chat_type="personal")
+        db.session.add(chat)
+        db.session.flush()
         msgs = []
         for i in range(5):
-            m = Message(content=f"M{i}", sender_id=user.id, receiver_id=user2.id, timestamp=datetime.utcnow())
+            m = Message(content=f"M{i}", sender_id=user.id, receiver_id=user2.id, chat_id=chat.id, timestamp=datetime.utcnow())
             db.session.add(m)
             msgs.append(m)
         db.session.commit()
@@ -63,7 +72,10 @@ class TestMessaging:
         assert len(data["messages"]) == 2
 
     def test_mark_read(self, logged_in_client, user, user2):
-        msg = Message(content="Unread", sender_id=user2.id, receiver_id=user.id, timestamp=datetime.utcnow())
+        chat = Chat(chat_type="personal")
+        db.session.add(chat)
+        db.session.flush()
+        msg = Message(content="Unread", sender_id=user2.id, receiver_id=user.id, chat_id=chat.id, timestamp=datetime.utcnow())
         db.session.add(msg)
         db.session.commit()
         resp = logged_in_client.post(f"/api/mark_read/{user2.id}")
@@ -73,7 +85,10 @@ class TestMessaging:
         assert updated.is_read is True
 
     def test_delete_message(self, logged_in_client, user, user2):
-        msg = Message(content="Delete me", sender_id=user.id, receiver_id=user2.id, timestamp=datetime.utcnow())
+        chat = Chat(chat_type="personal")
+        db.session.add(chat)
+        db.session.flush()
+        msg = Message(content="Delete me", sender_id=user.id, receiver_id=user2.id, chat_id=chat.id, timestamp=datetime.utcnow())
         db.session.add(msg)
         db.session.commit()
         resp = logged_in_client.delete(f"/api/messages/{msg.id}/delete")
@@ -82,14 +97,20 @@ class TestMessaging:
         assert updated.is_deleted is True
 
     def test_delete_others_message(self, logged_in_client, user, user2):
-        msg = Message(content="Not yours", sender_id=user2.id, receiver_id=user.id, timestamp=datetime.utcnow())
+        chat = Chat(chat_type="personal")
+        db.session.add(chat)
+        db.session.flush()
+        msg = Message(content="Not yours", sender_id=user2.id, receiver_id=user.id, chat_id=chat.id, timestamp=datetime.utcnow())
         db.session.add(msg)
         db.session.commit()
         resp = logged_in_client.delete(f"/api/messages/{msg.id}/delete")
         assert resp.status_code == 403
 
     def test_reactions(self, logged_in_client, user, user2):
-        msg = Message(content="React to me", sender_id=user.id, receiver_id=user2.id, timestamp=datetime.utcnow())
+        chat = Chat(chat_type="personal")
+        db.session.add(chat)
+        db.session.flush()
+        msg = Message(content="React to me", sender_id=user.id, receiver_id=user2.id, chat_id=chat.id, timestamp=datetime.utcnow())
         db.session.add(msg)
         db.session.commit()
         mid = msg.id
@@ -101,7 +122,10 @@ class TestMessaging:
         assert data["success"] is True
 
     def test_chat_list(self, logged_in_client, user, user2):
-        msg = Message(content="Chat list test", sender_id=user.id, receiver_id=user2.id, timestamp=datetime.utcnow())
+        chat = Chat(chat_type="personal")
+        db.session.add(chat)
+        db.session.flush()
+        msg = Message(content="Chat list test", sender_id=user.id, receiver_id=user2.id, chat_id=chat.id, timestamp=datetime.utcnow())
         db.session.add(msg)
         db.session.commit()
         resp = logged_in_client.get("/api/chat_list")
@@ -114,9 +138,12 @@ class TestMessaging:
         assert chat["name"] == "Friend"
 
     def test_search_in_chat_personal(self, logged_in_client, user, user2):
+        chat = Chat(chat_type="personal")
+        db.session.add(chat)
+        db.session.flush()
         for text in ["apple", "banana", "apple pie", "grape"]:
             db.session.add(Message(content=text, sender_id=user.id if "apple" in text else user2.id,
-                                   receiver_id=user2.id if "apple" in text else user.id, timestamp=datetime.utcnow()))
+                                   receiver_id=user2.id if "apple" in text else user.id, chat_id=chat.id, timestamp=datetime.utcnow()))
         db.session.commit()
         resp = logged_in_client.post("/api/search_in_chat", json={
             "chat_id": user2.id, "chat_type": "personal", "query": "apple",
@@ -131,8 +158,8 @@ class TestMessaging:
         db.session.commit()
         db.session.add(ChatMember(user=user, chat=g, role="owner"))
         db.session.add(ChatMember(user=user2, chat=g, role="member"))
-        db.session.add(Message(content="hello world", sender_id=user.id, group_id=g.id, receiver_id=user.id, timestamp=datetime.utcnow()))
-        db.session.add(Message(content="goodbye", sender_id=user2.id, group_id=g.id, receiver_id=user2.id, timestamp=datetime.utcnow()))
+        db.session.add(Message(content="hello world", sender_id=user.id, chat_id=g.id, receiver_id=user.id, timestamp=datetime.utcnow()))
+        db.session.add(Message(content="goodbye", sender_id=user2.id, chat_id=g.id, receiver_id=user2.id, timestamp=datetime.utcnow()))
         db.session.commit()
         resp = logged_in_client.post("/api/search_in_chat", json={
             "chat_id": g.id, "chat_type": "group", "query": "hello",
@@ -180,7 +207,10 @@ class TestStories:
         s = Story(user_id=user2.id, media_path="stories/test.jpg", media_type="image")
         db.session.add(s)
         db.session.commit()
-        db.session.add(Message(content="hi", sender_id=user2.id, receiver_id=premium_user.id, timestamp=datetime.utcnow()))
+        chat2 = Chat(chat_type="personal")
+        db.session.add(chat2)
+        db.session.flush()
+        db.session.add(Message(content="hi", sender_id=user2.id, receiver_id=premium_user.id, chat_id=chat2.id, timestamp=datetime.utcnow()))
         db.session.commit()
         resp = logged_in_premium.get("/api/stories")
         assert resp.status_code == 200

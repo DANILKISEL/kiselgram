@@ -73,7 +73,7 @@ def chat_list():
     sent = db.session.query(Message.receiver_id).filter_by(sender_id=current_user_id).filter(Message.receiver_id != current_user_id).distinct().limit(500).all()
     recv = db.session.query(Message.sender_id).filter_by(receiver_id=current_user_id).filter(Message.sender_id != current_user_id).distinct().limit(500).all()
     chat_user_ids = {r[0] for r in sent} | {r[0] for r in recv}
-    chat_user_ids -= blocked_ids
+    chat_user_ids -= set(blocked_ids)
 
     users = {}
     last_msg_by_conversation = {}

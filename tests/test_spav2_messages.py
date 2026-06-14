@@ -29,7 +29,7 @@ class TestV2SendMessage:
 
     def test_send_message_with_reply(self, logged_in_client, user, user2):
         original = Message(content="Original", sender_id=user.id,
-                           receiver_id=user2.id, timestamp=datetime.utcnow())
+                           receiver_id=user2.id, chat_id=1, timestamp=datetime.utcnow())
         db.session.add(original)
         db.session.commit()
         resp = logged_in_client.post(f"{API_PREFIX}/send_message", json={
@@ -81,7 +81,7 @@ class TestV2MarkRead:
     def test_mark_read_success(self, logged_in_client, user, user2):
         msg = Message(content="Unread msg", sender_id=user2.id,
                       receiver_id=user.id, is_read=False,
-                      timestamp=datetime.utcnow())
+                      chat_id=1, timestamp=datetime.utcnow())
         db.session.add(msg)
         db.session.commit()
         resp = logged_in_client.post(f"{API_PREFIX}/mark_read/{user2.id}")
@@ -102,7 +102,7 @@ class TestV2EditMessage:
 
     def test_edit_own_message(self, logged_in_client, user, user2):
         msg = Message(content="Original text", sender_id=user.id,
-                      receiver_id=user2.id, timestamp=datetime.utcnow())
+                      receiver_id=user2.id, chat_id=1, timestamp=datetime.utcnow())
         db.session.add(msg)
         db.session.commit()
         resp = logged_in_client.post(
@@ -113,7 +113,7 @@ class TestV2EditMessage:
 
     def test_edit_others_message(self, logged_in_client, user, user2):
         msg = Message(content="Not yours", sender_id=user2.id,
-                      receiver_id=user.id, timestamp=datetime.utcnow())
+                      receiver_id=user.id, chat_id=1, timestamp=datetime.utcnow())
         db.session.add(msg)
         db.session.commit()
         resp = logged_in_client.post(
@@ -123,7 +123,7 @@ class TestV2EditMessage:
 
     def test_edit_empty_content(self, logged_in_client, user, user2):
         msg = Message(content="Some text", sender_id=user.id,
-                      receiver_id=user2.id, timestamp=datetime.utcnow())
+                      receiver_id=user2.id, chat_id=1, timestamp=datetime.utcnow())
         db.session.add(msg)
         db.session.commit()
         resp = logged_in_client.post(
@@ -141,7 +141,7 @@ class TestV2DeleteMessage:
 
     def test_delete_own_message(self, logged_in_client, user, user2):
         msg = Message(content="Delete me", sender_id=user.id,
-                      receiver_id=user2.id, timestamp=datetime.utcnow())
+                      receiver_id=user2.id, chat_id=1, timestamp=datetime.utcnow())
         db.session.add(msg)
         db.session.commit()
         resp = logged_in_client.post(f"{API_PREFIX}/messages/{msg.id}/delete")
@@ -150,7 +150,7 @@ class TestV2DeleteMessage:
 
     def test_delete_others_message(self, logged_in_client, user, user2):
         msg = Message(content="Not yours", sender_id=user2.id,
-                      receiver_id=user.id, timestamp=datetime.utcnow())
+                      receiver_id=user.id, chat_id=1, timestamp=datetime.utcnow())
         db.session.add(msg)
         db.session.commit()
         resp = logged_in_client.post(f"{API_PREFIX}/messages/{msg.id}/delete")
@@ -162,7 +162,7 @@ class TestV2Reactions:
 
     def test_add_reaction(self, logged_in_client, user, user2):
         msg = Message(content="React to me", sender_id=user.id,
-                      receiver_id=user2.id, timestamp=datetime.utcnow())
+                      receiver_id=user2.id, chat_id=1, timestamp=datetime.utcnow())
         db.session.add(msg)
         db.session.commit()
         resp = logged_in_client.post(f"{API_PREFIX}/reactions/add", json={
@@ -176,7 +176,7 @@ class TestV2Reactions:
 
     def test_remove_reaction(self, logged_in_client, user, user2):
         msg = Message(content="Toggle reaction", sender_id=user.id,
-                      receiver_id=user2.id, timestamp=datetime.utcnow())
+                      receiver_id=user2.id, chat_id=1, timestamp=datetime.utcnow())
         db.session.add(msg)
         db.session.commit()
         resp = logged_in_client.post(f"{API_PREFIX}/reactions/add", json={
@@ -193,7 +193,7 @@ class TestV2Reactions:
 
     def test_get_reactions(self, logged_in_client, user, user2):
         msg = Message(content="Check reactions", sender_id=user.id,
-                      receiver_id=user2.id, timestamp=datetime.utcnow())
+                      receiver_id=user2.id, chat_id=1, timestamp=datetime.utcnow())
         db.session.add(msg)
         db.session.commit()
         db.session.add(Reaction(message_id=msg.id, user_id=user.id,
@@ -207,7 +207,7 @@ class TestV2Reactions:
 
     def test_reaction_missing_type(self, logged_in_client, user, user2):
         msg = Message(content="No reaction type", sender_id=user.id,
-                      receiver_id=user2.id, timestamp=datetime.utcnow())
+                      receiver_id=user2.id, chat_id=1, timestamp=datetime.utcnow())
         db.session.add(msg)
         db.session.commit()
         resp = logged_in_client.post(f"{API_PREFIX}/reactions/add", json={

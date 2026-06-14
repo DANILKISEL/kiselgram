@@ -283,7 +283,7 @@ def recent_searches():
 
     searches = RecentSearch.query.filter_by(user_id=current_user_id).order_by(RecentSearch.created_at.desc()).limit(10).all()
     return jsonify({'success': True, 'data': {'searches': [
-        {'search_id': s.id, 'query': s.query, 'created_at': s.created_at.isoformat() if s.created_at else None}
+        {'search_id': s.id, 'query': s.search_query, 'created_at': s.created_at.isoformat() if s.created_at else None}
         for s in searches
     ]}})
 
@@ -299,13 +299,15 @@ def add_recent_search():
     if not query:
         return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'query is required'}}), 400
 
-    existing = RecentSearch.query.filter_by(user_id=current_user_id, query=query).first()
+    existing = RecentSearch.query.filter_by(user_id=current_user_id, search_query=query).first()
     if existing:
         existing.created_at = datetime.utcnow()
     else:
-        db.session.add(RecentSearch(user_id=current_user_id, query=query, created_at=datetime.utcnow()))
+        db.session.add(RecentSearch(user_id=current_user_id, search_query=query, created_at=datetime.utcnow()))
 
-    RecentSearch.query.filter_by(user_id=current_user_id).order_by(RecentSearch.created_at.desc()).offset(20).delete()
+    recent = RecentSearch.query.filter_by(user_id=current_user_id).order_by(RecentSearch.created_at.desc()).all()
+    for r in recent[20:]:
+        db.session.delete(r)
     try:
         db.session.commit()
     except Exception:
