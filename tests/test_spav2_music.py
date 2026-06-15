@@ -32,8 +32,8 @@ class TestV2Music:
         assert track is not None
 
     def test_add_music_duplicate(self, logged_in_client, user):
-        UserMusic(user_id=user.id, file_url="/uploads/music/song.mp3",
-                  title="Song", added_at=__import__("datetime").datetime.utcnow())
+        db.session.add(UserMusic(user_id=user.id, file_url="/uploads/music/song.mp3",
+                  title="Song", added_at=__import__("datetime").datetime.utcnow()))
         db.session.commit()
         resp = logged_in_client.post(f"{API_PREFIX}/music/library", json={
             "file_url": "/uploads/music/song.mp3",
