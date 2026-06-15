@@ -144,7 +144,7 @@ class TestUserToDict:
         d = user_to_dict(user)
         assert d["username"] == "testuser"
         assert d["display_name"] == "Test User"
-        assert d["user_id"] is None  # key is 'id', not 'user_id'
+        assert "user_id" not in d  # key is 'id', not 'user_id'
 
     def test_id_field(self, session, user):
         d = user_to_dict(user)

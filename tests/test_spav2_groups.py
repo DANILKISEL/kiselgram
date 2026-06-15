@@ -230,7 +230,8 @@ class TestV2GroupMemberRole:
 
     def test_demote_to_member(self, logged_in_client, user, user2):
         g = _create_group(user, members=[user2])
-        db.session.add(ChatMember(user_id=user2.id, chat_id=g.id, role="admin"))
+        cm = ChatMember.query.filter_by(user_id=user2.id, chat_id=g.id).first()
+        cm.role = 'admin'
         db.session.commit()
         resp = logged_in_client.post(
             f"{API_PREFIX}/groups/{g.id}/members/{user2.id}/role", json={
