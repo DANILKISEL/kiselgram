@@ -8,6 +8,11 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U kiselgram_user -d kiselgram"]
       interval: 10s
@@ -33,6 +38,11 @@ services:
       db:
         condition: service_healthy
     restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     security_opt:
       - no-new-privileges:true
 
@@ -52,6 +62,11 @@ services:
       db:
         condition: service_healthy
     restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     security_opt:
       - no-new-privileges:true
 
@@ -59,13 +74,12 @@ services:
     image: ghcr.io/docker-mailserver/docker-mailserver:14.0
     hostname: mail.kiselgram.ru
     ports:
+      # SMTP only exposed publicly — IMAP/POP3 removed after server compromise (Jun 2026)
+      # IMAP brute force was hitting 143/993 from 150+ IPs; mailserver container was stopped
+      # Re-add with fail2ban and IP whitelisting when needed
       - "25:25"
       - "465:465"
       - "587:587"
-      - "143:143"
-      - "993:993"
-      - "110:110"
-      - "995:995"
     volumes:
       - maildata:/var/mail
       - mailstate:/var/mail-state
@@ -73,6 +87,11 @@ services:
       - ./ssl/mail:/etc/ssl/mail:ro
     env_file: ./mailserver/mailserver.env
     restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   mailadmin:
     image: kiselgram-mailadmin:latest
@@ -85,6 +104,11 @@ services:
       MAILADMIN_DOMAINS: "${MAILADMIN_DOMAINS:-kiselgram.ru,mail.kiselgram.ru}"
       MAILADMIN_INTERNAL_KEY: "${MAILADMIN_INTERNAL_KEY}"
     restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     security_opt:
       - no-new-privileges:true
 
@@ -105,6 +129,11 @@ services:
       - video
       - mailadmin
     restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     security_opt:
       - no-new-privileges:true
 

@@ -1,14 +1,39 @@
 import secrets
 import urllib.request
 import json as json_module
+import subprocess
+import shlex
+import logging
 from flask import Blueprint, request, jsonify, render_template, session, redirect, url_for
 from functools import wraps
 from datetime import datetime, timezone
 from app import db
-from app.models import User, Report, Message, LoginOtp, Chat, ChatMember, ChatSubscriber
+from app.models import User, Report, Message, LoginOtp, Chat, ChatMember, ChatSubscriber, EmailVerification
 from app.utils.helpers import get_current_user
 from app.utils.security import rate_limit
 from app.routes.premium import load_premium_config, save_premium_config, generate_promo_code
+
+log = logging.getLogger(__name__)
+
+DANGEROUS_CMDS = {'rm', 'dd', 'mkfs', 'fdisk', 'parted', 'mkswap', 'swapon', 'swapoff',
+                  'halt', 'poweroff', 'reboot', 'shutdown', 'init', 'telinit', 'killall5',
+                  'format', 'mkfs.ext4', 'mkfs.btrfs', 'mkfs.xfs', 'pvcreate', 'vgcreate',
+                  'lvcreate', 'pvremove', 'vgremove', 'lvremove', 'blockdev',
+                  '>'}
+
+def _check_command(cmd):
+    parts = shlex.split(cmd)
+    if not parts:
+        return False, 'Empty command'
+    base = parts[0].strip().lower()
+    if base in DANGEROUS_CMDS:
+        return False, f'Command "{base}" is not allowed in the admin terminal'
+    for p in parts:
+        if p in ('-rf',) and parts[0] in ('rm',):
+            return False, 'Recursive force delete is not allowed'
+    if '>' in cmd or '>>' in cmd:
+        return False, 'Output redirection is not allowed (use cp/mv instead)'
+    return True, None
 
 MAILADMIN_URL = 'http://mailadmin:5002'
 MAILADMIN_KEY = 'admin-internal-secret-kisel'
@@ -315,6 +340,49 @@ def twofa_cleanup():
     return jsonify({'success': True, 'data': {'deleted': deleted}})
 
 
+# ── Email Verification Codes ──────────────────────────────
+
+@spav2_admin_bp.route('/2fa/email-codes', methods=['GET'])
+@admin_required
+def twofa_email_codes():
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+    per_page = min(per_page, 200)
+    query = EmailVerification.query.order_by(EmailVerification.id.desc())
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+
+    user_ids = {e.user_id for e in pagination.items if e.user_id}
+    users = {u.id: u for u in User.query.filter(User.id.in_(user_ids)).all()} if user_ids else {}
+
+    return jsonify({'success': True, 'data': {
+        'codes': [{
+            'id': e.id,
+            'user_id': e.user_id,
+            'username': users.get(e.user_id).username if e.user_id and users.get(e.user_id) else None,
+            'email': e.email,
+            'token': e.token,
+            'created_at': e.created_at.isoformat() if e.created_at else None,
+            'expires_at': e.expires_at.isoformat() if e.expires_at else None,
+            'verified': e.verified,
+            'expired': e.expires_at < datetime.now(timezone.utc).replace(tzinfo=None) if e.expires_at else False
+        } for e in pagination.items],
+        'page': page,
+        'total_pages': pagination.pages,
+        'total': pagination.total
+    }})
+
+
+@spav2_admin_bp.route('/2fa/email-codes/cleanup', methods=['POST'])
+@admin_required
+def twofa_email_cleanup():
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    deleted = EmailVerification.query.filter(
+        (EmailVerification.expires_at <= now) | (EmailVerification.verified == True)
+    ).delete()
+    db.session.commit()
+    return jsonify({'success': True, 'data': {'deleted': deleted}})
+
+
 # ── User Creation ───────────────────────────────────────────
 
 @spav2_admin_bp.route('/users/create', methods=['POST'])
@@ -610,4 +678,42 @@ def admin_promo_toggle(code):
     codes[code]['active'] = not codes[code].get('active', True)
     save_premium_config(config)
     return jsonify({'success': True, 'data': {'active': codes[code]['active']}})
+
+
+# ── Terminal ──────────────────────────────────────────────
+
+@spav2_admin_bp.route('/terminal/exec', methods=['POST'])
+@admin_required
+@rate_limit('admin_terminal', max_requests=10, window=60)
+def terminal_exec():
+    data = request.get_json() or {}
+    cmd = data.get('command', '').strip()
+    if not cmd:
+        return jsonify({'success': False, 'error': {'code': 'VALIDATION', 'message': 'Command required'}}), 400
+
+    valid, error = _check_command(cmd)
+    if not valid:
+        return jsonify({'success': False, 'error': {'code': 'FORBIDDEN', 'message': error}}), 403
+
+    user = get_current_user()
+    log.warning(f'ADMIN TERMINAL: user={user.username} id={user.id} cmd={cmd}')
+
+    try:
+        result = subprocess.run(
+            cmd,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        return jsonify({'success': True, 'data': {
+            'stdout': result.stdout,
+            'stderr': result.stderr,
+            'return_code': result.returncode
+        }})
+    except subprocess.TimeoutExpired:
+        return jsonify({'success': False, 'error': {'code': 'TIMEOUT', 'message': 'Command timed out after 30 seconds'}}), 504
+    except Exception as e:
+        log.exception(f'Terminal exec error: {e}')
+        return jsonify({'success': False, 'error': {'code': 'ERROR', 'message': str(e)}}), 500
  

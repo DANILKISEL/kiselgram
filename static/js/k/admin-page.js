@@ -6,6 +6,7 @@ const CHATS_PER_PAGE = 100;
 const MESSAGES_PER_PAGE = 20;
 const CONTENT_PREVIEW_MAX = 200;
 const OTPS_PER_PAGE = 50;
+const EMAIL_VER_PER_PAGE = 50;
 
 K.adminPage = {
   _allUsers: [],
@@ -35,7 +36,9 @@ K.adminPage = {
         if (t === 'chats') K.adminPage.loadChats();
         if (t === 'mail') K.adminPage.loadMailAccounts();
         if (t === 'promo') K.adminPage.loadPromoCodes();
-        if (t === 'twofa') { K.adminPage.loadTwofaOverview(); K.adminPage.loadTwofaOtps(); }
+        if (t === 'twofa') { K.adminPage.loadTwofaOverview(); K.adminPage.loadTwofaOtps(); K.adminPage.loadEmailVerifications(); }
+        if (t === 'terminal') { K.adminPage.initTerminal(); }
+        setTimeout(() => { const ti = $('terminal-input'); if (ti && t === 'terminal') ti.focus(); }, 100);
       });
     });
     if ($('reportStatus')) {
@@ -420,6 +423,31 @@ K.adminPage = {
     } catch(e) { K.ui.toast('Error', 'error'); }
   },
 
+  // ── Email Verification Codes ───────────────────────────
+
+  async loadEmailVerifications() {
+    try {
+      const d = await K.api.get('/api/admin/2fa/email-codes?per_page=' + EMAIL_VER_PER_PAGE);
+      if (!d.success) return;
+      if ($('emailVerBody')) {
+        $('emailVerBody').innerHTML = (d.data?.codes || []).map(e => {
+          const cls = e.verified ? 'badge-resolved' : e.expired ? 'badge-pending' : 'badge-active';
+          const lbl = e.verified ? 'Verified' : e.expired ? 'Expired' : 'Active';
+          const user = e.username ? esc(e.username) : e.user_id ? 'User #' + e.user_id : '—';
+          return '<tr><td>' + e.id + '</td><td>' + user + '</td><td>' + esc(e.email || '—') + '</td><td style="font-family:monospace;letter-spacing:1px">' + esc(e.token) + '</td><td>' + (e.created_at ? new Date(e.created_at).toLocaleString() : '-') + '</td><td>' + (e.expires_at ? new Date(e.expires_at).toLocaleString() : '-') + '</td><td><span class="badge ' + cls + '">' + lbl + '</span></td></tr>';
+        }).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:12px">No verification codes</td></tr>';
+      }
+    } catch(e) { K.ui.toast('Error loading email verifications', 'error'); }
+  },
+
+  async cleanupEmailVerifications() {
+    try {
+      const d = await K.api.post('/api/admin/2fa/email-codes/cleanup');
+      if (d.success) { this.loadEmailVerifications(); K.ui.toast('Deleted ' + d.data.deleted + ' verification codes', 'success'); }
+      else { K.ui.toast('Cleanup failed', 'error'); }
+    } catch(e) { K.ui.toast('Error', 'error'); }
+  },
+
   // ── Mail Accounts ──────────────────────────────────────
 
   async loadMailAccounts() {
@@ -539,5 +567,92 @@ K.adminPage = {
       if (d.success) { this.loadPromoCodes(); K.ui.toast('Toggled', 'success'); }
       else { K.ui.toast(d.error?.message || 'Failed', 'error'); }
     } catch(e) { K.ui.toast('Error', 'error'); }
+  },
+
+  // ── Terminal ─────────────────────────────────────────
+
+  _terminalHistory: [],
+  _terminalHistoryIdx: -1,
+  _terminalInitialized: false,
+
+  initTerminal() {
+    if (this._terminalInitialized) return;
+    this._terminalInitialized = true;
+    const input = $('terminal-input');
+    const output = $('terminal-output');
+    const clear = $('terminal-clear');
+    if (!input || !output) return;
+
+    const append = (html) => { output.insertAdjacentHTML('beforeend', html); output.scrollTop = output.scrollHeight; };
+
+    append('<div class="t-muted">Kiselgram Admin Terminal — type <span class="t-prompt">help</span> for available commands</div>');
+    append('<div class="t-muted" style="margin-bottom:6px">&#8203;</div>');
+
+    const runCmd = async () => {
+      const cmd = input.value.trim();
+      input.value = '';
+      if (!cmd) return;
+      this._terminalHistory.push(cmd);
+      this._terminalHistoryIdx = this._terminalHistory.length;
+      append('<div><span class="t-prompt">$</span> ' + esc(cmd) + '</div>');
+
+      if (cmd === 'help') {
+        append('<div class="t-info">Available commands:</div>');
+        append('<div class="t-muted">  Any shell command (ls, df, ps, cat, whoami, etc.)</div>');
+        append('<div class="t-muted">  help     — Show this help</div>');
+        append('<div class="t-muted">  clear    — Clear terminal</div>');
+        append('<div class="t-muted" style="margin-bottom:4px">&#8203;</div>');
+        return;
+      }
+
+      if (cmd === 'clear') {
+        output.innerHTML = '';
+        append('<div class="t-muted">Kiselgram Admin Terminal — type <span class="t-prompt">help</span> for available commands</div>');
+        append('<div class="t-muted" style="margin-bottom:6px">&#8203;</div>');
+        return;
+      }
+
+      try {
+        const d = await K.api.post('/api/admin/terminal/exec', { command: cmd });
+        if (d.success && d.data) {
+          if (d.data.stdout) append('<div class="t-stdout">' + esc(d.data.stdout) + '</div>');
+          if (d.data.stderr) append('<div class="t-stderr">' + esc(d.data.stderr) + '</div>');
+          append('<div class="' + (d.data.return_code === 0 ? 't-success' : 't-error') + '" style="margin-bottom:2px">Exit code: ' + d.data.return_code + '</div>');
+        } else {
+          append('<div class="t-error">Error: ' + esc((d.error && d.error.message) || 'Unknown error') + '</div>');
+        }
+      } catch(e) {
+        append('<div class="t-error">Request failed: ' + esc(e.message || 'Network error') + '</div>');
+      }
+    };
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') runCmd();
+      else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (this._terminalHistoryIdx > 0) {
+          this._terminalHistoryIdx--;
+          input.value = this._terminalHistory[this._terminalHistoryIdx];
+        }
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (this._terminalHistoryIdx < this._terminalHistory.length - 1) {
+          this._terminalHistoryIdx++;
+          input.value = this._terminalHistory[this._terminalHistoryIdx];
+        } else {
+          this._terminalHistoryIdx = this._terminalHistory.length;
+          input.value = '';
+        }
+      }
+    });
+
+    if (clear) {
+      clear.addEventListener('click', () => {
+        output.innerHTML = '';
+        append('<div class="t-muted">Kiselgram Admin Terminal — type <span class="t-prompt">help</span> for available commands</div>');
+        append('<div class="t-muted" style="margin-bottom:6px">&#8203;</div>');
+        input.focus();
+      });
+    }
   }
 };
