@@ -15,19 +15,27 @@ def get_profile():
     if not current_user:
         return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED', 'message': 'Not authenticated'}}), 401
 
+    is_premium = current_user.premium and current_user.premium.is_premium
+    if is_premium and not current_user.status_emoji:
+        current_user.status_emoji = '\u2b50'
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
     return jsonify({'success': True, 'data': {
         'user_id': current_user.id,
         'username': current_user.username,
         'email': current_user.email,
         'display_name': current_user.display_name or current_user.username,
-        'avatar_url': current_user.avatar_url,
+        'avatar_url': current_user.avatar_url or ('/static/img/img.png' if is_premium else None),
         'bio': getattr(current_user, 'bio', None),
-        'is_premium': current_user.premium.is_premium if current_user.premium else False,
+        'is_premium': is_premium,
         'is_admin': getattr(current_user, 'is_admin', False),
         'is_online': getattr(current_user, 'is_online', False),
         'last_seen': current_user.last_seen.isoformat() if current_user.last_seen else None,
         'created_at': current_user.created_at.isoformat() if current_user.created_at else datetime.utcnow().isoformat(),
-        'status_emoji': getattr(current_user, 'status_emoji', '')
+        'status_emoji': current_user.status_emoji or ('\u2b50' if is_premium else '')
     }})
 
 
@@ -43,7 +51,11 @@ def update_profile():
     if 'bio' in data:
         current_user.bio = sanitize_string(data['bio'], max_length=200)
     if 'status_emoji' in data:
-        current_user.status_emoji = sanitize_string(data['status_emoji'], max_length=10)
+        emoji = sanitize_string(data['status_emoji'], max_length=10)
+        is_premium = current_user.premium and current_user.premium.is_premium
+        if is_premium and not emoji:
+            return jsonify({'success': False, 'error': {'code': 'PREMIUM_STATUS_LOCKED', 'message': 'Premium users cannot remove status emoji'}}), 400
+        current_user.status_emoji = emoji
     try:
         db.session.commit()
     except Exception:

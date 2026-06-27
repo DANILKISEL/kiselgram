@@ -170,6 +170,12 @@ class Chat(db.Model):
     permissions = db.relationship('GroupPermission', backref='chat', lazy='dynamic', cascade='all, delete-orphan')
     admins = db.relationship('ChannelAdmin', backref='chat', lazy='dynamic', cascade='all, delete-orphan')
 
+    archived = db.Column(db.Boolean, default=False)
+    muted_until = db.Column(db.DateTime, nullable=True)
+    theme_color = db.Column(db.String(20), nullable=True)
+    wallpaper = db.Column(db.String(500), nullable=True)
+    auto_delete_ttl = db.Column(db.Integer, nullable=True)  # seconds
+
     __table_args__ = (
         db.CheckConstraint("chat_type IN ('personal', 'group', 'channel')"),
     )
@@ -279,6 +285,8 @@ class Message(db.Model):
     is_deleted = db.Column(db.Boolean, default=False)
     deleted_for_all = db.Column(db.Boolean, default=False)
 
+    scheduled_at = db.Column(db.DateTime, nullable=True)
+
     # Edit timestamp
     edited_at = db.Column(db.DateTime, nullable=True)
 
@@ -291,6 +299,11 @@ class Message(db.Model):
     reply_to = db.relationship('Reply', foreign_keys='Reply.reply_message_id', backref='reply_message', uselist=False, lazy=True)
     forwards_from = db.relationship('Forward', foreign_keys='Forward.original_message_id', backref='original_message', lazy=True)
     forwards_to = db.relationship('Forward', foreign_keys='Forward.forwarded_message_id', backref='forwarded_message', uselist=False, lazy=True)
+
+    poll_id = db.Column(db.Integer, nullable=True)
+    poll_question = db.Column(db.String(255), nullable=True)
+    forwarded_from_id = db.Column(db.Integer, db.ForeignKey('message.id'), nullable=True)
+    forwarded_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
 
     def __repr__(self):
         return f'<Message(id={self.id}, sender_id={self.sender_id}, chat_id={self.chat_id})>'
@@ -732,3 +745,86 @@ class LoginOtp(db.Model):
 
     def __repr__(self):
         return f'<LoginOtp(id={self.id}, user_id={self.user_id}, used={self.used})>'
+
+
+# ============ POLL MODELS ============
+
+class Poll(db.Model):
+    __tablename__ = 'poll'
+    id = db.Column(db.Integer, primary_key=True)
+    question = db.Column(db.String(255), nullable=False)
+    options = db.Column(db.JSON, nullable=False)
+    is_multiple = db.Column(db.Boolean, default=False)
+    is_anonymous = db.Column(db.Boolean, default=True)
+    creator_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    chat_type = db.Column(db.String(20), nullable=True)
+    chat_id = db.Column(db.Integer, nullable=True)
+    closed = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    creator = db.relationship('User', backref='polls', lazy=True)
+    votes = db.relationship('PollVote', backref='poll', lazy='dynamic', cascade='all, delete-orphan')
+
+    def __repr__(self):
+        return f'<Poll(id={self.id}, question={self.question!r})>'
+
+
+class PollVote(db.Model):
+    __tablename__ = 'poll_vote'
+    id = db.Column(db.Integer, primary_key=True)
+    poll_id = db.Column(db.Integer, db.ForeignKey('poll.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    option_index = db.Column(db.Integer, nullable=False)
+    voted_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (db.UniqueConstraint('poll_id', 'user_id', 'option_index', name='unique_poll_vote'),)
+    user = db.relationship('User', backref='poll_votes', lazy=True)
+
+
+# ============ PINNED MESSAGES ============
+
+class Pin(db.Model):
+    __tablename__ = 'pin'
+    id = db.Column(db.Integer, primary_key=True)
+    message_id = db.Column(db.Integer, db.ForeignKey('message.id', ondelete='CASCADE'), nullable=False)
+    chat_type = db.Column(db.String(20), nullable=True)
+    chat_id = db.Column(db.Integer, nullable=False)
+    pinned_by = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    pinned_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    message = db.relationship('Message', backref='pins', lazy=True)
+
+
+# ============ INVITE LINKS ============
+
+class InviteLink(db.Model):
+    __tablename__ = 'invite_link'
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('chats.id', ondelete='CASCADE'), nullable=False)
+    code = db.Column(db.String(64), unique=True, nullable=False)
+    link = db.Column(db.String(255), nullable=False)
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    uses = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    creator = db.relationship('User', backref='invite_links', lazy=True)
+
+
+class SavedMessage(db.Model):
+    __tablename__ = 'saved_message'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
+    message_id = db.Column(db.Integer, db.ForeignKey('message.id', ondelete='CASCADE'), nullable=False)
+    saved_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (db.UniqueConstraint('user_id', 'message_id', name='unique_saved_msg'),)
+
+
+class Archive(db.Model):
+    __tablename__ = 'chat_archive'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
+    chat_id = db.Column(db.Integer, db.ForeignKey('chats.id', ondelete='CASCADE'), nullable=False)
+    archived_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (db.UniqueConstraint('user_id', 'chat_id', name='unique_archive_entry'),)

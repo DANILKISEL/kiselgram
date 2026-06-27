@@ -10,7 +10,7 @@ K.settings = {
   setTheme(t) {
     K.settings._applyTheme(t === 'dark');
   },
-  _applyTheme(isDark) {
+  _applyTheme(isDark, skipSave) {
     if (isDark) document.documentElement.setAttribute('data-theme', 'dark');
     else document.documentElement.removeAttribute('data-theme');
     localStorage.setItem('k_theme', isDark ? 'dark' : 'light');
@@ -19,14 +19,14 @@ K.settings = {
     const label = $('themeLabel'); if (label) label.textContent = isDark ? 'Light Mode' : 'Dark Mode';
     const ni = $('navThemeIcon'); if (ni) ni.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
     const nl = $('navThemeLabel'); if (nl) nl.textContent = isDark ? 'Light mode' : 'Dark mode';
-    K.settings.saveToServer();
+    if (!skipSave) K.settings.saveToServer();
   },
-  setFontSize(s) {
+  setFontSize(s, skipSave) {
     document.querySelectorAll('.k-font-btn').forEach(b => b.classList.toggle('active', b.dataset.size === s));
     const sizes = { small: '13px', medium: '14px', large: '16px' };
     document.querySelector('.k-app').style.fontSize = sizes[s] || '14px';
     localStorage.setItem('k_font_size', s);
-    K.settings.saveToServer();
+    if (!skipSave) K.settings.saveToServer();
   },
   switchTab(tab) {
     document.querySelectorAll('.k-stab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
@@ -81,13 +81,13 @@ K.settings = {
       }
     } catch(e) { K.ui.toast('Failed to load sessions', 'error'); }
   },
-  _setBubbleColor(cssVar, storageKey, color) {
+  _setBubbleColor(cssVar, storageKey, color, skipSave) {
     document.documentElement.style.setProperty(cssVar, color);
     localStorage.setItem(storageKey, color);
-    K.settings.saveToServer();
+    if (!skipSave) K.settings.saveToServer();
   },
-  setMyColor(color) { K.settings._setBubbleColor('--bubble-my', 'k_color_my', color); },
-  setTheirColor(color) { K.settings._setBubbleColor('--bubble-their', 'k_color_their', color); },
+  setMyColor(color, skipSave) { K.settings._setBubbleColor('--bubble-my', 'k_color_my', color, skipSave); },
+  setTheirColor(color, skipSave) { K.settings._setBubbleColor('--bubble-their', 'k_color_their', color, skipSave); },
   addFolder() {
     const name = prompt('Folder name:');
     if (name && name.trim()) {
@@ -215,17 +215,21 @@ K.settings = {
         if (s.pinned) { K.state.pinned = s.pinned; localStorage.setItem('k_pinned', JSON.stringify(s.pinned)); }
         if (s.folders) { K.state.folders = s.folders; localStorage.setItem('k_folders', JSON.stringify(s.folders)); }
         if (s.hero_url) { localStorage.setItem('k_hero_url', s.hero_url); K.settings.loadHero(); }
-        if (s.theme) { localStorage.setItem('k_theme', s.theme); K.settings._applyTheme(s.theme === 'dark'); }
-        if (s.font_size) { localStorage.setItem('k_font_size', s.font_size); K.settings.setFontSize(s.font_size); }
-        if (s.color_my) { localStorage.setItem('k_color_my', s.color_my); K.settings.setMyColor(s.color_my); }
-        if (s.color_their) { localStorage.setItem('k_color_their', s.color_their); K.settings.setTheirColor(s.color_their); }
+        if (s.theme) { localStorage.setItem('k_theme', s.theme); K.settings._applyTheme(s.theme === 'dark', true); }
+        if (s.font_size) { localStorage.setItem('k_font_size', s.font_size); K.settings.setFontSize(s.font_size, true); }
+        if (s.color_my) { localStorage.setItem('k_color_my', s.color_my); K.settings.setMyColor(s.color_my, true); }
+        if (s.color_their) { localStorage.setItem('k_color_their', s.color_their); K.settings.setTheirColor(s.color_their, true); }
         if (s.saved_themes) { localStorage.setItem('k_saved_themes', JSON.stringify(s.saved_themes)); }
         if (s.music_tracks) { K.music._tracks = s.music_tracks; localStorage.setItem('k_music_tracks', JSON.stringify(s.music_tracks)); }
       }
     } catch(e) { K.ui.toast('Failed to load settings', 'error'); }
   },
+  _saveTimer: null,
   async saveToServer() {
-    const settings = {
+    if (K.settings._saveTimer) clearTimeout(K.settings._saveTimer);
+    K.settings._saveTimer = setTimeout(async () => {
+      K.settings._saveTimer = null;
+      const settings = {
       pinned: K.state.pinned || [],
       folders: K.state.folders || [],
       hero_url: localStorage.getItem('k_hero_url') || '',
@@ -239,6 +243,7 @@ K.settings = {
     try {
       await K.api.put(V2 + '/k/settings', {settings});
     } catch(e) { K.ui.toast('Failed to save settings', 'error'); }
+    }, 300);
   },
   importTheme(input) {
     if (!input?.files?.length) return;

@@ -177,6 +177,13 @@ def create_app():
     def qr_login_page(token):
         return render_template('qr_login.html', token=token)
 
+    @app.route('/join')
+    def referral_join():
+        ref = request.args.get('ref', '')
+        if ref:
+            return redirect(f'/k?ref={ref}')
+        return redirect('/k')
+
     @app.route('/webapp/static')
     def webapp_static():
         return '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Web App</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif;background:#1e1e2e;color:#f1f5f9;text-align:center}p{font-size:24px;opacity:0.6}</style></head><body><p>This is a web app &#127760;</p></body></html>', 200, {'Content-Type': 'text/html'}

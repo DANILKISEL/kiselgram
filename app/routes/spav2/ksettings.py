@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from app import db
 from app.models import UserKSettings
 from app.utils.helpers import get_current_user_id
@@ -12,17 +12,17 @@ def get_settings():
     if not current_user_id:
         return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED', 'message': 'Not authenticated'}}), 401
 
-    ks = UserKSettings.query.filter_by(user_id=current_user_id).first()
-    if not ks:
-        ks = UserKSettings(user_id=current_user_id, settings={})
-        db.session.add(ks)
-        try:
+    try:
+        ks = UserKSettings.query.filter_by(user_id=current_user_id).first()
+        if not ks:
+            ks = UserKSettings(user_id=current_user_id, settings={})
+            db.session.add(ks)
             db.session.commit()
-        except Exception:
-            db.session.rollback()
-            return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Database error'}}), 500
-
-    return jsonify({'success': True, 'data': ks.to_dict()})
+        return jsonify({'success': True, 'data': ks.to_dict()})
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Settings GET error: {e}")
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Failed to load settings'}}), 500
 
 
 @spav2_ksettings_bp.route('/k/settings', methods=['PUT'])
@@ -36,16 +36,16 @@ def save_settings():
     if settings is None:
         return jsonify({'success': False, 'error': {'code': 'INVALID_INPUT', 'message': 'settings field required'}}), 400
 
-    ks = UserKSettings.query.filter_by(user_id=current_user_id).first()
-    if not ks:
-        ks = UserKSettings(user_id=current_user_id, settings=settings)
-        db.session.add(ks)
-    else:
-        ks.settings = settings
-
     try:
+        ks = UserKSettings.query.filter_by(user_id=current_user_id).first()
+        if not ks:
+            ks = UserKSettings(user_id=current_user_id, settings=settings)
+            db.session.add(ks)
+        else:
+            ks.settings = settings
         db.session.commit()
-    except Exception:
+        return jsonify({'success': True, 'data': ks.to_dict()})
+    except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Database error'}}), 500
-    return jsonify({'success': True, 'data': ks.to_dict()})
+        current_app.logger.error(f"Settings save error: {e}")
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Failed to save settings'}}), 500
