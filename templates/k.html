@@ -338,12 +338,22 @@
           </div>
         </div>
         <div class="k-chat-header-actions">
+          <button class="k-icon-btn" onclick="K.features.toggleChatSearch()" title="Search in chat (Ctrl+F)"><i class="fas fa-search"></i></button>
           <button class="k-icon-btn" onclick="K.chat.startCall()" title="Video Call" id="callBtn" style="display:none"><i class="fas fa-video"></i></button>
           <button class="k-icon-btn" onclick="K.webapp.open(this.dataset.url, document.getElementById('chatName')?.textContent||'Web App')" title="Web App" id="webappBtn" style="display:none"><i class="fas fa-globe"></i></button>
           <button class="k-icon-btn" onclick="K.chat.info.toggle()" title="Info"><i class="fas fa-info-circle"></i></button>
           <button class="k-icon-btn" id="chatMenuBtn" onclick="K.chat.menu.toggle()" title="Menu"><i class="fas fa-ellipsis-v"></i></button>
         </div>
       </div>
+      <div class="k-chat-search-bar" id="chatSearchBar" style="display:none">
+        <i class="fas fa-search"></i>
+        <input class="k-chat-search-input" id="chatSearchInput" placeholder="Search messages..." onkeydown="if(event.key==='Enter')K.features.searchMessages(this.value)">
+        <span class="k-chat-search-count" id="chatSearchCount"></span>
+        <button class="k-chat-search-nav" onclick="K.features.navigateSearch(-1)"><i class="fas fa-chevron-up"></i></button>
+        <button class="k-chat-search-nav" onclick="K.features.navigateSearch(1)"><i class="fas fa-chevron-down"></i></button>
+        <button class="k-chat-search-close" onclick="K.features.toggleChatSearch()"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="k-pinned-bar" id="pinnedBar" style="display:none"></div>
       <div class="k-chat-menu" id="chatMenu" style="display:none"></div>
       <div class="k-chat-info" id="chatInfo" style="display:none"></div>
       <div class="k-messages k-hidden" id="messagesContainer"><div class="k-loader"></div></div>
@@ -353,14 +363,17 @@
         <button class="k-icon-btn" onclick="K.chat.reply.cancel()"><i class="fas fa-times"></i></button>
       </div>
       <div class="k-format-bar" id="formatBar">
-        <button class="k-format-btn" onclick="K.chat.format.insert('**')" title="Bold (Ctrl+B)"><strong>B</strong></button>
-        <button class="k-format-btn" onclick="K.chat.format.insert('*')" title="Italic (Ctrl+I)"><em>I</em></button>
-        <button class="k-format-btn" onclick="K.chat.format.insert('~~')" title="Strikethrough"><del>S</del></button>
-        <button class="k-format-btn" onclick="K.chat.format.insert('`')" title="Code"><code>code</code></button>
-        <button class="k-format-btn" onclick="K.chat.format.link()" title="Link"><i class="fas fa-link"></i></button>
+        <button class="k-format-btn" onclick="K.features.applyFormat('bold')" title="Bold (Ctrl+B)"><strong>B</strong></button>
+        <button class="k-format-btn" onclick="K.features.applyFormat('italic')" title="Italic (Ctrl+I)"><em>I</em></button>
+        <button class="k-format-btn" onclick="K.features.applyFormat('underline')" title="Underline (Ctrl+U)"><u>U</u></button>
+        <button class="k-format-btn" onclick="K.features.applyFormat('strike')" title="Strikethrough"><del>S</del></button>
+        <button class="k-format-btn" onclick="K.features.applyFormat('mono')" title="Monospace"><code>M</code></button>
+        <button class="k-format-btn" onclick="K.features.applyFormat('spoiler')" title="Spoiler"><i class="fas fa-eye-slash"></i></button>
+        <button class="k-format-btn" onclick="K.features.applyFormat('blockquote')" title="Blockquote"><i class="fas fa-quote-right"></i></button>
       </div>
       <div class="k-input-area k-hidden" id="inputArea">
         <button class="k-icon-btn" onclick="document.getElementById('fileInput').click()"><i class="fas fa-paperclip"></i></button>
+        <button class="k-icon-btn" onclick="K.features.toggleEmojiPicker()" title="Emoji / GIF" id="emojiBtn"><i class="fas fa-smile"></i></button>
         <textarea class="k-message-input" id="messageInput" placeholder="Type a message..." rows="1" oninput="K.chat.input.handle()" onkeydown="K.chat.input.keydown(event)"></textarea>
         <button class="k-icon-btn" id="voiceBtn" onclick="K.chat.voice.toggle()" title="Voice message"><i class="fas fa-microphone"></i></button>
         <button class="k-send-btn" id="sendBtn" onclick="K.chat.send()"><i class="fas fa-paper-plane"></i></button>
@@ -442,6 +455,7 @@
 <script src="{{ url_for('static', filename='js/k/music.js') }}"></script>
 <script src="{{ url_for('static', filename='js/k/webapp.js') }}"></script>
 <script src="{{ url_for('static', filename='js/k/search.js') }}"></script>
+<script src="{{ url_for('static', filename='js/k/features.js') }}"></script>
 <script src="{{ url_for('static', filename='js/k/settings.js') }}"></script>
 <script src="{{ url_for('static', filename='js/k/profile.js') }}"></script>
 <script src="{{ url_for('static', filename='js/lib/qrcode.min.js') }}"></script>

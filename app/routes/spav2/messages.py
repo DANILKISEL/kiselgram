@@ -53,7 +53,8 @@ def send_personal_message():
         errors['receiver_id'] = 'Receiver ID must be an integer'
     if not receiver_id:
         errors['receiver_id'] = 'Receiver ID is required'
-    if not content:
+    has_file = data.get('file_url') or data.get('file_type')
+    if not content and not has_file:
         errors['content'] = 'Message content cannot be empty'
     if len(content) > 5000:
         errors['content'] = 'Message content too long (max 5000 characters)'

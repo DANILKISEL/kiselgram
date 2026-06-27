@@ -27,7 +27,7 @@ def referral_info():
         'invite_url': invite_url,
         'count': count,
         'threshold': threshold,
-        'has_premium': user.is_premium,
+        'has_premium': user.premium.is_premium if user.premium else False,
     }})
 
 
@@ -56,8 +56,12 @@ def use_referral():
         return jsonify({'success': True, 'data': {'already_applied': True}})
 
     count = Referral.query.filter_by(inviter_id=inviter.id).count()
-    if count >= 10 and not inviter.is_premium:
-        inviter.is_premium = True
+    if count >= 10:
+        if not inviter.premium:
+            from app.models import UserPremium
+            inviter.premium = UserPremium(user_id=inviter.id, is_premium=True)
+        else:
+            inviter.premium.is_premium = True
 
     try:
         db.session.commit()

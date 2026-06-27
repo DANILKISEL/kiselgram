@@ -272,7 +272,7 @@ K.chat = {
       const isVid = fileType === 'video' || fileName.match(/\.(mp4|webm|avi|mov|mkv)$/i);
       const isAud = fileType === 'audio' || fileType === 'voice' || fileName.match(/\.(mp3|wav|m4a|ogg)$/i);
       if (isImg && fileUrl) {
-        att = `<div class="k-msg-attachment"><img src="${esc(fileUrl)}" loading="lazy" onclick="K.chat.lightbox('${esc(fileUrl)}')"></div>`;
+        att = `<div class="k-msg-attachment"><img src="${esc(fileUrl)}" loading="lazy" onclick="K.features.showMediaViewer([{file_url:'${esc(fileUrl)}',file_type:'image',file_name:'${esc(fileName||'')}'}],0)"></div>`;
       } else if (isVid && fileUrl) {
         att = `<div class="k-msg-attachment"><video src="${esc(fileUrl)}" controls preload="metadata" style="max-width:260px;max-height:200px;border-radius:12px"></video></div>`;
       } else if (isAud && fileUrl) {
@@ -286,6 +286,10 @@ K.chat = {
     if (m.reply_to_id) reply = `<div class="k-msg-reply"><div style="font-weight:600;font-size:11px">↩ Reply</div>${esc(m.reply_to_content||'')}</div>`;
     const sName = (!isOwn && !consecutive && (m.sender_username||m.sender_name)) ? `<div class="k-msg-sender">${esc(m.sender_username||m.sender_name)}</div>` : '';
     let reactions = '';
+    let pollHtml = '';
+    if (m.poll) {
+      pollHtml = K.features?.renderPoll ? K.features.renderPoll(m.poll, mid) : '<div class="k-poll-placeholder">Poll</div>';
+    }
     if (m.reactions && typeof m.reactions === 'object') {
       const entries = Object.entries(m.reactions);
       if (entries.length) {
@@ -295,13 +299,16 @@ K.chat = {
     const cls = isOwn ? 'outgoing' : 'incoming';
     const content = m.content ? `<div class="k-msg-text">${K.markdown.render(m.content)}</div>` : '';
     return `<div class="k-msg ${cls}" data-msg-id="${mid}">
-      ${sName}${reply}${att}${content ? `<div class="k-msg-bubble">${content}<div class="k-msg-meta">${time} ${statusIcon}</div></div>` : (att ? `<div class="k-msg-bubble"><div class="k-msg-meta">${time} ${statusIcon}</div></div>` : '')}${reactions}
+      ${sName}${reply}${att}${content ? `<div class="k-msg-bubble">${content}<div class="k-msg-meta">${time} ${statusIcon}</div></div>` : (att ? `<div class="k-msg-bubble"><div class="k-msg-meta">${time} ${statusIcon}</div></div>` : '')}${pollHtml}${reactions}
       <div class="k-msg-actions">
         <button class="k-msg-action-btn" onclick="K.chat.reply.set(${mid},'${esc(K.markdown.strip(m.content||'').substring(0,40))}')" title="Reply"><i class="fas fa-reply"></i></button>
+        <button class="k-msg-action-btn" onclick="K.features.showForwardDialog(${mid})" title="Forward"><i class="fas fa-forward"></i></button>
         <button class="k-msg-action-btn" onclick="K.chat.react(${mid})" title="React"><i class="fas fa-smile"></i></button>
         <button class="k-msg-action-btn" onclick="K.chat.copy(${mid})" title="Copy"><i class="fas fa-copy"></i></button>
+        ${!isOwn && m.content ? `<button class="k-msg-action-btn k-translate-btn" onclick="K.features.translateMessage(${mid},'${esc(m.content.substring(0,200))}')" title="Translate"><i class="fas fa-language"></i></button>` : ''}
         ${isOwn ? `<button class="k-msg-action-btn" onclick="K.chat.edit(${mid})" title="Edit"><i class="fas fa-pen"></i></button>
-        <button class="k-msg-action-btn" onclick="K.chat.delete(${mid})" title="Delete" style="color:var(--accent-red)"><i class="fas fa-trash"></i></button>` : ''}
+        <button class="k-msg-action-btn" onclick="K.chat.delete(${mid})" title="Delete" style="color:var(--accent-red)"><i class="fas fa-trash"></i></button>
+        <button class="k-msg-action-btn" onclick="K.features.showReadReceipts(${mid})" title="Read receipts"><i class="fas fa-check-double"></i></button>` : ''}
       </div>
     </div>`;
   },
@@ -561,7 +568,8 @@ K.chat = {
       const key = type+':'+id;
       const isPinned = K.state.pinned?.includes(key);
       let items = '';
-      items += `<div class="k-chat-menu-item" onclick="K.chat.menu.togglePin('${key}')"><i class="fas fa-thumbtack"></i> ${isPinned ? 'Unpin' : 'Pin'}</div>`;
+      items += `<div class="k-chat-menu-item" onclick="K.chat.menu.togglePin('${key}')"><i class="fas fa-thumbtack"></i> ${isPinned ? 'Unpin' : 'Pin'} Chat</div>`;
+      items += `<div class="k-chat-menu-item" onclick="K.features.showCreatePoll()"><i class="fas fa-poll"></i> Create Poll</div>`;
       if (type === 'personal') {
         items += `<div class="k-chat-menu-item" onclick="K.chat.menu.block(${id})"><i class="fas fa-ban"></i> Block User</div>`;
         items += `<div class="k-chat-menu-item" onclick="K.chat.menu.clear(${id})"><i class="fas fa-trash"></i> Clear Chat</div>`;
