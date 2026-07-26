@@ -159,6 +159,7 @@ def has_active_story(user_id):
         return False
 
 def user_to_dict(user):
+    is_premium = (user.premium and user.premium.is_premium) or False
     return {
         'id': user.id,
         'username': user.username,
@@ -169,8 +170,8 @@ def user_to_dict(user):
         'last_seen': user.last_seen.isoformat() if user.last_seen else None,
         'created_at': user.created_at.isoformat() if user.created_at else None,
         'has_story': has_active_story(user.id),
-        'is_premium': user.premium.is_premium if user.premium else False,
-        'status_emoji': getattr(user, 'status_emoji', ''),
+        'is_premium': is_premium,
+        'status_emoji': user.status_emoji or ('\u2b50' if is_premium else ''),
         'followers_count': 0,
         'following_count': 0,
         'groups_count': ChatMember.query.filter_by(user_id=user.id).count()

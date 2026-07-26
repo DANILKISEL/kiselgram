@@ -62,6 +62,8 @@ def use_referral():
             inviter.premium = UserPremium(user_id=inviter.id, is_premium=True)
         else:
             inviter.premium.is_premium = True
+        if not inviter.status_emoji:
+            inviter.status_emoji = '\u2b50'
 
     try:
         db.session.commit()

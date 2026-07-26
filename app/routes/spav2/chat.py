@@ -13,6 +13,7 @@ spav2_chat_bp = Blueprint('spav2_chat', __name__, url_prefix='/api')
 
 
 def _serialize_peer(user):
+    is_premium = (user.premium and user.premium.is_premium) or False
     return {
         'user_id': user.id,
         'username': user.username,
@@ -20,7 +21,8 @@ def _serialize_peer(user):
         'avatar_url': user.avatar_url,
         'is_online': getattr(user, 'is_online', False),
         'last_seen': user.last_seen.isoformat() if user.last_seen else None,
-        'status_emoji': getattr(user, 'status_emoji', '') or '',
+        'status_emoji': user.status_emoji or ('\u2b50' if is_premium else ''),
+        'is_premium': is_premium,
         'is_bot': getattr(user, 'is_bot', False),
         'bot_webapp_url': getattr(user, 'bot_webapp_url', None) or None
     }

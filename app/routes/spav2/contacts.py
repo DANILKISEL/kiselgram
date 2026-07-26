@@ -31,6 +31,7 @@ def get_contacts():
     for c in contacts:
         user = users.get(c.contact_id)
         if user:
+            is_p = user.premium and user.premium.is_premium
             result.append({
                 'user_id': user.id,
                 'username': user.username,
@@ -40,7 +41,8 @@ def get_contacts():
                 'is_online': getattr(user, 'is_online', False),
                 'last_seen': user.last_seen.isoformat() if user.last_seen else None,
                 'added_at': c.created_at.isoformat() if c.created_at else None,
-                'status_emoji': getattr(user, 'status_emoji', '') or ''
+                'is_premium': is_p,
+                'status_emoji': user.status_emoji or ('\u2b50' if is_p else '')
             })
 
     return jsonify({'success': True, 'data': {'contacts': result, 'total': total, 'page': page, 'per_page': per_page, 'pages': pages}})

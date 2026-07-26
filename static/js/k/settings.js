@@ -341,6 +341,10 @@ K.settings = {
         if (barEl) barEl.style.width = Math.min(PERCENT, (data.count / data.threshold) * PERCENT) + '%';
         if (statusEl) statusEl.textContent = data.count >= data.threshold ? 'Premium unlocked!' : data.count + '/' + data.threshold + ' to Premium';
         if (badgeEl) badgeEl.style.display = data.has_premium ? '' : 'none';
+        if (data.has_premium && K.state.user && !K.state.user.is_premium) {
+          K.state.user.is_premium = true;
+          K.ui.renderUser();
+        }
         qrEl.innerHTML = '';
         const img = document.createElement('img');
         img.src = `https://api.qrserver.com/v1/create-qr-code/?size=${QR_IMAGE_SIZE}x${QR_IMAGE_SIZE}&data=${encodeURIComponent(data.invite_url)}`;

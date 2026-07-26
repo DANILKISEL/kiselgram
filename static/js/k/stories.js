@@ -14,11 +14,12 @@ K.stories = {
   },
   _renderRow() {
     const row = $('storiesRow'); if (!row) return;
+    const isPremium = K.state.user?.is_premium;
     const stories = K.state.stories;
-    let html = `<div class="k-story-circle" onclick="K.stories.create()">
+    let html = isPremium ? `<div class="k-story-circle" onclick="K.stories.create()">
       <div class="k-story-ring" style="background:var(--border-color)"><div style="width:100%;height:100%;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--bg-surface);color:var(--text-muted);font-size:24px;border:2px solid var(--sidebar-bg)"><i class="fas fa-plus"></i></div></div>
       <span class="k-story-username">Add</span>
-    </div>`;
+    </div>` : '';
     if (stories?.length) html += stories.map(s => {
       const hasUnviewed = s.has_unviewed;
       return `<div class="k-story-circle" onclick="K.stories.view(${s.user_id})">
@@ -99,6 +100,7 @@ K.stories = {
     }
   },
   async create() {
+    if (!K.state.user?.is_premium) return;
     const input = document.createElement('input');
     input.type = 'file'; input.accept = 'image/*,video/*'; input.style.display = 'none';
     input.onchange = async () => {

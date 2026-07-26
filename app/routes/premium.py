@@ -267,6 +267,8 @@ def api_activate_premium():
             user.premium.premium_expires_at = now + timedelta(days=duration_days)
             user.premium.premium_plan = plan
             premium = user.premium
+        if not user.status_emoji:
+            user.status_emoji = '\u2b50'
         db.session.commit()
 
         return jsonify({

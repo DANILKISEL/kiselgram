@@ -8,12 +8,20 @@ K.profile = {
   async save() {
     const name = $('editDisplayName')?.value?.trim();
     const bio = $('editBio')?.value?.trim();
-    const statusEmoji = $('statusEmoji')?.value?.trim() || '';
+    const isPremium = K.state.user?.is_premium;
+    const payload = {display_name: name, bio};
+    if (isPremium) {
+      let statusEmoji = $('statusEmoji')?.value?.trim() || '';
+      if (!statusEmoji) statusEmoji = '\u2b50';
+      payload.status_emoji = statusEmoji;
+      if (K.state.user) K.state.user.status_emoji = statusEmoji;
+    }
     try {
-      const d = await K.api.put(V2 + '/profile', {display_name: name, bio, status_emoji: statusEmoji});
+      const d = await K.api.put(V2 + '/profile', payload);
       if (d.success) {
         K.ui.toast('Profile updated', 'success');
-        if (K.state.user) { K.state.user.display_name = name; K.state.user.bio = bio; K.state.user.status_emoji = statusEmoji; }
+        const r = await K.api.get(V2 + '/profile');
+        if (r.success && r.data) K.state.user = r.data;
         K.ui.renderUser(); K.modals.close();
       } else K.ui.toast('Failed', 'error');
     } catch(e) { K.ui.toast('Error', 'error'); }

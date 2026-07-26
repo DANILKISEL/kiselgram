@@ -48,12 +48,12 @@ class TestV2UpdateProfile:
         assert resp.status_code == 200
         assert db.session.get(User, user.id).bio == "This is my new bio!"
 
-    def test_update_status_emoji(self, logged_in_client, user):
-        resp = logged_in_client.put(f"{API_PREFIX}/profile", json={
+    def test_update_status_emoji(self, logged_in_premium, premium_user):
+        resp = logged_in_premium.put(f"{API_PREFIX}/profile", json={
             "status_emoji": "🎉",
         })
         assert resp.status_code == 200
-        assert db.session.get(User, user.id).status_emoji == "🎉"
+        assert db.session.get(User, premium_user.id).status_emoji == "🎉"
 
     def test_update_profile_unauthorized(self, client):
         resp = client.put(f"{API_PREFIX}/profile", json={

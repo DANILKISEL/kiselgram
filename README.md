@@ -1,6 +1,10 @@
 # Kiselgram
 
+> Frontend: **Kiselgram K v4.7** · Backend: **Kiselgram PyFla v4.8**
+
 Flask messaging platform — personal chats, groups, channels, stories, and WebRTC video calls. JSON API with a pure-JS single-page app frontend.
+
+**⚠️ Kiselgram 5 coming — this Flask backend will be deprecated.**
 
 ## Quick start
 
@@ -40,28 +44,46 @@ Testing:
 
 **Auth:** Bearer token from `UserSession.session_token` checked first; falls back to Flask `session['user_id']`. Helper: `get_current_user()`.
 
+**Message encryption:** All message content encrypted at rest using AES-256-GCM (Fernet). Transparent model property — encrypts on set, decrypts on get. Key via `MESSAGE_ENCRYPTION_KEY` env var. Graceful plaintext fallback when unset.
+
 **Frontend:** Single monolithic HTML (`templates/k.html`) with 17+ JS modules in `static/js/k/` extending `window.K`. No sockets, no SSR — pure `fetch()`-based SPA.
 
-**Security:** CSP headers, in-memory rate limiter, `@json_only` decorator, input sanitization.
+**Security:** CSP headers, in-memory rate limiter, `@json_only` decorator, input sanitization, message payload encryption.
 
 ## Domain structure
 
 ```
-kiselgram.ru          ─ Main site (landing page)
-web.kiselgram.ru      ─ SPA (web app)
-api.kiselgram.ru      ─ API backend
-desktop.kiselgram.ru  ─ Desktop downloads (GitHub Pages)
-docs.kiselgram.ru     ─ Documentation (GitHub Pages)
+kiselgram.ru              ─ Main site (landing page)
+web.kiselgram.ru          ─ SPA (web app)
+app.kiselgram.ru          ─ Redirects to web.kiselgram.ru
+api.kiselgram.ru          ─ API backend
+admin.kiselgram.ru        ─ Admin panel
+cdn.kiselgram.ru          ─ Uploaded files
+status.kiselgram.ru       ─ Service status
+desktop.kiselgram.ru      ─ Desktop downloads
+docs.kiselgram.ru         ─ Documentation (GitHub Pages)
+help.kiselgram.ru         ─ Help center (GitHub Pages)
+call.kiselgram.ru         ─ Video call rooms
+premium.kiselgram.ru      ─ Premium info
+bugs.kiselgram.ru         ─ Bug reports (GitHub Issues)
+mycode.3d.store.kiselgram.ru ─ Code generator + SPA access
 ```
 
 ## Deployment
 
 ```bash
-docker compose build --no-cache && docker compose up -d
-docker compose restart nginx    # after app rebuild
+# Build + deploy all services
+docker build --platform linux/amd64 -t kiselgram-app:latest .
+docker save kiselgram-app:latest | ssh root@kiselgram.ru docker load
+rsync -avz --delete --exclude-from=.rsync-exclude . root@kiselgram.ru:/root/kiselgram/
+ssh root@kiselgram.ru 'cd /root/kiselgram && docker compose up -d'
+ssh root@kiselgram.ru 'cd /root/kiselgram && docker compose restart nginx'
+
+# Or use deploy.sh
+./deploy.sh
 ```
 
-Production services: `db` (Postgres), `app` (gunicorn, port 5000), `nginx` (ports 80/443), plus video and mail servers. SSL via Let's Encrypt. See `deploy.sh` for rsync + docker compose flow.
+Production services: `db` (Postgres 15), `app` (gunicorn, port 5000), `video` (WebRTC, port 5001), `mailserver` (docker-mailserver), `mailadmin` (account management GUI), `nginx` (ports 80/443).
 
 ## Backend overview
 
@@ -69,7 +91,7 @@ Production services: `db` (Postgres), `app` (gunicorn, port 5000), `nginx` (port
 |-----------|---------|
 | `app/routes/spav2/` | V2 API blueprints (auth, chats, messages, groups, channels, stories, contacts, profile, search, settings, admin, oauth, qr login, email login) |
 | `app/models.py` | SQLAlchemy models (User, Chat, Message, Story, etc. — ~35 tables) |
-| `app/utils/` | Helpers, security (rate limiting, CSP, CSRF) |
+| `app/utils/` | Helpers, security (rate limiting, CSP, CSRF), crypto (AES-256-GCM) |
 | `static/js/k/` | SPA JS modules (init, api, ui, auth, chat, contacts, stories, etc.) |
 | `static/css/` | Desktop + mobile + animations CSS |
 | `config/kis.toml` | App configuration (secret key, OAuth keys, mail, etc.) |

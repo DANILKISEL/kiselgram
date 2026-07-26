@@ -57,6 +57,10 @@ def create_app():
     # Always enforce these
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+    # Read encryption key from env (falls back to crypto.py's auto-detect)
+    if os.environ.get('MESSAGE_ENCRYPTION_KEY'):
+        app.config['MESSAGE_ENCRYPTION_KEY'] = os.environ['MESSAGE_ENCRYPTION_KEY']
+
     # Override database for production (env var required)
     if production:
         db_url = os.environ.get('DATABASE_URL')
@@ -68,6 +72,14 @@ def create_app():
             if not sk:
                 raise RuntimeError("SECRET_KEY environment variable is required in production mode")
             app.config['SECRET_KEY'] = sk
+
+    # Force debug off in production (safe override regardless of config)
+    if production:
+        app.config['DEBUG'] = False
+
+    # Warn if debug is on
+    if app.config.get('DEBUG'):
+        print("⚠️  DEBUG mode is ON — do not expose this server to the internet")
 
     print(f"✅ Database URI: {app.config['SQLALCHEMY_DATABASE_URI']}")
 

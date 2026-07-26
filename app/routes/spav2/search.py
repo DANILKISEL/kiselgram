@@ -29,104 +29,7 @@ def global_search():
     for u in users:
         if u.id == current_user_id or u.id in blocked_ids:
             continue
-        users_data.append({
-            'user_id': u.id,
-            'username': u.username,
-            'display_name': u.display_name or u.username,
-            'avatar_url': u.avatar_url,
-            'is_contact': u.id in contacts_set,
-            'status_emoji': getattr(u, 'status_emoji', '') or ''
-        })
-
-    # Groups
-    group_ids = set(m.chat_id for m in ChatMember.query.with_entities(ChatMember.chat_id).filter_by(user_id=current_user_id).all())
-    groups = Chat.query.filter(Chat.id.in_(group_ids), Chat.name.ilike(q), Chat.chat_type == 'group').limit(limit).all()
-    group_counts = dict(db.session.query(ChatMember.chat_id, db.func.count(ChatMember.id)).filter(ChatMember.chat_id.in_([g.id for g in groups])).group_by(ChatMember.chat_id).all()) if groups else {}
-    groups_data = []
-    for g in groups:
-        groups_data.append({
-            'group_id': g.id,
-            'name': g.name,
-            'avatar_url': g.avatar_url,
-            'member_count': group_counts.get(g.id, 0),
-            'is_member': True
-        })
-
-    # Channels
-    chan_ids = set(s.chat_id for s in ChatSubscriber.query.with_entities(ChatSubscriber.chat_id).filter_by(user_id=current_user_id).all())
-    channels = Chat.query.filter(Chat.id.in_(chan_ids), Chat.name.ilike(q), Chat.chat_type == 'channel').limit(limit).all()
-    chan_counts = dict(db.session.query(ChatSubscriber.chat_id, db.func.count(ChatSubscriber.id)).filter(ChatSubscriber.chat_id.in_([c.id for c in channels])).group_by(ChatSubscriber.chat_id).all()) if channels else {}
-    channels_data = []
-    for c in channels:
-        channels_data.append({
-            'channel_id': c.id,
-            'name': c.name,
-            'avatar_url': c.avatar_url,
-            'subscriber_count': chan_counts.get(c.id, 0),
-            'is_subscribed': True
-        })
-
-    return jsonify({'success': True, 'data': {
-        'query': query,
-        'per_page': limit,
-        'results': {
-            'users': users_data,
-            'groups': groups_data,
-            'channels': channels_data
-        }
-    }})
-
-
-@spav2_search_bp.route('/users', methods=['GET'])
-def search_users():
-    current_user_id = get_current_user_id()
-    if not current_user_id:
-        return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED', 'message': 'Not authenticated'}}), 401
-
-    query = request.args.get('search', '').strip()
-    if not query or len(query) < 2:
-        return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'Search query must be at least 2 characters'}}), 400
-
-    q = f"%{query}%"
-    page = request.args.get('page', 1, type=int)
-    per_page = min(request.args.get('per_page', 20, type=int), 100)
-    offset_val = (page - 1) * per_page
-
-    blocked_ids = [b.blocked_user_id for b in BlockedUser.query.with_entities(BlockedUser.blocked_user_id).filter_by(user_id=current_user_id).all()]
-    contacts_set = set(c.contact_id for c in Contact.query.with_entities(Contact.contact_id).filter_by(user_id=current_user_id).all())
-
-    query_filter = User.query.filter(User.is_deleted == False, User.username.ilike(q) | (User.display_name.ilike(q)))
-    total = query_filter.count()
-    users = query_filter.offset(offset_val).limit(per_page).all()
-    pages = (total + per_page - 1) // per_page if per_page else 0
-    result = []
-    for u in users:
-        if u.id == current_user_id or u.id in blocked_ids:
-            continue
-        result.append({
-            'user_id': u.id,
-            'username': u.username,
-            'display_name': u.display_name or u.username,
-            'avatar_url': u.avatar_url,
-            'bio': getattr(u, 'bio', None),
-            'is_online': getattr(u, 'is_online', False),
-            'is_contact': u.id in contacts_set,
-            'status_emoji': getattr(u, 'status_emoji', '') or ''
-        })
-
-    return jsonify({'success': True, 'data': {'query': query, 'users': result, 'total': total, 'page': page, 'per_page': per_page, 'pages': pages}})
-
-
-@spav2_search_bp.route('/users/<int:user_id>', methods=['GET'])
-def get_user_profile(user_id):
-    current_user_id = get_current_user_id()
-    if not current_user_id:
-        return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED', 'message': 'Not authenticated'}}), 401
-
-    u = User.query.filter_by(id=user_id, is_deleted=False).first()
-    if not u:
-        return jsonify({'success': False, 'error': {'code': 'NOT_FOUND', 'message': 'User not found'}}), 404
-
+        is_p = (u.premium and u.premium.is_premium) or False
     return jsonify({'success': True, 'data': {
         'user_id': u.id,
         'username': u.username,
@@ -135,7 +38,8 @@ def get_user_profile(user_id):
         'bio': getattr(u, 'bio', None),
         'is_online': getattr(u, 'is_online', False),
         'last_seen': u.last_seen.isoformat() if u.last_seen else None,
-        'status_emoji': getattr(u, 'status_emoji', '') or '',
+        'is_premium': is_p,
+        'status_emoji': u.status_emoji or ('\u2b50' if is_p else ''),
         'is_bot': getattr(u, 'is_bot', False),
         'bot_webapp_url': getattr(u, 'bot_webapp_url', None) or None,
         'is_contact': Contact.query.filter_by(user_id=current_user_id, contact_id=user_id).first() is not None
@@ -235,7 +139,6 @@ def search_in_chat():
         return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'chat_id and query are required'}}), 400
 
     chat_type = data.get('chat_type', 'personal')
-    q = f"%{query}%"
 
     try:
         chat_id_int = int(chat_id)
@@ -249,14 +152,15 @@ def search_in_chat():
     if chat_type == 'personal':
         base_query = Message.query.filter(
             ((Message.sender_id == current_user_id) & (Message.receiver_id == chat_id_int)) |
-            ((Message.sender_id == chat_id_int) & (Message.receiver_id == current_user_id)),
-            Message.content.ilike(q)
+            ((Message.sender_id == chat_id_int) & (Message.receiver_id == current_user_id))
         )
     else:
-        base_query = Message.query.filter_by(chat_id=chat_id_int).filter(Message.content.ilike(q))
+        base_query = Message.query.filter_by(chat_id=chat_id_int)
 
-    total = base_query.count()
-    messages = base_query.order_by(Message.timestamp.desc()).offset(offset_val).limit(per_page).all()
+    all_messages = base_query.order_by(Message.timestamp.desc()).all()
+    matched = [m for m in all_messages if m.content and query.lower() in m.content.lower()]
+    total = len(matched)
+    messages = matched[offset_val:offset_val + per_page]
     pages = (total + per_page - 1) // per_page if per_page else 0
 
     results = []

@@ -85,16 +85,16 @@ def search_in_chat():
     if chat_type in ('group', 'channel'):
         messages = Message.query.filter(
             Message.chat_id == chat_id,
-            Message.content.ilike(f'%{query}%'),
             Message.is_deleted == False
         ).order_by(Message.timestamp.desc()).limit(100).all()
     else:
         messages = Message.query.filter(
             ((Message.sender_id == user_id) & (Message.receiver_id == chat_id)) |
             ((Message.sender_id == chat_id) & (Message.receiver_id == user_id)),
-            Message.content.ilike(f'%{query}%'),
             Message.is_deleted == False
         ).order_by(Message.timestamp.desc()).limit(100).all()
+
+    messages = [m for m in messages if m.content and query.lower() in m.content.lower()]
 
     results = []
     for msg in messages:
