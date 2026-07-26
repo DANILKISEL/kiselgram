@@ -64,7 +64,8 @@ def register():
             'is_admin': getattr(user, 'is_admin', False),
             'is_online': False,
             'last_seen': None,
-            'created_at': user.created_at.isoformat() if user.created_at else datetime.utcnow().isoformat()
+            'created_at': user.created_at.isoformat() if user.created_at else datetime.utcnow().isoformat(),
+            'status_emoji': getattr(user, 'status_emoji', '')
         },
         'verification_token': verify_token,
         'message': 'Account created. Please verify your email.'
@@ -112,7 +113,8 @@ def login():
             'is_admin': getattr(user, 'is_admin', False),
             'is_online': True,
             'last_seen': datetime.utcnow().isoformat(),
-            'created_at': user.created_at.isoformat() if user.created_at else datetime.utcnow().isoformat()
+            'created_at': user.created_at.isoformat() if user.created_at else datetime.utcnow().isoformat(),
+            'status_emoji': user.status_emoji or ('\u2b50' if (user.premium and user.premium.is_premium) else '')
         },
         'session_token': session_token
     }})

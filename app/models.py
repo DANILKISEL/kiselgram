@@ -255,10 +255,10 @@ class Message(db.Model):
     __tablename__ = 'message'
 
     id = db.Column(db.Integer, primary_key=True)
-    content = db.Column(db.Text, nullable=True)
+    _content = db.Column('content', db.Text, nullable=True)
     sender_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
     chat_id = db.Column(db.Integer, db.ForeignKey('chats.id', ondelete='CASCADE'), nullable=False, index=True)
-    receiver_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=True, index=True)  # For personal chat, the other user
+    receiver_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=True, index=True)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     is_read = db.Column(db.Boolean, default=False)
     telegram_message_id = db.Column(db.String(50), nullable=True)
@@ -267,8 +267,6 @@ class Message(db.Model):
     read_at = db.Column(db.DateTime, nullable=True)
     is_saved = db.Column(db.Boolean, default=False)
     deleted_at = db.Column(db.DateTime, nullable=True)
-
-    # if has file, use File model: see below
 
     has_attachment = db.Column(db.Boolean, default=False)
     file_type = db.Column(db.String(20), nullable=True)
@@ -281,16 +279,13 @@ class Message(db.Model):
     encrypted_content = db.Column(db.Text)
     encryption_key_id = db.Column(db.Integer)
 
-    # Soft delete
     is_deleted = db.Column(db.Boolean, default=False)
     deleted_for_all = db.Column(db.Boolean, default=False)
 
     scheduled_at = db.Column(db.DateTime, nullable=True)
 
-    # Edit timestamp
     edited_at = db.Column(db.DateTime, nullable=True)
 
-    # Relationships
     file_id = db.Column(db.Integer, db.ForeignKey('files.id', ondelete='SET NULL'), nullable=True)
     file = db.relationship('File', backref=db.backref('messages', lazy='dynamic'), lazy=True)
 
@@ -304,6 +299,25 @@ class Message(db.Model):
     poll_question = db.Column(db.String(255), nullable=True)
     forwarded_from_id = db.Column(db.Integer, db.ForeignKey('message.id'), nullable=True)
     forwarded_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+
+    @property
+    def content(self):
+        val = self._content
+        if val and val.startswith('enc$'):
+            try:
+                from app.utils.crypto import decrypt_message
+                return decrypt_message(val)
+            except Exception:
+                return val
+        return val
+
+    @content.setter
+    def content(self, value):
+        if value is not None and isinstance(value, str) and not value.startswith('enc$'):
+            from app.utils.crypto import encrypt_message
+            self._content = encrypt_message(value)
+        else:
+            self._content = value
 
     def __repr__(self):
         return f'<Message(id={self.id}, sender_id={self.sender_id}, chat_id={self.chat_id})>'

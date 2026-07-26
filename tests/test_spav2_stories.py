@@ -1,7 +1,4 @@
-"""Tests for V2 API story endpoints under /api.v2/api/.
-
-V2 story endpoints are NOT premium-only (unlike V1).
-"""
+"""Tests for V2 API story endpoints under /api.v2/api/."""
 
 import io
 from datetime import datetime, timedelta
@@ -36,12 +33,12 @@ class TestV2Stories:
         data = resp.get_json()
         assert len(data["data"]["stories"]) >= 1
 
-    def test_create_story(self, logged_in_client, user):
+    def test_create_story(self, logged_in_premium, premium_user):
         data = {
             "media": (io.BytesIO(b"fake-image-data"), "story.jpg"),
             "caption": "My V2 story",
         }
-        resp = logged_in_client.post(
+        resp = logged_in_premium.post(
             f"{API_PREFIX}/stories/create", data=data,
             content_type="multipart/form-data")
         assert resp.status_code == 201
@@ -50,14 +47,14 @@ class TestV2Stories:
         assert result["data"]["story"]["media_type"] == "image"
         assert result["data"]["story"]["caption"] == "My V2 story"
 
-    def test_create_story_no_media(self, logged_in_client, user):
-        resp = logged_in_client.post(
+    def test_create_story_no_media(self, logged_in_premium, premium_user):
+        resp = logged_in_premium.post(
             f"{API_PREFIX}/stories/create", data={})
         assert resp.status_code == 400
 
-    def test_create_story_invalid_type(self, logged_in_client, user):
+    def test_create_story_invalid_type(self, logged_in_premium, premium_user):
         data = {"media": (io.BytesIO(b"data"), "story.exe")}
-        resp = logged_in_client.post(
+        resp = logged_in_premium.post(
             f"{API_PREFIX}/stories/create", data=data,
             content_type="multipart/form-data")
         assert resp.status_code == 400

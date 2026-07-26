@@ -62,6 +62,7 @@ K.modals = {
   },
   editProfile() {
     const u = K.state.user || {};
+    const isPremium = u.is_premium;
     return `
       <div class="k-modal-header"><h3>Edit Profile</h3><button class="k-modal-close" onclick="K.modals.close()"><i class="fas fa-times"></i></button></div>
       <div class="k-modal-body">
@@ -69,11 +70,13 @@ K.modals = {
         <input class="k-input" id="editDisplayName" value="${esc(u.display_name||'')}" placeholder="Display name">
         <label style="font-size:13px;font-weight:500;margin-bottom:4px;display:block">Bio</label>
         <textarea class="k-input" id="editBio" rows="3" placeholder="About you">${esc(u.bio||'')}</textarea>
-        <label style="font-size:13px;font-weight:500;margin-bottom:4px;display:block;margin-top:8px">Status Emoji</label>
+        ${isPremium ? `
+        <label style="font-size:13px;font-weight:500;margin-bottom:4px;display:block;margin-top:8px">Status Emoji <span style="color:var(--accent-gold);font-size:11px">(Premium)</span></label>
         <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px" id="emojiPicker">
           ${['🌴','💼','🎮','📚','🎵','🏖️','💪','😴','❤️','🔥','🌟','🎯','💡','🎨','🏃','☕'].map(e => `<span class="k-emoji-opt${(u.status_emoji||'')===e?' active':''}" onclick="document.getElementById('statusEmoji').value=this.textContent;document.querySelectorAll('.k-emoji-opt').forEach(x=>x.classList.remove('active'));this.classList.add('active')">${e}</span>`).join('')}
         </div>
-        <input class="k-input" id="statusEmoji" value="${esc(u.status_emoji||'')}" placeholder="Or type any emoji" style="margin-bottom:4px">
+        <input class="k-input" id="statusEmoji" value="${esc(u.status_emoji||'')}" placeholder="Change status emoji" style="margin-bottom:4px" oninput="if(!this.value)this.value='⭐'">
+        ` : ''}
         <button class="k-btn k-btn-secondary" style="width:100%;margin-top:4px" onclick="document.getElementById('avatarUpload').click()"><i class="fas fa-camera"></i> Change Photo</button>
         <input type="file" id="avatarUpload" accept="image/*" style="display:none" onchange="K.profile.uploadAvatar(this)">
       </div>
@@ -197,7 +200,7 @@ K.modals = {
   <div style="height:120px;background:linear-gradient(135deg,var(--accent-blue),var(--accent-purple));display:flex;align-items:flex-end;padding:12px 16px;position:relative">
     <div style="width:64px;height:64px;border-radius:50%;border:3px solid white;overflow:hidden;background:var(--bg-primary);display:flex;align-items:center;justify-content:center;color:white;font-weight:600;font-size:26px">${avatarHtml}</div>
     <div style="margin-left:12px;margin-bottom:2px;color:white;text-shadow:0 1px 3px rgba(0,0,0,0.3)">
-      <div style="font-size:16px;font-weight:600">${esc(u.display_name||u.username)}${u.status_emoji ? ' ' + esc(u.status_emoji) : ''}</div>
+      <div style="font-size:16px;font-weight:600">${esc(u.display_name||u.username)}${u.is_premium && (!u.status_emoji || u.status_emoji === '⭐') ? '<img src="/static/img/img.png" alt="" style="width:18px;height:18px;vertical-align:middle;display:inline-block;margin-left:3px">' : (u.status_emoji ? ' ' + esc(u.status_emoji) : '')}</div>
       <div style="font-size:12px;opacity:0.9">@${esc(u.username)}${u.is_bot ? ' <span style="background:rgba(255,255,255,0.3);padding:1px 6px;border-radius:4px;font-size:10px">BOT</span>' : ''}</div>
     </div>
   </div>

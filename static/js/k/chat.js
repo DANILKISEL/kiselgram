@@ -60,6 +60,7 @@ K.chat = {
       const id = isSaved ? (K.state.user?.user_id || chat.peer?.user_id) : (chat.chat_type === 'personal' ? (chat.peer?.user_id || chat.peer?.id) : (chat.group?.group_id || chat.channel?.channel_id));
       const name = isSaved ? 'Saved Messages' : (chat.peer?.display_name || chat.peer?.username || chat.group?.name || chat.channel?.name || 'Unknown');
       const statusEmoji = isSaved ? '' : (chat.peer?.status_emoji || '');
+      const isPremium = chat.peer?.is_premium;
       const avatar = isSaved ? null : (chat.peer?.avatar_url || chat.group?.avatar_url || chat.channel?.avatar_url);
       const type = isSaved ? 'personal' : chat.chat_type;
       const isActive = K.state.activeChat?.type === type && K.state.activeChat?.id === id;
@@ -78,7 +79,7 @@ K.chat = {
       return `<div class="k-chat-item ${isActive?'active':''} ${isPinned?'pinned':''}" onclick="K.chat.open('${type}',${id})" data-type="${type}" data-id="${id}">
         <div class="k-chat-avatar personal">${isSaved ? '<i class="fas fa-bookmark" style="font-size:20px;color:var(--accent-blue)"></i>' : K.ui.avatar(name, avatar, chat.peer?.is_bot)}${isOnline ? '<span class="k-online-dot"></span>' : ''}</div>
         <div class="k-chat-info">
-          <div class="k-chat-name-row"><span class="k-chat-name">${esc(name)}${statusEmoji ? ' ' + esc(statusEmoji) : ''}${isPinned ? ' <i class="fas fa-thumbtack" style="font-size:10px;color:var(--accent-blue);transform:rotate(45deg);margin-left:2px"></i>' : ''}</span><span class="k-chat-time">${time}</span></div>
+          <div class="k-chat-name-row"><span class="k-chat-name">${esc(name)}${isPremium ? (statusEmoji === '⭐' ? ' <img src="/static/img/img.png" alt="" style="width:16px;height:16px;vertical-align:middle;display:inline-block">' : ' ' + esc(statusEmoji)) : (statusEmoji ? ' ' + esc(statusEmoji) : '')}${isPinned ? ' <i class="fas fa-thumbtack" style="font-size:10px;color:var(--accent-blue);transform:rotate(45deg);margin-left:2px"></i>' : ''}</span><span class="k-chat-time">${time}</span></div>
           <div class="k-chat-preview"><span>${preview}</span>${unread ? `<span class="k-unread">${unread>99?'99+':unread}</span>` : ''}</div>
         </div>
       </div>`;
@@ -154,7 +155,8 @@ K.chat = {
       if (peer) {
         const pname = peer.display_name || peer.name || peer.username || 'User #'+id;
         const emoji = peer.status_emoji || '';
-        if (nameEl) nameEl.textContent = pname + (emoji ? ' ' + emoji : '');
+        const isP = peer.is_premium;
+        if (nameEl) nameEl.innerHTML = esc(pname) + (isP && (!emoji || emoji === '⭐') ? '<img src="/static/img/img.png" alt="" style="width:16px;height:16px;vertical-align:middle;display:inline-block;margin-left:3px">' : (emoji ? ' ' + esc(emoji) : ''));
         if (avatarEl) { avatarEl.innerHTML = K.ui.avatar(pname, peer.avatar_url, peer.is_bot); avatarEl.className = 'k-chat-avatar-sm'+(type==='group'?' group':type==='channel'?' channel':''); }
         if (statusEl) { statusEl.textContent = peer.is_online ? 'online' : ''; statusEl.className = 'k-chat-header-status'+(peer.is_online?' online':''); }
         if (cb && type === 'personal') cb.style.display = 'flex';
@@ -170,7 +172,8 @@ K.chat = {
           const u = users.find(x => x.user_id === id);
           if (u) {
             const emoji = u.status_emoji || '';
-            if (nameEl) nameEl.textContent = (u.display_name || u.username) + (emoji ? ' ' + emoji : '');
+            const isP = u.is_premium;
+            if (nameEl) nameEl.innerHTML = esc(u.display_name || u.username) + (isP && (!emoji || emoji === '⭐') ? '<img src="/static/img/img.png" alt="" style="width:16px;height:16px;vertical-align:middle;display:inline-block;margin-left:3px">' : (emoji ? ' ' + esc(emoji) : ''));
             if (avatarEl) { avatarEl.className = 'k-chat-avatar-sm'; avatarEl.innerHTML = K.ui.avatar(u.display_name||u.username, u.avatar_url, u.is_bot); }
             if (statusEl) { statusEl.textContent = u.is_online ? 'online' : ''; statusEl.className = 'k-chat-header-status'+(u.is_online?' online':''); }
             if (wb && u.is_bot && u.bot_webapp_url) { wb.style.display = 'flex'; wb.dataset.url = u.bot_webapp_url; }

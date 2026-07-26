@@ -36,7 +36,6 @@ K.loginV3 = {
 
   _cleanup() {
     if (K.loginV3._pollTimer) { clearInterval(K.loginV3._pollTimer); K.loginV3._pollTimer = null; }
-    if (K.loginV3._otpFallbackTimer) { clearTimeout(K.loginV3._otpFallbackTimer); K.loginV3._otpFallbackTimer = null; }
     K.loginV3._state = {};
   },
 
@@ -106,7 +105,6 @@ K.loginV3 = {
         <div id="v3OtpError" style="font-size:12px;color:var(--error);margin-bottom:8px;display:none"></div>
         <button class="k-btn k-btn-primary" id="v3OtpBtn" style="width:100%;padding:12px;font-size:14px" onclick="K.loginV3._submitOtp()">Verify Code</button>
         <p style="margin-top:8px;font-size:12px"><a href="#" onclick="K.loginV3._sendOtp();return false" style="color:var(--accent-blue)">Resend code</a></p>
-        <p id="v3OtpFallback" style="margin-top:6px;font-size:12px;display:none"><a href="#" onclick="K.loginV3._sendOtpEmail();return false" style="color:var(--accent-blue)">Send code to email instead</a></p>
       </div>`;
     K.loginV3._sendOtp();
     setTimeout(() => $('v3Otp')?.focus(), 100);
@@ -123,17 +121,7 @@ K.loginV3 = {
   },
 
   async _sendOtp() {
-    K.loginV3._startFallbackTimer();
     try { await K.api.post(K.loginV3._v3Url('/auth/send-otp'), {email: K.loginV3._state.email}); } catch(_) { K.ui.toast('Failed to send OTP', 'error'); }
-  },
-  _startFallbackTimer() {
-    if (K.loginV3._otpFallbackTimer) { clearTimeout(K.loginV3._otpFallbackTimer); K.loginV3._otpFallbackTimer = null; }
-    const fb = $('v3OtpFallback');
-    if (fb) fb.style.display = 'none';
-    K.loginV3._otpFallbackTimer = setTimeout(() => {
-      const fb2 = $('v3OtpFallback');
-      if (fb2) fb2.style.display = 'block';
-    }, 15000);
   },
 
   async _submitOtp() {

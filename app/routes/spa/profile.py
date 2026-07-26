@@ -23,6 +23,8 @@ def get_my_profile():
     if not user:
         return jsonify({'success': False, 'error': 'User not found'}), 404
 
+    is_premium = user.premium and user.premium.is_premium
+
     return jsonify({
         'success': True,
         'user': {
@@ -32,12 +34,12 @@ def get_my_profile():
             'bio': user.bio or '',
             'avatar_url': user.avatar_url,
             'email': getattr(user, 'email', ''),
-            'is_premium': user.premium.is_premium if user.premium else False,
+            'is_premium': is_premium,
             'is_admin': getattr(user, 'is_admin', False),
             'created_at': user.created_at.isoformat() if user.created_at else None,
             'last_seen': user.last_seen.isoformat() if user.last_seen else None,
             'is_online': getattr(user, 'is_online', False),
-            'status_emoji': getattr(user, 'status_emoji', ''),
+            'status_emoji': user.status_emoji or ('\u2b50' if is_premium else ''),
             'followers_count': 0,   # implement later
             'following_count': 0,
             'groups_count': 0

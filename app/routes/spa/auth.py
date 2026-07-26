@@ -44,16 +44,15 @@ def resend_verification():
     if user.email_verified:
         return jsonify({'success': False, 'error': 'Email already verified'}), 400
     try:
-        token = secrets.token_urlsafe(32)
+        code = str(random.randint(100000, 999999))
         expires = datetime.utcnow() + timedelta(hours=24)
-        verification = EmailVerification(user_id=user.id, token=token, expires_at=expires)
+        verification = EmailVerification(user_id=user.id, token=code, expires_at=expires)
         db.session.add(verification)
         db.session.commit()
-        verify_url = url_for('auth.verify_email', token=token, _external=True)
         msg = MailMessage(subject='Verify your email – Kiselgram',
                       sender=current_app.config['MAIL_DEFAULT_SENDER'],
                       recipients=[user.email])
-        msg.body = f'Welcome to Kiselgram!\n\nPlease verify your email by clicking the link below:\n{verify_url}\n\nThis link expires in 24 hours.'
+        msg.body = f'Welcome to Kiselgram!\n\nYour verification code: {code}\n\nThis code expires in 24 hours.\n\nIf you didn\'t request this, ignore this email.'
         mail.send(msg)
         return jsonify({'success': True})
     except Exception as e:

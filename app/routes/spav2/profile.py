@@ -15,7 +15,8 @@ def get_profile():
     if not current_user:
         return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED', 'message': 'Not authenticated'}}), 401
 
-    is_premium = current_user.premium and current_user.premium.is_premium
+    is_premium = (current_user.premium and current_user.premium.is_premium) or False
+
     if is_premium and not current_user.status_emoji:
         current_user.status_emoji = '\u2b50'
         try:
@@ -28,7 +29,7 @@ def get_profile():
         'username': current_user.username,
         'email': current_user.email,
         'display_name': current_user.display_name or current_user.username,
-        'avatar_url': current_user.avatar_url or ('/static/img/img.png' if is_premium else None),
+        'avatar_url': current_user.avatar_url,
         'bio': getattr(current_user, 'bio', None),
         'is_premium': is_premium,
         'is_admin': getattr(current_user, 'is_admin', False),
@@ -52,8 +53,10 @@ def update_profile():
         current_user.bio = sanitize_string(data['bio'], max_length=200)
     if 'status_emoji' in data:
         emoji = sanitize_string(data['status_emoji'], max_length=10)
-        is_premium = current_user.premium and current_user.premium.is_premium
-        if is_premium and not emoji:
+        is_premium = (current_user.premium and current_user.premium.is_premium) or False
+        if not is_premium:
+            return jsonify({'success': False, 'error': {'code': 'PREMIUM_REQUIRED', 'message': 'Status emoji is a premium feature'}}), 400
+        if not emoji:
             return jsonify({'success': False, 'error': {'code': 'PREMIUM_STATUS_LOCKED', 'message': 'Premium users cannot remove status emoji'}}), 400
         current_user.status_emoji = emoji
     try:

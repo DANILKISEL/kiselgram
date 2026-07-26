@@ -12,6 +12,13 @@ ALLOWED_IMAGE_EXTS = {'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic', 'heif'
 ALLOWED_VIDEO_EXTS = {'mp4', 'webm', 'avi', 'mov', 'mkv', 'flv', 'wmv', 'm4v'}
 
 
+def _require_premium(user_id):
+    user = User.query.get(user_id)
+    if not user or not (user.premium and user.premium.is_premium):
+        return jsonify({'success': False, 'error': {'code': 'PREMIUM_REQUIRED', 'message': 'Premium feature. Upgrade to access stories.'}}), 403
+    return None
+
+
 def _story_to_dict(story, current_user_id, liked=False, viewed=False, my_reaction=None, view_count=0, like_count=0):
     return {
         'story_id': story.id,
@@ -97,6 +104,10 @@ def create_story():
     current_user_id = get_current_user_id()
     if not current_user_id:
         return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED', 'message': 'Not authenticated'}}), 401
+
+    err = _require_premium(current_user_id)
+    if err:
+        return err
 
     if 'media' not in request.files:
         return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'Media file is required'}}), 400

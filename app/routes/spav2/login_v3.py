@@ -88,6 +88,7 @@ def _make_session(user):
 
 
 def _serialize_user(user):
+    is_premium = (user.premium and user.premium.is_premium) or False
     return {
         'user_id': user.id,
         'username': user.username,
@@ -95,11 +96,12 @@ def _serialize_user(user):
         'display_name': user.display_name or user.username,
         'avatar_url': user.avatar_url,
         'bio': getattr(user, 'bio', None),
-        'is_premium': user.premium.is_premium if user.premium else False,
+        'is_premium': is_premium,
         'is_admin': getattr(user, 'is_admin', False),
         'is_online': True,
         'last_seen': datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
         'created_at': user.created_at.isoformat() if user.created_at else datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+        'status_emoji': user.status_emoji or ('\u2b50' if is_premium else ''),
     }
 
 
@@ -289,7 +291,21 @@ def register_send_code():
         db.session.rollback()
         return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Failed to send code'}}), 500
 
-    current_app.logger.info(f"Registration code for {email}: {code}")
+    try:
+        from flask_mail import Mail, Message as MailMessage
+        mail = Mail(current_app)
+        msg = MailMessage(
+            subject='Your Kiselgram verification code',
+            sender=current_app.config.get('MAIL_DEFAULT_SENDER'),
+            recipients=[email],
+        )
+        msg.body = f"Your verification code: {code}\nThis code expires in 10 minutes.\n\nIf you didn't request this, ignore this email."
+        mail.send(msg)
+        current_app.logger.info(f"Registration code for {email}: {code}")
+    except Exception as e:
+        current_app.logger.error(f"Failed to send registration code via email: {e}")
+        return jsonify({'success': False, 'error': {'code': 'SERVER_ERROR', 'message': 'Failed to send email'}}), 500
+
     return jsonify({'success': True, 'data': {'message': 'Code sent to email'}})
 
 
@@ -376,6 +392,8 @@ def register_finish():
                     count = Referral.query.filter_by(inviter_id=inviter.id).count()
                     if count >= 10 and not inviter.is_premium:
                         inviter.is_premium = True
+                        if not inviter.status_emoji:
+                            inviter.status_emoji = '\u2b50'
                 except IntegrityError:
                     db.session.rollback()
                     current_app.logger.warning(f"Duplicate referral for user {user.id}")
