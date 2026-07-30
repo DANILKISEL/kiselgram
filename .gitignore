@@ -34,4 +34,19 @@ app/config.py
 /in
 /mailadmin
 
+# Cleaned up from repo root
+.kiselgram_token
+AGENTS.md
+API-STANDARD.md
+CONNECT.md
+combined.html
+desktop_app.py
+kiselgram-api.postman_collection.json
+mycode_app.py
+posts.html
+posts-instagram.html
+posts-twitter.html
+run_video_server.py
+screens.html
+
 
