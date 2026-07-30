@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Kiselgram K</title>
+    <meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#ffffff">
+    <link rel="manifest" href="/static/manifest_k.json">
+    <link rel="shortcut icon" href="/static/favicon.ico">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/desktop.css">
+    <link rel="stylesheet" href="/static/css/mobile.css">
+    <link rel="stylesheet" href="/static/css/chats.css">
+    <link rel="stylesheet" href="/static/css/animations.css">
+    <link rel="stylesheet" href="/static/css/k.css">
+</head>
+<body>
+
+<div id="splashScreen" class="k-splash">
+  <div class="k-splash-bg"></div>
+  <div class="k-splash-bar"><div class="k-splash-fill" id="splashFill"></div></div>
+</div>
+<div class="k-app" id="app">
+  <button class="k-menu-btn" id="menuBtn" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+
+  <aside class="k-sidebar" id="sidebar">
+    <div class="k-sidebar-user" id="sidebarUserBtn">
+      <div class="k-sidebar-avatar" id="sidebarAvatar">?</div>
+      <div class="k-sidebar-info">
+        <div class="k-sidebar-name" id="sidebarName">User</div>
+        <div class="k-sidebar-username" id="sidebarUsername">@user</div>
+      </div>
+    </div>
+    <div class="k-acc-bar" id="accountTabs"></div>
+    <nav class="k-nav">
+      <a class="k-nav-item active" data-view="chats" onclick="K.views.show('chats')"><i class="fas fa-comment"></i><span>Chats</span></a>
+      <a class="k-nav-item" data-view="contacts" onclick="K.views.show('contacts')"><i class="fas fa-address-book"></i><span>Contacts</span></a>
+      <a class="k-nav-item" data-view="saved" onclick="K.views.show('saved')"><i class="fas fa-bookmark"></i><span>Saved</span></a>
+      <a class="k-nav-item" data-view="stories" onclick="K.views.show('stories')"><i class="fas fa-camera"></i><span>Stories</span></a>
+      <a class="k-nav-item" data-view="search" onclick="K.views.show('search')"><i class="fas fa-search"></i><span>Search</span></a>
+      <a class="k-nav-item" data-view="calls" onclick="K.views.show('calls')"><i class="fas fa-phone-alt"></i><span>Calls</span></a>
+      <a class="k-nav-item" data-view="music" onclick="K.views.show('music')"><i class="fas fa-music"></i><span>My Music</span></a>
+    </nav>
+    <div class="k-nav-bottom">
+      <a class="k-nav-item" onclick="K.settings.toggleTheme()"><i class="fas fa-moon" id="navThemeIcon"></i><span id="navThemeLabel">Dark mode</span></a>
+      <a class="k-nav-item" data-view="settings" onclick="K.views.show('settings')"><i class="fas fa-cog"></i><span>Settings</span></a>
+      <a class="k-nav-item" onclick="K.auth.logout()"><i class="fas fa-sign-out-alt"></i><span>Sign Out</span></a>
+    </div>
+  </aside>
+  <div class="k-sidebar-backdrop" id="sidebarBackdrop"></div>
+
+  <div class="k-main">
+    <div class="k-panel chats-panel active" id="panel-chats">
+      <div class="k-panel-header">
+        <h1 class="k-logo">Kiselgram <span class="k-badge" id="logoBadge">K</span></h1>
+        <button class="k-panel-action" onclick="K.modals.show('createGroup')" title="New Group"><i class="fas fa-user-plus"></i></button>
+      </div>
+      <div class="k-search-box">
+        <i class="fas fa-search"></i>
+        <input class="k-search-input" id="globalSearch" placeholder="Search Kiselgram..." oninput="K.search.global(this.value)">
+        <div class="k-search-dropdown" id="searchDropdown"></div>
+      </div>
+      <div class="k-stories-row" id="storiesRow"></div>
+      <div class="k-folder-bar" id="folderBar" style="display:none"></div>
+      <div class="k-chat-list" id="chatList"><div class="k-loader"></div></div>
+    </div>
+
+    <div class="k-panel contacts-panel" id="panel-contacts">
+      <div class="k-panel-header">
+        <button class="k-back-btn" onclick="K.views.show('chats')"><i class="fas fa-arrow-left"></i></button>
+        <h2>Contacts</h2>
+        <button class="k-panel-action" onclick="K.modals.show('addContact')"><i class="fas fa-plus"></i></button>
+      </div>
+      <div class="k-search-box">
+        <i class="fas fa-search"></i>
+        <input class="k-search-input" placeholder="Search contacts..." oninput="K.contacts.search(this.value)">
+      </div>
+      <div class="k-list" id="contactsList"></div>
+    </div>
+
+    <div class="k-panel saved-panel" id="panel-saved">
+      <div class="k-panel-header">
+        <button class="k-back-btn" onclick="K.views.show('chats')"><i class="fas fa-arrow-left"></i></button>
+        <h2>Saved Messages</h2>
+      </div>
+      <div class="k-messages-scroll" id="savedMessagesList"><div class="k-loader"></div></div>
+    </div>
+
+    <div class="k-panel stories-panel" id="panel-stories">
+      <div class="k-panel-header">
+        <button class="k-back-btn" onclick="K.views.show('chats')"><i class="fas fa-arrow-left"></i></button>
+        <h2>Stories</h2>
+        <button class="k-panel-action" onclick="K.stories.create()"><i class="fas fa-plus"></i></button>
+      </div>
+      <div class="k-stories-grid" id="storiesGrid"><div class="k-loader"></div></div>
+    </div>
+
+    <div class="k-panel search-panel" id="panel-search">
+      <div class="k-panel-header">
+        <button class="k-back-btn" onclick="K.views.show('chats')"><i class="fas fa-arrow-left"></i></button>
+        <h2>Search</h2>
+      </div>
+      <div class="k-search-box" style="margin:12px">
+        <i class="fas fa-search"></i>
+        <input class="k-search-input" placeholder="Users, groups, channels..." oninput="K.search.global(this.value)">
+      </div>
+      <div class="k-search-results" id="searchResults">
+        <div class="k-search-section"><h3>Users</h3><div id="searchUsers"></div></div>
+        <div class="k-search-section"><h3>Groups</h3><div id="searchGroups"></div></div>
+        <div class="k-search-section"><h3>Channels</h3><div id="searchChannels"></div></div>
+      </div>
+    </div>
+
+    <div class="k-panel calls-panel" id="panel-calls">
+      <div class="k-panel-header">
+        <button class="k-back-btn" onclick="K.views.show('chats')"><i class="fas fa-arrow-left"></i></button>
+        <h2>Call History</h2>
+      </div>
+      <div class="k-messages-scroll" id="callsList"><div class="k-loader"></div></div>
+    </div>
+
+    <div class="k-panel music-panel" id="panel-music">
+      <div class="k-panel-header">
+        <button class="k-back-btn" onclick="K.views.show('chats')"><i class="fas fa-arrow-left"></i></button>
+        <h2>My Music</h2>
+      </div>
+      <div class="k-messages-scroll" id="musicList"><div class="k-loader"></div></div>
+    </div>
+
+    <div class="k-panel settings-panel k-settings-full" id="panel-settings">
+      <div class="k-panel-header">
+        <button class="k-back-btn" onclick="K.views.show('chats')"><i class="fas fa-arrow-left"></i></button>
+        <h2>Settings</h2>
+      </div>
+      <div class="k-settings-tabs">
+        <button class="k-stab active" data-tab="appearance" onclick="K.settings.switchTab('appearance')">Appearance</button>
+        <button class="k-stab" data-tab="colors" onclick="K.settings.switchTab('colors')">Colors</button>
+        <button class="k-stab" data-tab="hero" onclick="K.settings.switchTab('hero')">Hero</button>
+        <button class="k-stab" data-tab="folders" onclick="K.settings.switchTab('folders')">Folders</button>
+        <button class="k-stab" data-tab="privacy" onclick="K.settings.switchTab('privacy')">Privacy</button>
+        <button class="k-stab" data-tab="sessions" onclick="K.settings.switchTab('sessions')">Sessions</button>
+        <button class="k-stab" data-tab="themes" onclick="K.settings.switchTab('themes')">Themes</button>
+        <button class="k-stab" data-tab="bots" onclick="K.settings.switchTab('bots')">Bots</button>
+        <button class="k-stab" data-tab="qrlogin" onclick="K.settings.switchTab('qrlogin');K.qrlogin.showQR()">QR Login</button>
+        <button class="k-stab" data-tab="invite" onclick="K.settings.switchTab('invite');K.settings.loadInvite()">Invite</button>
+      </div>
+      <div class="k-settings-tab-content" data-tab="appearance">
+        <div class="k-settings-section"><h3>Font Size</h3>
+          <div class="k-font-options">
+            <button class="k-font-btn" data-size="small" onclick="K.settings.setFontSize('small')">Sm</button>
+            <button class="k-font-btn active" data-size="medium" onclick="K.settings.setFontSize('medium')">Md</button>
+            <button class="k-font-btn" data-size="large" onclick="K.settings.setFontSize('large')">Lg</button>
+          </div>
+        </div>
+        <div class="k-settings-section"><h3>Preview</h3>
+          <div class="k-preview-chat" id="previewChat">
+            <div class="k-msg incoming"><div class="k-msg-bubble"><div class="k-msg-text">Hey! How are you?</div><div class="k-msg-meta">12:30</div></div></div>
+            <div class="k-msg outgoing"><div class="k-msg-bubble"><div class="k-msg-text">I'm great, thanks! 😊</div><div class="k-msg-meta">12:31</div></div></div>
+            <div class="k-msg incoming"><div class="k-msg-bubble"><div class="k-msg-text">Want to grab coffee later?</div><div class="k-msg-meta">12:32</div></div></div>
+            <div class="k-msg outgoing"><div class="k-msg-bubble"><div class="k-msg-text">Sure! How about 3pm?</div><div class="k-msg-meta">12:33</div></div></div>
+            <div class="k-msg incoming"><div class="k-msg-bubble"><div class="k-msg-text">Perfect, see you there! ☕</div><div class="k-msg-meta">12:34</div></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="k-settings-tab-content" data-tab="colors" style="display:none">
+        <div class="k-settings-section"><h3>Bubble Colors</h3>
+          <div class="k-settings-item"><span>My messages</span><input type="color" id="myColor" class="k-color-input" value="#5e72e4" onchange="K.settings.setMyColor(this.value)"></div>
+          <div class="k-settings-item"><span>Their messages</span><input type="color" id="theirColor" class="k-color-input" value="#e8e8e8" onchange="K.settings.setTheirColor(this.value)"></div>
+        </div>
+        <div class="k-settings-section"><h3>Preview</h3>
+          <div class="k-preview-chat" id="previewChat2">
+            <div class="k-msg incoming"><div class="k-msg-bubble"><div class="k-msg-text">Hey! How are you?</div><div class="k-msg-meta">12:30</div></div></div>
+            <div class="k-msg outgoing"><div class="k-msg-bubble"><div class="k-msg-text">I'm great, thanks! 😊</div><div class="k-msg-meta">12:31</div></div></div>
+            <div class="k-msg incoming"><div class="k-msg-bubble"><div class="k-msg-text">Want to grab coffee later?</div><div class="k-msg-meta">12:32</div></div></div>
+            <div class="k-msg outgoing"><div class="k-msg-bubble"><div class="k-msg-text">Sure! How about 3pm?</div><div class="k-msg-meta">12:33</div></div></div>
+            <div class="k-msg incoming"><div class="k-msg-bubble"><div class="k-msg-text">Perfect, see you there! ☕</div><div class="k-msg-meta">12:34</div></div></div>
+          </div>
+        </div>
+        <div class="k-settings-section"><h3>Saved Themes</h3>
+          <div id="savedThemeList"></div>
+          <button class="k-btn k-btn-secondary" style="width:100%;margin-top:6px;padding:8px;font-size:13px" onclick="K.settings.saveCurrentTheme()"><i class="fas fa-save"></i> Save Current as Theme</button>
+        </div>
+      </div>
+      <div class="k-settings-tab-content" data-tab="hero" style="display:none">
+        <div class="k-settings-section"><h3>Splash Background</h3>
+          <div class="k-settings-item"><span>Image URL</span><input class="k-input" id="heroUrlInput" placeholder="https://..." style="margin:0;flex:1" value=""></div>
+          <div style="display:flex;gap:6px;margin-top:8px">
+            <button class="k-btn k-btn-primary" style="flex:1;padding:8px;font-size:13px" onclick="K.settings.setHero($('heroUrlInput').value)">Apply</button>
+            <button class="k-btn k-btn-secondary" style="flex:1;padding:8px;font-size:13px" onclick="K.settings.setHero('')">Reset to Default</button>
+          </div>
+        </div>
+      </div>
+      <div class="k-settings-tab-content" data-tab="folders" style="display:none">
+        <div class="k-settings-section"><h3>Chat Folders</h3>
+          <div id="foldersList"></div>
+          <button class="k-btn k-btn-secondary" style="width:100%;margin-top:6px;padding:8px;font-size:13px" onclick="K.settings.addFolder()"><i class="fas fa-plus"></i> New Folder</button>
+        </div>
+      </div>
+      <div class="k-settings-tab-content" data-tab="privacy" style="display:none">
+        <div class="k-settings-section"><h3>Privacy</h3>
+          <div class="k-settings-item"><span>Last Seen</span><select onchange="K.settings.updatePrivacy('last_seen',this.value)"><option value="everyone">Everyone</option><option value="contacts">Contacts</option><option value="nobody">Nobody</option></select></div>
+          <div class="k-settings-item"><span>Profile Photo</span><select onchange="K.settings.updatePrivacy('profile_photo',this.value)"><option value="everyone">Everyone</option><option value="contacts">Contacts</option><option value="nobody">Nobody</option></select></div>
+        </div>
+      </div>
+      <div class="k-settings-tab-content" data-tab="sessions" style="display:none">
+        <div class="k-settings-section"><h3>Active Sessions</h3>
+          <div id="sessionsList"></div>
+        </div>
+      </div>
+      <div class="k-settings-tab-content" data-tab="themes" style="display:none">
+        <div class="k-settings-section"><div class="k-settings-title">Saved Themes</div>
+          <div id="savedThemes"></div>
+        </div>
+        <div class="k-settings-section"><div class="k-settings-title">Export / Import</div>
+          <div class="k-settings-row"><button class="k-btn k-btn-secondary" onclick="K.settings.exportTheme()" style="flex:1"><i class="fas fa-file-export"></i> Export</button><button class="k-btn k-btn-secondary" onclick="K.settings.importTheme()" style="flex:1"><i class="fas fa-file-import"></i> Import</button></div>
+        </div>
+        <div class="k-settings-section"><div class="k-settings-title">Default Theme</div>
+          <select class="k-select" onchange="K.settings.setTheme(this.value)">
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+          </select>
+        </div>
+      </div>
+      <div class="k-settings-tab-content" data-tab="bots" style="display:none">
+        <div class="k-settings-section"><div class="k-settings-title">Create Bot</div>
+          <input class="k-input" id="botUsername" placeholder="Bot username (a-z, 0-9, _)" style="margin-bottom:8px">
+          <input class="k-input" id="botDisplayName" placeholder="Display name (optional)" style="margin-bottom:8px">
+          <button class="k-btn k-btn-primary" style="width:100%" onclick="K.settings.createBot()"><i class="fas fa-robot"></i> Create Bot</button>
+          <div id="botTokenResult" style="display:none;margin-top:10px;padding:10px;background:var(--bg-surface);border-radius:12px;border:1px solid var(--border-color);word-break:break-all;font-size:13px"></div>
+        </div>
+        <div class="k-settings-section"><div class="k-settings-title">My Bots</div>
+          <div id="myBotsList"></div>
+        </div>
+      </div>
+      <div class="k-settings-tab-content" data-tab="invite" style="display:none">
+        <div class="k-settings-section"><div class="k-settings-title">Invite friends</div>
+          <div id="inviteContent">
+            <div style="text-align:center;padding:20px">
+              <div id="inviteQR" style="width:200px;height:200px;margin:10px auto;background:var(--bg-surface);border-radius:12px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border-color)"></div>
+              <div id="inviteLink" style="margin:8px 0;font-size:12px;word-break:break-all;color:var(--text-muted)">kiselgram.ru/join?ref=...</div>
+              <button class="k-btn" onclick="K.settings.copyInviteLink()" style="margin:8px"><i class="fas fa-copy"></i> Copy link</button>
+            </div>
+            <div class="k-settings-item"><span><strong>Referrals</strong></span><span id="inviteCount">0</span></div>
+            <div id="referralProgress" style="margin:10px 0">
+              <div style="height:8px;background:var(--bg-surface);border-radius:4px;overflow:hidden"><div id="referralBar" style="height:100%;width:0%;background:var(--online-green);border-radius:4px;transition:width .3s"></div></div>
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-top:4px"><span id="inviteStatus">0/10 to Premium</span><span id="premiumBadge" style="display:none;color:var(--gold,#f0c040)"><i class="fas fa-crown"></i> Premium</span></div>
+            </div>
+            <div class="k-settings-section"><div class="k-settings-title">Referred users</div>
+              <div id="referredUsersList"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="k-chat-view" id="chatView">
+      <div class="k-chat-placeholder" id="chatPlaceholder">
+        <div class="k-cp-inner">
+          <h2 class="k-cp-title">Kiselgram</h2>
+          <div class="k-cp-section"><label class="k-cp-label">Font Size</label>
+            <div class="k-font-options">
+              <button class="k-font-btn" data-size="small" onclick="K.settings.setFontSize('small')">Sm</button>
+              <button class="k-font-btn active" data-size="medium" onclick="K.settings.setFontSize('medium')">Md</button>
+              <button class="k-font-btn" data-size="large" onclick="K.settings.setFontSize('large')">Lg</button>
+            </div>
+          </div>
+          <div class="k-cp-section"><label class="k-cp-label">Theme</label>
+            <div class="k-theme-toggle" onclick="K.settings.toggleTheme()">
+              <span><i class="fas fa-moon" id="cpThemeIcon"></i> <span id="cpThemeLabel">Dark Mode</span></span>
+              <label class="k-switch"><input type="checkbox" id="cpThemeSwitch" onchange="K.settings.toggleTheme()"><span class="k-slider"></span></label>
+            </div>
+          </div>
+          <div class="k-cp-section"><label class="k-cp-label">Bubble Colors</label>
+            <div class="k-cp-colors">
+              <div class="k-cp-color-item"><span>Mine</span><input type="color" id="cpMyColor" class="k-color-input" value="#5e72e4" onchange="K.settings.setMyColor(this.value)"></div>
+              <div class="k-cp-color-item"><span>Theirs</span><input type="color" id="cpTheirColor" class="k-color-input" value="#e8e8e8" onchange="K.settings.setTheirColor(this.value)"></div>
+            </div>
+          </div>
+          <div class="k-cp-section"><label class="k-cp-label">Preview</label>
+            <div class="k-preview-chat" id="cpPreviewChat">
+              <div class="k-msg incoming"><div class="k-msg-bubble"><div class="k-msg-text">Hey! How are you?</div><div class="k-msg-meta">12:30</div></div></div>
+              <div class="k-msg outgoing"><div class="k-msg-bubble"><div class="k-msg-text">I'm great, thanks! 😊</div><div class="k-msg-meta">12:31</div></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="k-chat-music-player" id="chatMusicPlayer" style="display:none">
+        <div class="k-cmp-track">
+          <i class="fas fa-music"></i>
+          <div class="k-cmp-track-info"><span id="cmpTrackName" class="k-cmp-track-name">Track</span><span id="cmpTrackArtist" class="k-cmp-track-artist">Artist</span></div>
+        </div>
+        <div class="k-cmp-progress">
+          <div class="k-cmp-bar-track"><div class="k-cmp-bar-fill" id="cmpProgressFill" style="width:0%"></div></div>
+          <span class="k-cmp-time" id="cmpTime">0:00 / 0:00</span>
+        </div>
+        <div class="k-cmp-volume">
+          <i class="fas fa-volume-up"></i>
+          <input type="range" id="cmpVolume" min="0" max="1" step="0.05" value="1" oninput="K.music.setVolume(this.value)">
+        </div>
+        <div class="k-cmp-actions">
+          <button class="k-icon-btn" id="cmpPlayBtn" onclick="K.music.playPause()" title="Play/Pause"><i class="fas fa-play"></i></button>
+          <button class="k-icon-btn" onclick="K.music.addCurrentToPlaylist()" title="Add to playlist"><i class="fas fa-plus"></i></button>
+          <button class="k-icon-btn" onclick="K.music.hidePlayer()" title="Close"><i class="fas fa-times"></i></button>
+        </div>
+      </div>
+      <div class="k-chat-header k-hidden" id="chatHeader">
+        <div class="k-chat-header-left" onclick="K.chat.headerClick()" style="cursor:pointer">
+          <button class="k-back-btn k-mobile-back" onclick="event.stopPropagation();K.chat.close()"><i class="fas fa-arrow-left"></i></button>
+          <div class="k-chat-avatar-sm" id="chatAvatar">?</div>
+          <div class="k-chat-header-info"><div class="k-chat-header-name" id="chatName">Name</div><div class="k-chat-header-status" id="chatStatus"></div></div>
+        </div>
+        <div class="k-chat-header-actions">
+          <button class="k-icon-btn" onclick="K.features.toggleChatSearch()" title="Search in chat (Ctrl+F)"><i class="fas fa-search"></i></button>
+          <button class="k-icon-btn" onclick="K.chat.startCall()" title="Video Call" id="callBtn" style="display:none"><i class="fas fa-video"></i></button>
+          <button class="k-icon-btn" onclick="K.webapp.open(this.dataset.url, document.getElementById('chatName')?.textContent||'Web App')" title="Web App" id="webappBtn" style="display:none"><i class="fas fa-globe"></i></button>
+          <button class="k-icon-btn" onclick="K.chat.info.toggle()" title="Info"><i class="fas fa-info-circle"></i></button>
+          <button class="k-icon-btn" id="chatMenuBtn" onclick="K.chat.menu.toggle()" title="Menu"><i class="fas fa-ellipsis-v"></i></button>
+        </div>
+      </div>
+      <div class="k-chat-search-bar" id="chatSearchBar" style="display:none">
+        <i class="fas fa-search"></i>
+        <input class="k-chat-search-input" id="chatSearchInput" placeholder="Search messages..." onkeydown="if(event.key==='Enter')K.features.searchMessages(this.value)">
+        <span class="k-chat-search-count" id="chatSearchCount"></span>
+        <button class="k-chat-search-nav" onclick="K.features.navigateSearch(-1)"><i class="fas fa-chevron-up"></i></button>
+        <button class="k-chat-search-nav" onclick="K.features.navigateSearch(1)"><i class="fas fa-chevron-down"></i></button>
+        <button class="k-chat-search-close" onclick="K.features.toggleChatSearch()"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="k-pinned-bar" id="pinnedBar" style="display:none"></div>
+      <div class="k-chat-menu" id="chatMenu" style="display:none"></div>
+      <div class="k-chat-info" id="chatInfo" style="display:none"></div>
+      <div class="k-messages k-hidden" id="messagesContainer"><div class="k-loader"></div></div>
+      <div class="k-typing-indicator k-hidden" id="typingIndicator" style="display:none"></div>
+      <div class="k-reply-bar k-hidden" id="replyBar" style="display:none">
+        <div class="k-reply-info"><span class="k-reply-name" id="replyName">Replying</span><span class="k-reply-text" id="replyText"></span></div>
+        <button class="k-icon-btn" onclick="K.chat.reply.cancel()"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="k-format-bar" id="formatBar">
+        <button class="k-format-btn" onclick="K.features.applyFormat('bold')" title="Bold (Ctrl+B)"><strong>B</strong></button>
+        <button class="k-format-btn" onclick="K.features.applyFormat('italic')" title="Italic (Ctrl+I)"><em>I</em></button>
+        <button class="k-format-btn" onclick="K.features.applyFormat('underline')" title="Underline (Ctrl+U)"><u>U</u></button>
+        <button class="k-format-btn" onclick="K.features.applyFormat('strike')" title="Strikethrough"><del>S</del></button>
+        <button class="k-format-btn" onclick="K.features.applyFormat('mono')" title="Monospace"><code>M</code></button>
+        <button class="k-format-btn" onclick="K.features.applyFormat('spoiler')" title="Spoiler"><i class="fas fa-eye-slash"></i></button>
+        <button class="k-format-btn" onclick="K.features.applyFormat('blockquote')" title="Blockquote"><i class="fas fa-quote-right"></i></button>
+      </div>
+      <div class="k-input-area k-hidden" id="inputArea">
+        <button class="k-icon-btn" onclick="document.getElementById('fileInput').click()"><i class="fas fa-paperclip"></i></button>
+        <button class="k-icon-btn" onclick="K.features.toggleEmojiPicker()" title="Emoji / GIF" id="emojiBtn"><i class="fas fa-smile"></i></button>
+        <textarea class="k-message-input" id="messageInput" placeholder="Type a message..." rows="1" oninput="K.chat.input.handle()" onkeydown="K.chat.input.keydown(event)"></textarea>
+        <button class="k-icon-btn" id="voiceBtn" onclick="K.chat.voice.toggle()" title="Voice message"><i class="fas fa-microphone"></i></button>
+        <button class="k-send-btn" id="sendBtn" onclick="K.chat.send()"><i class="fas fa-paper-plane"></i></button>
+      </div>
+      <div class="k-voice-recorder" id="voiceRecorder" style="display:none">
+        <button class="k-icon-btn" onclick="K.chat.voice.cancel()" title="Cancel" style="color:var(--accent-red)"><i class="fas fa-times"></i></button>
+        <span class="k-voice-timer" id="voiceTimer">0:00</span>
+        <div class="k-voice-wave" id="voiceWave"><span></span><span></span><span></span><span></span><span></span></div>
+        <button class="k-send-btn" onclick="K.chat.voice.send()" title="Send"><i class="fas fa-check"></i></button>
+      </div>
+      <input type="file" id="fileInput" style="display:none" multiple onchange="K.chat.uploadFiles(this)">
+    </div>
+  </div>
+
+  <div class="k-modal-overlay" id="modalOverlay" style="display:none" onclick="K.modals.close()">
+    <div class="k-modal" id="modalContent" onclick="event.stopPropagation()"></div>
+  </div>
+
+  <div class="k-toast" id="toast"></div>
+</div>
+
+<div class="k-video-overlay" id="videoOverlay" style="display:none">
+  <div class="k-video-header">
+    <div class="k-video-info"><span id="videoCallPeer">In call</span><span id="videoCallDuration" class="k-video-duration">00:00</span></div>
+    <div class="k-video-actions">
+      <button class="k-icon-btn" style="color:white" onclick="K.calls.minimize()" title="Minimize"><i class="fas fa-minus"></i></button>
+      <button class="k-icon-btn" style="color:#ef4444" onclick="K.calls.endCall()" title="End Call"><i class="fas fa-phone-slash"></i></button>
+    </div>
+  </div>
+  <div class="k-video-frame" id="videoFrame"><div class="k-loader" style="margin:auto"></div></div>
+</div>
+
+<div class="k-video-minimized" id="videoMinimized" style="display:none" onclick="K.calls.maximize()">
+  <div class="k-video-min-header">
+    <span id="miniPeer">In call</span>
+    <span id="miniDuration" class="k-video-duration">00:00</span>
+    <button class="k-icon-btn" style="color:#ef4444;padding:2px" onclick="event.stopPropagation();K.calls.endCall()" title="End Call"><i class="fas fa-phone-slash" style="font-size:14px"></i></button>
+  </div>
+</div>
+
+<div class="k-webapp-overlay" id="webappOverlay" style="display:none">
+  <div class="k-webapp-header">
+    <span class="k-webapp-title" id="webappTitle">Web App</span>
+    <button class="k-icon-btn" style="font-size:20px" onclick="K.webapp.close()"><i class="fas fa-times"></i></button>
+  </div>
+  <iframe class="k-webapp-frame" id="webappFrame" sandbox="allow-scripts allow-forms allow-popups" allow="camera;microphone"></iframe>
+</div>
+
+<div class="k-story-viewer" id="storyViewer" style="display:none">
+  <div class="k-story-progress" id="storyProgress"></div>
+  <div class="k-story-header">
+    <div class="k-story-user"><div class="k-story-avatar" id="storyViewerAvatar">?</div><span id="storyViewerName">User</span></div>
+    <button class="k-icon-btn" style="color:white" onclick="K.stories.close()"><i class="fas fa-times"></i></button>
+  </div>
+  <div class="k-story-media" id="storyMedia"></div>
+  <div class="k-story-actions" id="storyActions">
+    <button class="k-story-btn" onclick="K.stories.like()"><i class="fas fa-heart"></i> <span id="storyLikeCount">0</span></button>
+    <button class="k-story-btn" onclick="K.stories.react()"><i class="fas fa-smile"></i></button>
+  </div>
+</div>
+
+<script src="/js/init.js"></script>
+<script src="/static/js/k/api.js"></script>
+<script src="/static/js/k/ui.js"></script>
+<script src="/static/js/k/auth.js"></script>
+<script src="/static/js/k/markdown.js"></script>
+<script src="/static/js/k/views.js"></script>
+<script src="/static/js/k/chat.js"></script>
+<script src="/static/js/k/contacts.js"></script>
+<script src="/static/js/k/modals.js"></script>
+<script src="/static/js/k/groups.js"></script>
+<script src="/static/js/k/stories.js"></script>
+<script src="/static/js/k/saved.js"></script>
+<script src="/static/js/k/calls.js"></script>
+<script src="/static/js/k/music.js"></script>
+<script src="/static/js/k/webapp.js"></script>
+<script src="/static/js/k/search.js"></script>
+<script src="/static/js/k/features.js"></script>
+<script src="/static/js/k/settings.js"></script>
+<script src="/static/js/k/profile.js"></script>
+<script src="/static/js/lib/qrcode.min.js"></script>
+<script src="/static/js/k/qrlogin.js"></script>
+<script src="/static/js/k/login_v3.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/static/js/sw.js').catch(function(){});
+}
+</script>
+</body>
+</html>
