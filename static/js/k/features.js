@@ -42,6 +42,7 @@ function createEmojiPicker() {
       <button class="k-emoji-tab" onclick="K.features.switchEmojiTab(7,this)"><i class="fas fa-heart"></i></button>
       <button class="k-emoji-tab" onclick="K.features.switchEmojiTab(8,this)"><i class="fas fa-cog"></i></button>
       <button class="k-emoji-tab gif-tab" onclick="K.features.showGifTab(this)"><i class="fas fa-gift"></i> GIF</button>
+      <button class="k-emoji-tab" id="animatedEmojiTab" onclick="K.features.showAnimatedEmojis(this)"><i class="fas fa-star"></i> Anim</button>
     </div>
     <div class="k-emoji-search">
       <input class="k-emoji-search-input" placeholder="Search emoji..." oninput="K.features.filterEmoji(this.value)">
@@ -124,6 +125,45 @@ async function sendGif(url) {
     if (d.success) { K.chat.loadMessages(type, id); }
     else { K.ui.toast('Failed to send GIF', 'error'); }
   } catch(e) { K.ui.toast('Error sending GIF', 'error'); }
+  const picker = $('emojiPicker');
+  if (picker) picker.style.display = 'none';
+}
+
+let _animatedEmojiCache = null;
+async function showAnimatedEmojis(btn) {
+  document.querySelectorAll('.k-emoji-tab').forEach(t => t.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const grid = $('emojiGrid');
+  if (!grid) return;
+  if (_animatedEmojiCache) {
+    grid.innerHTML = _animatedEmojiCache.map(e => `<img class="k-gif-cell" src="${esc(e.url)}" alt="anim" loading="lazy" onclick="K.features.sendAnimatedEmoji('${esc(e.file)}','${esc(e.url)}')">`).join('');
+    return;
+  }
+  grid.innerHTML = '<div class="k-loader"></div>';
+  try {
+    const d = await K.api.get(V2 + '/emojis');
+    if (d.success && d.data?.emojis) {
+      _animatedEmojiCache = d.data.emojis;
+      grid.innerHTML = d.data.emojis.map(e => `<img class="k-gif-cell" src="${esc(e.url)}" alt="anim" loading="lazy" onclick="K.features.sendAnimatedEmoji('${esc(e.file)}','${esc(e.url)}')">`).join('');
+    } else {
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-muted)">No animated emojis</div>';
+    }
+  } catch(e) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-muted)">Failed to load animated emojis</div>';
+  }
+}
+
+function sendAnimatedEmoji(file, url) {
+  if (!K.state.activeChat) return;
+  const { type, id } = K.state.activeChat;
+  const payload = { content: '', emoji_file: file, emoji: '', size: 96, count: 1 };
+  if (type === 'personal') payload.receiver_id = id;
+  else if (type === 'group') payload.group_id = id;
+  else if (type === 'channel') payload.channel_id = id;
+  const endpoint = type === 'personal' ? '/send_message' : type === 'group' ? '/send_group_message' : '/send_channel_message';
+  K.api.post(V2 + endpoint, payload)
+    .then(d => { if (d.success) K.chat.loadMessages(type, id); else K.ui.toast('Failed to send emoji', 'error'); })
+    .catch(() => K.ui.toast('Error sending emoji', 'error'));
   const picker = $('emojiPicker');
   if (picker) picker.style.display = 'none';
 }
@@ -673,7 +713,7 @@ async function showInviteLink(groupId) {
 
 Object.assign(K.features, {
   toggleEmojiPicker, insertEmoji, switchEmojiTab, filterEmoji,
-  showGifTab, searchGIF, sendGif,
+  showGifTab, searchGIF, sendGif, showAnimatedEmojis, sendAnimatedEmoji,
   showCreatePoll, addPollOption, createPoll, votePoll, renderPoll,
   showForwardDialog, filterForwardChats, doForward,
   showMediaViewer, navigateMedia, closeMediaViewer,

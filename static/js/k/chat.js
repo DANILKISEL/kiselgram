@@ -301,8 +301,16 @@ K.chat = {
     }
     const cls = isOwn ? 'outgoing' : 'incoming';
     const content = m.content ? `<div class="k-msg-text">${K.markdown.render(m.content)}</div>` : '';
+    let emojiHtml = '';
+    if (m.emoji_file) {
+      const size = m.emoji_size || 96;
+      const count = m.emoji_count || 1;
+      const url = m.emoji_url || `/static/stickers/animatedemojies/${m.emoji_file}`;
+      emojiHtml = `<div class="k-msg-emoji" style="width:${size}px;height:${size}px"><img src="${esc(url)}" alt="emoji" style="width:${size}px;height:${size}px" onclick="K.features.showMediaViewer([{file_url:'${esc(url)}',file_type:'image',file_name:'emoji'}],0)"></div>`;
+      if (count > 1) emojiHtml = emojiHtml.replace('</div>', `<span class="k-emoji-count">${count}</span></div>`);
+    }
     return `<div class="k-msg ${cls}" data-msg-id="${mid}">
-      ${sName}${reply}${att}${content ? `<div class="k-msg-bubble">${content}<div class="k-msg-meta">${time} ${statusIcon}</div></div>` : (att ? `<div class="k-msg-bubble"><div class="k-msg-meta">${time} ${statusIcon}</div></div>` : '')}${pollHtml}${reactions}
+      ${sName}${reply}${emojiHtml}${att}${content ? `<div class="k-msg-bubble">${content}<div class="k-msg-meta">${time} ${statusIcon}</div></div>` : (att || emojiHtml ? `<div class="k-msg-bubble"><div class="k-msg-meta">${time} ${statusIcon}</div></div>` : '')}${pollHtml}${reactions}
       <div class="k-msg-actions">
         <button class="k-msg-action-btn" onclick="K.chat.reply.set(${mid},'${esc(K.markdown.strip(m.content||'').substring(0,40))}')" title="Reply"><i class="fas fa-reply"></i></button>
         <button class="k-msg-action-btn" onclick="K.features.showForwardDialog(${mid})" title="Forward"><i class="fas fa-forward"></i></button>
@@ -320,16 +328,26 @@ K.chat = {
   async send() {
     const input = $('messageInput'); if (!input) return;
     const content = input.value.trim();
-    if (!content || !K.state.activeChat) return;
+    const selEmoji = K.state.emoji || null;
+    if ((!content && !selEmoji) || !K.state.activeChat) return;
     const { type, id } = K.state.activeChat;
-    let payload = { content }, url;
+    let payload = { content };
+    if (selEmoji) {
+      payload.emoji_file = selEmoji.file;
+      payload.emoji = selEmoji.emoji || '';
+      payload.size = selEmoji.size || 96;
+      payload.count = selEmoji.count || 1;
+    }
+    let url;
     if (type === 'personal') { url = V2 + '/send_message'; payload.receiver_id = id; }
     else if (type === 'group') { url = V2 + '/send_group_message'; payload.group_id = id; }
     else if (type === 'channel') { url = V2 + '/send_channel_message'; payload.channel_id = id; }
     if (K.state.replyTo) { payload.reply_to_id = K.state.replyTo; K.chat.reply.cancel(); }
     input.value = ''; input.style.height = 'auto'; K.chat.input.handle();
+    if (selEmoji) { K.state.emoji = null; const eb = $('emojiBadge'); if (eb) eb.remove(); const ebBtn = $('emojiPickerBtn'); if (ebBtn) ebBtn.classList.remove('active'); }
     const tmpId = 'tmp_'+Date.now();
     const optMsg = { message_id: tmpId, content, sender_id: K.state.user?.user_id, sender_username: K.state.user?.display_name, timestamp: new Date().toISOString(), is_own: true };
+    if (selEmoji) { optMsg.emoji_file = selEmoji.file; optMsg.emoji_url = selEmoji.url; optMsg.emoji_size = selEmoji.size || 96; optMsg.emoji_count = selEmoji.count || 1; }
     const mc = $('messagesContainer');
     if (mc) {
       const empty = mc.querySelector('.k-empty');

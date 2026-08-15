@@ -20,6 +20,7 @@ const K = {
   state: {
     user: null, chats: [], contacts: [], stories: [],
     activeChat: null, replyTo: null, online: navigator.onLine,
+    emoji: null,
     blockedUsers: [],
     pinned: (() => { try { return JSON.parse(localStorage.getItem('k_pinned')||'[]'); } catch(e) { return []; } })(),
     folders: (() => { try { return JSON.parse(localStorage.getItem('k_folders')||'[]'); } catch(e) { return []; } })(),
