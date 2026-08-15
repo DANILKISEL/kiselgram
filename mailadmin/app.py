@@ -1,133 +1,262 @@
-from flask import Flask, render_template, request, jsonify, redirect, session, abort
-import subprocess
-import json
 import os
-import hmac
-import hashlib
+import re
+import crypt
+import string
+import random
+import threading
+import docker
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('MAILADMIN_SECRET', 'dev')
+app.secret_key = os.environ.get('MAILADMIN_SECRET')
+if not app.secret_key:
+    raise RuntimeError("MAILADMIN_SECRET environment variable must be set")
+app.config['SESSION_COOKIE_PATH'] = '/mailadmin/'
 
-ADMINS = os.environ.get('MAILADMIN_ADMINS', 'postmaster@kiselgram.ru,postmaster@mail.kiselgram.ru').split(',')
-DOMAINS = os.environ.get('MAILADMIN_DOMAINS', 'kiselgram.ru,mail.kiselgram.ru').split(',')
-INTERNAL_KEY = os.environ.get('MAILADMIN_INTERNAL_KEY', '')
-
+MAIL_CONTAINER = 'kiselgram-mailserver-1'
 ACCOUNTS_FILE = '/mailconfig/postfix-accounts.cf'
-VIRTUAL_FILE = '/mailconfig/postfix-virtual.cf'
-
+ADMIN_EMAILS = [e.strip() for e in
+                os.environ.get('MAILADMIN_ADMINS',
+                               'postmaster@kiselgram.ru,postmaster@mail.kiselgram.ru')
+                .split(',') if e.strip()]
+DOMAINS = [d.strip() for d in
+           os.environ.get('MAILADMIN_DOMAINS',
+                          'kiselgram.ru,mail.kiselgram.ru')
+           .split(',') if d.strip()]
+INTERNAL_KEY = os.environ.get('MAILADMIN_INTERNAL_KEY')
 
 def _docker():
-    return subprocess.run(['docker', 'ps', '--filter', 'name=kiselgram-mailserver-1', '--format', '{{.ID}}'],
-                          capture_output=True, text=True).stdout.strip()
-
+    return docker.from_env()
 
 def _read_accounts():
-    accounts = {}
-    try:
-        with open(ACCOUNTS_FILE) as f:
-            for line in f:
-                line = line.strip()
-                if not line or line.startswith('#'):
-                    continue
-                email, hashed = line.split('|', 1)
-                accounts[email] = hashed
-    except FileNotFoundError:
-        pass
+    if not os.path.exists(ACCOUNTS_FILE):
+        return []
+    accounts = []
+    with open(ACCOUNTS_FILE) as f:
+        for line in f:
+            line = line.strip()
+            if line and '|' in line:
+                email, pwhash = line.split('|', 1)
+                accounts.append({'email': email, 'hash': pwhash})
     return accounts
 
-
 def _write_accounts(accounts):
+    os.makedirs(os.path.dirname(ACCOUNTS_FILE), exist_ok=True)
     with open(ACCOUNTS_FILE, 'w') as f:
-        for email, hashed in sorted(accounts.items()):
-            f.write(f'{email}|{hashed}\n')
-
+        for acc in accounts:
+            f.write(f"{acc['email']}|{acc['hash']}\n")
 
 def _restart_mail():
-    container = _docker()
-    if container:
-        subprocess.run(['docker', 'restart', container], capture_output=True, text=True)
-
+    try:
+        _docker().containers.get(MAIL_CONTAINER).restart(timeout=30)
+    except Exception as e:
+        app.logger.error(f"Restart failed: {e}")
 
 def _verify_password(email, password):
-    hashed = _read_accounts().get(email)
-    if not hashed:
-        return False
-    return _dovecot_verify(email, hashed, password)
-
-
-def _dovecot_verify(email, hashed, password):
-    import crypt
-    import base64
-    import hashlib
-    algorithm, salt, _ = hashed.split('$')[1:4]
-    if algorithm == '6':
-        candidate = crypt.crypt(password, f'$6${salt}$')
-    elif algorithm == '5':
-        candidate = crypt.crypt(password, f'$5${salt}$')
-    elif algorithm == '2y' or algorithm == '2a' or algorithm == '2b':
-        import bcrypt
-        candidate = bcrypt.hashpw(password.encode(), hashed.encode()).decode()
-    else:
-        return False
-    return hmac.compare_digest(candidate, hashed)
-
+    accounts = _read_accounts()
+    for acc in accounts:
+        if acc['email'] == email:
+            h = acc['hash']
+            if h.startswith('{SHA512-CRYPT}'):
+                h = h[len('{SHA512-CRYPT}'):]
+            try:
+                return crypt.crypt(password, h) == h
+            except Exception:
+                return False
+    return False
 
 def _hash_password(password):
-    import crypt
-    salt = os.urandom(12).hex()
-    return crypt.crypt(password, f'$6${salt}$')
-
+    salt = ''.join(random.choices(string.ascii_letters + string.digits + './', k=16))
+    return '{SHA512-CRYPT}' + crypt.crypt(password, f'$6${salt}')
 
 def _is_admin(email):
-    return email in ADMINS
+    return email in ADMIN_EMAILS
 
-
-class PrefixMiddleware(object):
+class PrefixMiddleware:
     def __init__(self, wsgi_app, prefix='/mailadmin'):
         self.wsgi_app = wsgi_app
         self.prefix = prefix
 
     def __call__(self, environ, start_response):
-        path = environ.get('PATH_INFO', '')
-        if path.startswith(self.prefix):
-            environ['PATH_INFO'] = path[len(self.prefix):]
+        if environ.get('HTTP_X_FORWARDED_PREFIX') == self.prefix:
+            environ['SCRIPT_NAME'] = self.prefix
+            path = environ.get('PATH_INFO', '')
+            if path.startswith(self.prefix):
+                environ['PATH_INFO'] = path[len(self.prefix):]
         return self.wsgi_app(environ, start_response)
 
+app.wsgi_app = PrefixMiddleware(app.wsgi_app, prefix='/mailadmin')
 
-app.wsgi_app = PrefixMiddleware(app.wsgi_app)
-
+# ── Pages ─────────────────────────────────────────────────────────
 
 @app.route('/')
 def index():
-    return render_template('login.html')
-
+    if not session.get('authenticated') or 'email' not in session:
+        session.clear()
+        return redirect(url_for('login'))
+    return render_template('accounts.html',
+                           email=session['email'],
+                           is_admin=session.get('is_admin', False),
+                           domains=DOMAINS)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        email = request.form.get('email', '').lower()
+        email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
-        if _verify_password(email, password) and _is_admin(email):
-            session['admin'] = email
-            return redirect('/mailadmin/accounts')
-        return render_template('login.html', error='Неверный логин или пароль')
+        if _verify_password(email, password):
+            session['authenticated'] = True
+            session['email'] = email
+            session['is_admin'] = _is_admin(email)
+            return redirect(url_for('index'))
+        return render_template('login.html', error='Invalid credentials')
     return render_template('login.html')
-
 
 @app.route('/logout')
 def logout():
-    session.pop('admin', None)
-    return redirect('/mailadmin/')
+    session.clear()
+    return redirect(url_for('login'))
 
+# ── Admin Account API ──────────────────────────────────────────────
 
 def _admin_only():
-    if not session.get('admin'):
-        abort(401)
-
+    if INTERNAL_KEY and request.headers.get('X-Internal-Key') == INTERNAL_KEY:
+        return None
+    if not session.get('authenticated'):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+    if not session.get('is_admin'):
+        return jsonify({'success': False, 'error': 'Forbidden'}), 403
 
 @app.route('/api/accounts')
-@_admin_only
-@login_required
-@app.route('/api/accounts')
-@_admin_only
-@login_required
+def list_accounts():
+    r = _admin_only()
+    if r: return r
+    return jsonify({'success': True, 'accounts': _read_accounts()})
+
+@app.route('/api/accounts', methods=['POST'])
+def add_account():
+    r = _admin_only()
+    if r: return r
+    data = request.get_json() or {}
+    email = data.get('email', '').strip().lower()
+    password = data.get('password', '')
+    if not email or not re.match(r'^[^@]+@[^@]+\.[^@]+$', email):
+        return jsonify({'success': False, 'error': 'Invalid email'})
+    if len(password) < 6:
+        return jsonify({'success': False, 'error': 'Password must be 6+ characters'})
+    accounts = _read_accounts()
+    if any(a['email'] == email for a in accounts):
+        return jsonify({'success': False, 'error': 'Account already exists'})
+    try:
+        container = _docker().containers.get(MAIL_CONTAINER)
+        exit_code, output = container.exec_run(
+            ['setup', 'email', 'add', email, password])
+        if exit_code != 0:
+            return jsonify({'success': False, 'error': output.decode().strip()})
+        threading.Thread(target=_restart_mail, daemon=True).start()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/accounts/<path:email>', methods=['DELETE'])
+def delete_account(email):
+    r = _admin_only()
+    if r: return r
+    accounts = _read_accounts()
+    accounts = [a for a in accounts if a['email'] != email]
+    _write_accounts(accounts)
+    threading.Thread(target=_restart_mail, daemon=True).start()
+    return jsonify({'success': True})
+
+@app.route('/api/accounts/<path:email>/password', methods=['POST'])
+def reset_password(email):
+    r = _admin_only()
+    if r: return r
+    data = request.get_json() or {}
+    password = data.get('password', '')
+    if len(password) < 6:
+        return jsonify({'success': False, 'error': 'Password must be 6+ characters'})
+    try:
+        container = _docker().containers.get(MAIL_CONTAINER)
+        exit_code, output = container.exec_run(
+            ['setup', 'email', 'update', email, password])
+        if exit_code != 0:
+            out = output.decode()
+            if 'does not exist' in out:
+                accounts = _read_accounts()
+                accounts = [a for a in accounts if a['email'] != email]
+                _write_accounts(accounts)
+            return jsonify({'success': False, 'error': out.strip()})
+        threading.Thread(target=_restart_mail, daemon=True).start()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+# ── User self-service API ──────────────────────────────────────────
+
+@app.route('/api/me')
+def get_my_account():
+    if not session.get('authenticated'):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+    email = session['email']
+    accounts = _read_accounts()
+    for acc in accounts:
+        if acc['email'] == email:
+            return jsonify({'success': True, 'account': acc})
+    return jsonify({'success': False, 'error': 'Not found'}), 404
+
+@app.route('/api/me/password', methods=['POST'])
+def change_my_password():
+    if not session.get('authenticated'):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+    email = session['email']
+    data = request.get_json() or {}
+    cur = data.get('current_password', '')
+    new = data.get('new_password', '')
+    if not cur or not new:
+        return jsonify({'success': False, 'error': 'Missing fields'})
+    if len(new) < 6:
+        return jsonify({'success': False, 'error': 'Minimum 6 characters'})
+    if not _verify_password(email, cur):
+        return jsonify({'success': False, 'error': 'Current password is wrong'})
+    accounts = _read_accounts()
+    for acc in accounts:
+        if acc['email'] == email:
+            acc['hash'] = _hash_password(new)
+            break
+    _write_accounts(accounts)
+    return jsonify({'success': True})
+
+@app.route('/api/me/email', methods=['POST'])
+def change_my_email():
+    if not session.get('authenticated'):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+    email = session['email']
+    data = request.get_json() or {}
+    new_email = data.get('new_email', '').strip().lower()
+    password = data.get('password', '')
+    if not new_email or not re.match(r'^[^@]+@[^@]+\.[^@]+$', new_email):
+        return jsonify({'success': False, 'error': 'Invalid email'})
+    if not password:
+        return jsonify({'success': False, 'error': 'Password required'})
+    if not _verify_password(email, password):
+        return jsonify({'success': False, 'error': 'Password is wrong'})
+    accounts = _read_accounts()
+    if any(a['email'] == new_email for a in accounts):
+        return jsonify({'success': False, 'error': 'Email already exists'})
+    try:
+        container = _docker().containers.get(MAIL_CONTAINER)
+        exit_code, output = container.exec_run(
+            ['setup', 'email', 'add', new_email, password])
+        if exit_code != 0:
+            return jsonify({'success': False, 'error': output.decode().strip()})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+    accounts = [a for a in accounts if a['email'] != email]
+    _write_accounts(accounts)
+    session['email'] = new_email
+    threading.Thread(target=_restart_mail, daemon=True).start()
+    return jsonify({'success': True})
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5002, debug=True)
