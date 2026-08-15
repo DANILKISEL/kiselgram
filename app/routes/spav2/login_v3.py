@@ -30,7 +30,7 @@ def _ensure_kiselgram_user():
         db.session.add(user)
         db.session.flush()
     if not user.avatar_url:
-        user.avatar_url = '/static/favicon.ico'
+        user.avatar_url = '/static/favicon.svg'
     try:
         db.session.commit()
     except Exception:
