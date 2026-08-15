@@ -4,13 +4,24 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      environment:
+        description: Deployment environment
+        type: choice
+        required: true
+        default: prod
+        options:
+          - prod
+          - staging
+          - dev
 
 concurrency:
-  group: cd-${{ github.ref }}
+  group: cd-${{ inputs.environment || 'prod' }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
   IMAGE: ghcr.io/${{ github.repository_owner }}/kiselgram-app
+  ENV: ${{ inputs.environment || 'prod' }}
 
 jobs:
   build:
@@ -20,6 +31,8 @@ jobs:
       contents: write
       packages: write
       actions: read
+    outputs:
+      pull_tag: ${{ steps.meta.outputs.pull_tag }}
     steps:
       - uses: actions/checkout@v4
 
@@ -37,11 +50,15 @@ jobs:
         id: meta
         run: |
           IMAGE=${IMAGE}
+          ENV=${ENV}
           RELEASE=${GITHUB_REF_NAME#v}
-          if [ -n "$RELEASE" ] && [ "$RELEASE" != "main" ]; then
-            echo "tags=${IMAGE}:latest,${IMAGE}:${RELEASE},${IMAGE}:$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          SHORT=$(git rev-parse --short HEAD)
+          if [ "$ENV" = "prod" ]; then
+            echo "tags=${IMAGE}:${ENV},${IMAGE}:${RELEASE},${IMAGE}:${SHORT}" >> "$GITHUB_OUTPUT"
+            echo "pull_tag=${IMAGE}:${ENV}" >> "$GITHUB_OUTPUT"
           else
-            echo "tags=${IMAGE}:latest,${IMAGE}:$(date +%Y%m%d-%H%M%S),${IMAGE}:$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+            echo "tags=${IMAGE}:${ENV},${IMAGE}:${ENV}-${SHORT}" >> "$GITHUB_OUTPUT"
+            echo "pull_tag=${IMAGE}:${ENV}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Build and push
@@ -55,44 +72,86 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Save image tarball
-        if: github.event_name == 'release'
+        if: github.event_name == 'release' && inputs.environment != 'dev'
         run: |
-          docker pull ${IMAGE}:latest && docker save ${IMAGE}:latest | gzip > kiselgram-app.tar.gz
+          docker pull ${IMAGE}:prod && docker save ${IMAGE}:prod | gzip > kiselgram-app.tar.gz
 
       - name: Upload release asset
-        if: github.event_name == 'release'
+        if: github.event_name == 'release' && inputs.environment != 'dev'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.release.tag_name }}
           files: kiselgram-app.tar.gz
 
   deploy:
-    name: Deploy to server
+    name: Deploy to ${{ env.ENV }}
     needs: [build]
     runs-on: ubuntu-latest
+    environment: ${{ env.ENV }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Resolve deploy target
+        id: target
+        run: |
+          HOST="${{ env.ENV == 'prod' && secrets.DEPLOY_HOST || secrets.DEPLOY_HOST_STAGING }}"
+          USER="${{ env.ENV == 'prod' && secrets.DEPLOY_USER || secrets.DEPLOY_USER_STAGING }}"
+          if [ -z "$HOST" ] || [ -z "$USER" ]; then
+            echo "No deploy target configured for ${{ env.ENV }}" >&2
+            exit 1
+          fi
+          echo "host=$HOST" >> "$GITHUB_OUTPUT"
+          echo "user=$USER" >> "$GITHUB_OUTPUT"
+          echo "compose=${{ env.ENV == 'prod' && 'docker-compose.prod.yml' || 'docker-compose.yml' }}" >> "$GITHUB_OUTPUT"
 
       - name: Install SSH key
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+          ssh-keyscan -H "${{ steps.target.outputs.host }}" >> ~/.ssh/known_hosts 2>/dev/null
 
       - name: Sync repo to server
         run: |
           rsync -avz --delete -e "ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new" \
             --exclude '.git' --exclude 'uploads' --exclude 'instance' --exclude 'logs' \
             --exclude '.venv' --exclude 'config/kis.toml' \
-            ./ ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/root/kiselgram/
+            --exclude '.env' --exclude 'ssl' --exclude 'mailserver' \
+            ./ ${{ steps.target.outputs.user }}@${{ steps.target.outputs.host }}:/root/kiselgram/
 
       - name: Pull image and restart
         run: |
           ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new \
-            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} "
-            cd /root/kiselgram &&
-            docker pull ghcr.io/${{ github.repository_owner }}/kiselgram-app:latest &&
-            docker compose up -d --no-deps --build app video &&
+            ${{ steps.target.outputs.user }}@${{ steps.target.outputs.host }} "
+            set -e
+            cd /root/kiselgram
+            PULL_TAG=${{ needs.build.outputs.pull_tag }}
+            COMPOSE=${{ steps.target.outputs.compose }}
+            echo \"using compose file: \$COMPOSE\"
+            PREV_APP=\$(docker inspect --format '{{index .Image}}' kiselgram-app-1 2>/dev/null || echo '')
+            PREV_VIDEO=\$(docker inspect --format '{{index .Image}}' kiselgram-video-1 2>/dev/null || echo '')
+            echo \"previous app image: \$PREV_APP\"
+            docker pull \$PULL_TAG
+            docker tag \$PULL_TAG kiselgram-app:latest
+            # rebuild mailadmin from synced source (healthcheck fix, config changes)
+            docker build -t kiselgram-mailadmin:latest ./mailadmin
+            docker compose -f \$COMPOSE up -d --no-deps --build app video mailadmin
+            # wait for health, allow up to ~90s
+            ok=0
+            for i in \$(seq 1 18); do
+              if [ \"\$(docker inspect --format '{{.State.Health.Status}}' kiselgram-app-1 2>/dev/null)\" = healthy ] && \
+                 [ \"\$(docker inspect --format '{{.State.Health.Status}}' kiselgram-video-1 2>/dev/null)\" = healthy ]; then
+                ok=1; break
+              fi
+              sleep 5
+            done
+            if [ \"\$ok\" != 1 ]; then
+              echo \"HEALTHCHECK FAILED — rolling back\"
+              if [ -n \"\$PREV_APP\" ]; then docker tag \"\$PREV_APP\" kiselgram-app:latest; fi
+              if [ -n \"\$PREV_VIDEO\" ]; then docker tag \"\$PREV_VIDEO\" kiselgram-app:latest; fi
+              docker compose -f \$COMPOSE up -d --no-deps app video mailadmin
+              exit 1
+            fi
+            echo \"app and video healthy\"
             docker image prune -f >/dev/null
           "
