@@ -1,75 +1,49 @@
 # Kiselgram
 
-Flask messaging platform — personal chats, groups, channels, stories, and WebRTC video calls. JSON API with a pure-JS SPA frontend.
+Self-hosted messaging platform — personal chats, groups, channels, stories, polls, and WebRTC video calls. Java backend (Javalin + Hibernate) with a JSON API and a pure-JS SPA frontend.
 
 [![CI](https://github.com/kiselgram/kiselgram/actions/workflows/ci.yml/badge.svg)](https://github.com/kiselgram/kiselgram/actions/workflows/ci.yml)
 [![CD](https://github.com/kiselgram/kiselgram/actions/workflows/cd.yml/badge.svg)](https://github.com/kiselgram/kiselgram/actions/workflows/cd.yml)
 
-## Quick start
+## Build
+
+Requires JDK 21.
 
 ```bash
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-python3 manage.py setup
-python3 manage.py start
+./gradlew build          # compile + run tests
+./gradlew installDist    # app distribution under build/install/KiselgramJava
+./gradlew run            # run locally
 ```
 
-Visit `http://localhost:5500`
-
-## Management
+## Docker
 
 ```bash
-python3 manage.py start [--port PORT] [--no-video]
-python3 manage.py stop
-python3 manage.py restart
-python3 manage.py status
-python3 manage.py reset-db
-python3 manage.py routes
-python3 manage.py backup-db
-python3 manage.py shell
+docker build --platform linux/amd64 -t kiselgram-app:latest .
 ```
+
+CI builds the image on every push; CD builds and pushes to GHCR on release, and can deploy on an explicit `workflow_dispatch` with `deploy: true`.
 
 ## Testing
 
 ```bash
-.venv/bin/python -m pytest tests/ -v
+./gradlew test
 ```
+
+JUnit 5 + Mockito. Test source in `src/test/java/`.
 
 ## Architecture
 
-**Backend:** Python 3 / Flask / SQLAlchemy. Config in `config/kis.toml`. SQLite in dev, PostgreSQL in production (`DATABASE_URL`).
+**Backend:** Java 21 / Javalin 6 / Hibernate 6 / PostgreSQL. Config in `config/kis.toml`.
 
-**Two route systems:**
-- V1 (`app/routes/spa/`) — legacy session-based, HTML redirects
-- V2 (`app/routes/spav2/`) — JSON API, Bearer-token auth under `/api.v2/api/...`
+**Routes:** Javalin route classes under `src/main/java/ru/kiselgram/web/route/` (auth, chat, groups, channels, stories, calls, premium, push, admin, ...).
 
-**Auth:** Bearer token (`UserSession.session_token`) with Flask session fallback.
+**Models:** JPA entities under `src/main/java/ru/kiselgram/web/model/` mirroring the Kiselgram domain (Message, Chat, Story, Call, VideoCall, Poll, User, ...).
 
-**Message encryption:** AES-256-GCM (Fernet) at rest via `MESSAGE_ENCRYPTION_KEY`.
+**Auth:** Bearer token (`UserSession.session_token`).
 
-**Frontend:** Monolithic HTML shell (`templates/k.html`) with 17+ JS modules in `static/js/k/` extending `window.K`. Pure `fetch()`-based SPA.
+**Message encryption:** AES-256-GCM at rest.
 
-## Docker deployment
-
-```bash
-docker build --platform linux/amd64 -t kiselgram-app:latest .
-docker compose up -d
-```
-
-Production services: `db` (Postgres 15), `app` (gunicorn), `video` (WebRTC), `mailserver`, `mailadmin`, `nginx`.
-
-## Project structure
-
-| Directory | Purpose |
-|-----------|---------|
-| `app/` | Flask app, routes, models, utils |
-| `static/` | JS, CSS, uploads |
-| `templates/` | HTML templates |
-| `tests/` | Pytest test suite |
-| `config/` | App configuration |
-| `video_server/` | WebRTC video calls |
-| `mailadmin/` | Mail account management |
-| `migrations/` | Alembic DB migrations |
+**Frontend:** Monolithic HTML shell (`src/main/resources/public/`) with JS modules extending `window.K`. Pure `fetch()`-based SPA.
 
 ## Domain structure
 
@@ -84,3 +58,7 @@ docs.kiselgram.ru         ─ Documentation
 help.kiselgram.ru         ─ Help center
 call.kiselgram.ru         ─ Video call rooms
 ```
+
+## License
+
+Proprietary. See `LICENSE`.
