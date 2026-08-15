@@ -17,8 +17,9 @@ jobs:
     name: Build & push image
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
+      actions: read
     steps:
       - uses: actions/checkout@v4
 
@@ -52,6 +53,17 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Save image tarball
+        if: github.event_name == 'release'
+        run: |
+          docker pull ${IMAGE}:latest && docker save ${IMAGE}:latest | gzip > kiselgram-app.tar.gz
+
+      - name: Upload release asset
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: kiselgram-app.tar.gz
 
   deploy:
     name: Deploy to server
