@@ -116,6 +116,7 @@ jobs:
           rsync -avz --delete -e "ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new" \
             --exclude '.git' --exclude 'uploads' --exclude 'instance' --exclude 'logs' \
             --exclude '.venv' --exclude 'config/kis.toml' \
+            --exclude '.env' --exclude 'ssl' --exclude 'mailserver' \
             ./ ${{ steps.target.outputs.user }}@${{ steps.target.outputs.host }}:/root/kiselgram/
 
       - name: Pull image and restart
