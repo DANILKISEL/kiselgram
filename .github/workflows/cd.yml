@@ -14,6 +14,11 @@ on:
           - prod
           - staging
           - dev
+      deploy:
+        description: Actually deploy after building the image
+        type: boolean
+        required: true
+        default: false
 
 concurrency:
   group: cd-${{ inputs.environment || 'prod' }}-${{ github.ref }}
@@ -30,7 +35,6 @@ jobs:
     permissions:
       contents: write
       packages: write
-      actions: read
     outputs:
       pull_tag: ${{ steps.meta.outputs.pull_tag }}
     steps:
@@ -72,12 +76,12 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Save image tarball
-        if: github.event_name == 'release' && inputs.environment != 'dev'
+        if: github.event_name == 'release'
         run: |
           docker pull ${IMAGE}:prod && docker save ${IMAGE}:prod | gzip > kiselgram-app.tar.gz
 
       - name: Upload release asset
-        if: github.event_name == 'release' && inputs.environment != 'dev'
+        if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.release.tag_name }}
@@ -86,6 +90,7 @@ jobs:
   deploy:
     name: Deploy to ${{ env.ENV }}
     needs: [build]
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy == true
     runs-on: ubuntu-latest
     environment: ${{ env.ENV }}
     steps:
@@ -102,7 +107,6 @@ jobs:
           fi
           echo "host=$HOST" >> "$GITHUB_OUTPUT"
           echo "user=$USER" >> "$GITHUB_OUTPUT"
-          echo "compose=${{ env.ENV == 'prod' && 'docker-compose.prod.yml' || 'docker-compose.yml' }}" >> "$GITHUB_OUTPUT"
 
       - name: Install SSH key
         run: |
@@ -114,44 +118,35 @@ jobs:
       - name: Sync repo to server
         run: |
           rsync -avz --delete -e "ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new" \
-            --exclude '.git' --exclude 'uploads' --exclude 'instance' --exclude 'logs' \
-            --exclude '.venv' --exclude 'config/kis.toml' \
-            --exclude '.env' --exclude 'ssl' --exclude 'mailserver' \
-            ./ ${{ steps.target.outputs.user }}@${{ steps.target.outputs.host }}:/root/kiselgram/
+            --exclude '.git' --exclude 'build' --exclude 'uploads' --exclude 'instance' --exclude 'logs' \
+            --exclude '.env' --exclude 'ssl' --exclude 'mailserver' --exclude 'config/kis.toml' \
+            ./ ${{ steps.target.outputs.user }}@${{ steps.target.outputs.host }}:/root/kiselgram-java/
 
       - name: Pull image and restart
         run: |
           ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new \
             ${{ steps.target.outputs.user }}@${{ steps.target.outputs.host }} "
             set -e
-            cd /root/kiselgram
+            cd /root/kiselgram-java
             PULL_TAG=${{ needs.build.outputs.pull_tag }}
-            COMPOSE=${{ steps.target.outputs.compose }}
-            echo \"using compose file: \$COMPOSE\"
-            PREV_APP=\$(docker inspect --format '{{index .Image}}' kiselgram-app-1 2>/dev/null || echo '')
-            PREV_VIDEO=\$(docker inspect --format '{{index .Image}}' kiselgram-video-1 2>/dev/null || echo '')
-            echo \"previous app image: \$PREV_APP\"
-            docker pull \$PULL_TAG
-            docker tag \$PULL_TAG kiselgram-app:latest
-            # rebuild mailadmin from synced source (healthcheck fix, config changes)
-            docker build -t kiselgram-mailadmin:latest ./mailadmin
-            docker compose -f \$COMPOSE up -d --no-deps --build app video mailadmin
-            # wait for health, allow up to ~90s
+            PREV_APP=\$(docker inspect --format '{{index .Image}}' kiselgram-java-app-1 2>/dev/null || echo '')
+            echo \"previous image: \\\$PREV_APP\"
+            docker pull \\\$PULL_TAG
+            docker tag \\\$PULL_TAG kiselgram-java-app:latest
+            docker compose up -d --no-deps --build app
             ok=0
             for i in \$(seq 1 18); do
-              if [ \"\$(docker inspect --format '{{.State.Health.Status}}' kiselgram-app-1 2>/dev/null)\" = healthy ] && \
-                 [ \"\$(docker inspect --format '{{.State.Health.Status}}' kiselgram-video-1 2>/dev/null)\" = healthy ]; then
+              if [ \"\\\$(docker inspect --format '{{.State.Health.Status}}' kiselgram-java-app-1 2>/dev/null)\" = healthy ]; then
                 ok=1; break
               fi
               sleep 5
             done
-            if [ \"\$ok\" != 1 ]; then
+            if [ \"\\\$ok\" != 1 ]; then
               echo \"HEALTHCHECK FAILED — rolling back\"
-              if [ -n \"\$PREV_APP\" ]; then docker tag \"\$PREV_APP\" kiselgram-app:latest; fi
-              if [ -n \"\$PREV_VIDEO\" ]; then docker tag \"\$PREV_VIDEO\" kiselgram-app:latest; fi
-              docker compose -f \$COMPOSE up -d --no-deps app video mailadmin
+              if [ -n \"\\\$PREV_APP\" ]; then docker tag \"\\\$PREV_APP\" kiselgram-java-app:latest; fi
+              docker compose up -d --no-deps app
               exit 1
             fi
-            echo \"app and video healthy\"
+            echo \"app healthy\"
             docker image prune -f >/dev/null
           "
