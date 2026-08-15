@@ -4,7 +4,7 @@ from flask import Blueprint, request, jsonify, session
 from sqlalchemy.orm import joinedload, selectinload
 from app import db
 from app.models import User, Message, Reaction, Reply, Forward, BlockedUser, Chat, ChatMember, File
-from app.utils.helpers import get_current_user_id, message_to_dict
+from app.utils.helpers import get_current_user_id, message_to_dict, validate_emoji
 
 spav2_messages_bp = Blueprint('spav2_messages', __name__, url_prefix='/api')
 
@@ -25,6 +25,11 @@ def _serialize_message(msg, current_user_id=None):
         'is_read': msg.is_read,
         'timestamp': msg.timestamp.isoformat() if msg.timestamp else None,
         'edited_at': msg.edited_at.isoformat() if msg.edited_at else None,
+        'emoji': msg.emoji,
+        'emoji_file': msg.emoji_file,
+        'emoji_url': f"/static/stickers/animatedemojies/{msg.emoji_file}" if msg.emoji_file else None,
+        'emoji_size': msg.emoji_size or 96,
+        'emoji_count': msg.emoji_count or 1,
         'reactions': {}
     }
     if msg.sender:
@@ -48,13 +53,20 @@ def send_personal_message():
     content = data.get('content', '').strip()
     reply_to_id = data.get('reply_to_id')
 
+    emoji_data = None
+    if data.get('emoji_file'):
+        emoji_data, emoji_err = validate_emoji(
+            data.get('emoji_file'), data.get('emoji', ''), data.get('size', 96), data.get('count', 1))
+        if emoji_err:
+            return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': emoji_err}}), 400
+
     errors = {}
     if not isinstance(receiver_id, int):
         errors['receiver_id'] = 'Receiver ID must be an integer'
     if not receiver_id:
         errors['receiver_id'] = 'Receiver ID is required'
     has_file = data.get('file_url') or data.get('file_type')
-    if not content and not has_file:
+    if not content and not has_file and not emoji_data:
         errors['content'] = 'Message content cannot be empty'
     if len(content) > 5000:
         errors['content'] = 'Message content too long (max 5000 characters)'
@@ -77,6 +89,11 @@ def send_personal_message():
         db.session.flush()
 
     msg = Message(content=content, sender_id=current_user_id, receiver_id=receiver_id, chat_id=chat.id, timestamp=datetime.utcnow())
+    if emoji_data:
+        msg.emoji = emoji_data['emoji']
+        msg.emoji_file = emoji_data['file']
+        msg.emoji_size = emoji_data['size']
+        msg.emoji_count = emoji_data['count']
     db.session.add(msg)
     db.session.flush()
 
@@ -236,3 +253,34 @@ def get_reactions(message_id):
         })
 
     return jsonify({'success': True, 'data': {'message_id': message_id, 'reactions': result}})
+
+
+@spav2_messages_bp.route('/emojis', methods=['GET'])
+def list_emojis():
+    current_user_id = get_current_user_id()
+    if not current_user_id:
+        return jsonify({'success': False, 'error': {'code': 'UNAUTHORIZED', 'message': 'Not authenticated'}}), 401
+
+    import os
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    base = os.path.join(root, 'static', 'stickers', 'animatedemojies')
+    manifest_path = os.path.join(root, 'static', 'stickers', '_manifest.json')
+    emojis = []
+    seen = set()
+    if os.path.isfile(manifest_path):
+        try:
+            import json
+            with open(manifest_path, 'r', encoding='utf-8') as fh:
+                manifest = json.load(fh)
+            for s in manifest.get('animatedemojies', {}).get('stickers', []):
+                fname = s.get('file')
+                if fname and fname.endswith('.webp') and fname not in seen:
+                    seen.add(fname)
+                    emojis.append({'file': fname, 'emoji': s.get('emoji', ''), 'url': f"/static/stickers/animatedemojies/{fname}"})
+        except Exception:
+            emojis = []
+    if not emojis and os.path.isdir(base):
+        for fname in sorted(os.listdir(base)):
+            if fname.endswith('.webp'):
+                emojis.append({'file': fname, 'emoji': '', 'url': f"/static/stickers/animatedemojies/{fname}"})
+    return jsonify({'success': True, 'data': {'emojis': emojis}})

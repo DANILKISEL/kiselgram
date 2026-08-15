@@ -4,6 +4,7 @@ from werkzeug.security import generate_password_hash
 import secrets
 import os
 import re
+import json
 from datetime import datetime, timedelta
 from PIL import Image
 from app.models import Story, BlockedUser, ChatMember, Message, Forward, Reply, Reaction
@@ -148,6 +149,53 @@ def get_blocked_user_ids(user_id):
     except Exception:
         return []
 
+
+_EMOJI_MANIFEST_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    'static', 'stickers', '_manifest.json',
+)
+_EMOJI_PACK = 'animatedemojies'
+_EMOJI_FILE_MAX = 128
+
+
+def get_animated_emojis():
+    """Return list of {file, emoji} from the animatedemojies sticker pack."""
+    try:
+        with open(_EMOJI_MANIFEST_PATH, 'r', encoding='utf-8') as fh:
+            manifest = json.load(fh)
+        stickers = manifest.get(_EMOJI_PACK, {}).get('stickers', [])
+        return [{'file': s['file'], 'emoji': s.get('emoji', '')} for s in stickers if s.get('file')]
+    except (OSError, ValueError, KeyError):
+        return []
+
+
+def validate_emoji(emoji_file, emoji='', size=96, count=1):
+    """Validate an animated emoji message payload against the manifest.
+
+    Returns (emoji_data|None, error_message|None).
+    """
+    if not emoji_file or not isinstance(emoji_file, str):
+        return None, 'emoji_file is required'
+    if len(emoji_file) > _EMOJI_FILE_MAX:
+        return None, 'emoji_file too long'
+    file_name = os.path.basename(emoji_file)
+    if file_name != emoji_file or not re.fullmatch(r'[A-Za-z0-9_]+\.(webp|tgs|gif)', file_name):
+        return None, 'invalid emoji_file'
+    try:
+        size = int(size)
+        count = int(count)
+    except (TypeError, ValueError):
+        return None, 'invalid emoji size/count'
+    if not 16 <= size <= 512:
+        return None, 'emoji size out of range'
+    if not 1 <= count <= 100:
+        return None, 'emoji count out of range'
+
+    manifest_files = {s.get('file') for s in get_animated_emojis()}
+    if file_name not in manifest_files:
+        return None, 'emoji_file not found in manifest'
+    return {'file': file_name, 'emoji': emoji[:16] or '', 'size': size, 'count': count}, None
+
 def has_active_story(user_id):
     try:
         cutoff = datetime.utcnow() - timedelta(hours=24)
@@ -194,6 +242,11 @@ def message_to_dict(message, current_user_id):
         'reply_to_content': None,
         'reply_to_sender': None,
         'forwarded_from': None,
+        'emoji': message.emoji,
+        'emoji_file': message.emoji_file,
+        'emoji_url': f"/static/stickers/animatedemojies/{message.emoji_file}" if message.emoji_file else None,
+        'emoji_size': message.emoji_size or 96,
+        'emoji_count': message.emoji_count or 1,
         'reactions': {}
     }
 

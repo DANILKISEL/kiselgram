@@ -5,7 +5,7 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify
 from app import db
 from app.models import User, Chat, ChatMember, GroupPermission, Message, File, Reply
-from app.utils.helpers import get_current_user_id
+from app.utils.helpers import get_current_user_id, validate_emoji
 
 spav2_groups_bp = Blueprint('spav2_groups', __name__, url_prefix='/api')
 
@@ -172,6 +172,11 @@ def get_group_messages(group_id):
             'reply_to_id': None,
             'file_path': msg.file_path,
             'file_type': msg.file_type,
+            'emoji': msg.emoji,
+            'emoji_file': msg.emoji_file,
+            'emoji_url': f"/static/stickers/animatedemojies/{msg.emoji_file}" if msg.emoji_file else None,
+            'emoji_size': msg.emoji_size or 96,
+            'emoji_count': msg.emoji_count or 1,
             'timestamp': msg.timestamp.isoformat() if msg.timestamp else None,
             'edited_at': msg.edited_at.isoformat() if msg.edited_at else None,
             'reactions': reacs
@@ -240,11 +245,25 @@ def send_group_message():
     if not group_id:
         return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'group_id is required'}}), 400
 
+    emoji_data = None
+    if data.get('emoji_file'):
+        emoji_data, emoji_err = validate_emoji(
+            data.get('emoji_file'), data.get('emoji', ''), data.get('size', 96), data.get('count', 1))
+        if emoji_err:
+            return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': emoji_err}}), 400
+    if not content and not emoji_data:
+        return jsonify({'success': False, 'error': {'code': 'VALIDATION_ERROR', 'message': 'content is required'}}), 400
+
     membership = ChatMember.query.filter_by(user_id=current_user_id, chat_id=group_id).first()
     if not membership:
         return jsonify({'success': False, 'error': {'code': 'NOT_MEMBER', 'message': 'You are not a member of this group'}}), 403
 
     msg = Message(sender_id=current_user_id, chat_id=group_id, receiver_id=current_user_id, content=content, timestamp=datetime.utcnow())
+    if emoji_data:
+        msg.emoji = emoji_data['emoji']
+        msg.emoji_file = emoji_data['file']
+        msg.emoji_size = emoji_data['size']
+        msg.emoji_count = emoji_data['count']
     db.session.add(msg)
     db.session.flush()
 
@@ -268,6 +287,11 @@ def send_group_message():
         'reply_to_id': reply_to_id,
         'file_path': None,
         'file_type': None,
+        'emoji': msg.emoji,
+        'emoji_file': msg.emoji_file,
+        'emoji_url': f"/static/stickers/animatedemojies/{msg.emoji_file}" if msg.emoji_file else None,
+        'emoji_size': msg.emoji_size or 96,
+        'emoji_count': msg.emoji_count or 1,
         'timestamp': msg.timestamp.isoformat() if msg.timestamp else None,
         'edited_at': None
     }}}), 201

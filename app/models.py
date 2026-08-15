@@ -279,6 +279,11 @@ class Message(db.Model):
     encrypted_content = db.Column(db.Text)
     encryption_key_id = db.Column(db.Integer)
 
+    emoji = db.Column(db.String(16), nullable=True)
+    emoji_file = db.Column(db.String(255), nullable=True)
+    emoji_size = db.Column(db.Integer, default=96)
+    emoji_count = db.Column(db.Integer, default=1)
+
     is_deleted = db.Column(db.Boolean, default=False)
     deleted_for_all = db.Column(db.Boolean, default=False)
 
