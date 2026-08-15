@@ -62,21 +62,20 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H "${{ vars.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
 
       - name: Sync repo to server
         run: |
           rsync -avz --delete -e "ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new" \
             --exclude '.git' --exclude 'uploads' --exclude 'instance' --exclude 'logs' \
             --exclude '.venv' --exclude 'config/kis.toml' \
-            ./ ${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}:/root/kiselgram/
+            ./ ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/root/kiselgram/
 
       - name: Pull image and restart
         run: |
           ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new \
-            ${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }} "
+            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} "
             cd /root/kiselgram &&
-            echo '${{ secrets.DEPLOY_GHCR_TOKEN }}' | docker login ghcr.io -u ${{ github.actor }} --password-stdin &&
             docker pull ghcr.io/${{ github.repository_owner }}/kiselgram-app:latest &&
             docker compose up -d --no-deps --build app video &&
             docker image prune -f >/dev/null
