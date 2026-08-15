@@ -102,6 +102,7 @@ jobs:
           fi
           echo "host=$HOST" >> "$GITHUB_OUTPUT"
           echo "user=$USER" >> "$GITHUB_OUTPUT"
+          echo "compose=${{ env.ENV == 'prod' && 'docker-compose.prod.yml' || 'docker-compose.yml' }}" >> "$GITHUB_OUTPUT"
 
       - name: Install SSH key
         run: |
@@ -124,6 +125,8 @@ jobs:
             set -e
             cd /root/kiselgram
             PULL_TAG=${{ needs.build.outputs.pull_tag }}
+            COMPOSE=${{ steps.target.outputs.compose }}
+            echo \"using compose file: \$COMPOSE\"
             PREV_APP=\$(docker inspect --format '{{index .Image}}' kiselgram-app-1 2>/dev/null || echo '')
             PREV_VIDEO=\$(docker inspect --format '{{index .Image}}' kiselgram-video-1 2>/dev/null || echo '')
             echo \"previous app image: \$PREV_APP\"
@@ -131,7 +134,7 @@ jobs:
             docker tag \$PULL_TAG kiselgram-app:latest
             # rebuild mailadmin from synced source (healthcheck fix, config changes)
             docker build -t kiselgram-mailadmin:latest ./mailadmin
-            docker compose up -d --no-deps --build app video mailadmin
+            docker compose -f \$COMPOSE up -d --no-deps --build app video mailadmin
             # wait for health, allow up to ~90s
             ok=0
             for i in \$(seq 1 18); do
@@ -145,7 +148,7 @@ jobs:
               echo \"HEALTHCHECK FAILED — rolling back\"
               if [ -n \"\$PREV_APP\" ]; then docker tag \"\$PREV_APP\" kiselgram-app:latest; fi
               if [ -n \"\$PREV_VIDEO\" ]; then docker tag \"\$PREV_VIDEO\" kiselgram-app:latest; fi
-              docker compose up -d --no-deps app video mailadmin
+              docker compose -f \$COMPOSE up -d --no-deps app video mailadmin
               exit 1
             fi
             echo \"app and video healthy\"
