@@ -88,11 +88,11 @@ jobs:
           files: kiselgram-app.tar.gz
 
   deploy:
-    name: Deploy to ${{ env.ENV }}
+    name: Deploy to ${{ inputs.environment || 'prod' }}
     needs: [build]
     if: github.event_name == 'workflow_dispatch' && inputs.deploy == true
     runs-on: ubuntu-latest
-    environment: ${{ env.ENV }}
+    environment: ${{ inputs.environment || 'prod' }}
     steps:
       - uses: actions/checkout@v4
 
